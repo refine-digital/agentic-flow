@@ -25,35 +25,35 @@ jobs:
         settings:
           - host: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
-            build: napi build --platform --release --target x86_64-unknown-linux-gnu
+            build: npx napi build --platform --release --target x86_64-unknown-linux-gnu
             platform: linux-x64-gnu
           - host: ubuntu-22.04
             target: aarch64-unknown-linux-gnu
-            build: napi build --platform --release --target aarch64-unknown-linux-gnu
+            build: npx napi build --platform --release --target aarch64-unknown-linux-gnu
             platform: linux-arm64-gnu
           - host: ubuntu-22.04
             target: x86_64-unknown-linux-musl
-            build: napi build --platform --release --target x86_64-unknown-linux-musl
+            build: npx napi build --platform --release --target x86_64-unknown-linux-musl
             platform: linux-x64-musl
           - host: ubuntu-22.04
             target: aarch64-unknown-linux-musl
-            build: napi build --platform --release --target aarch64-unknown-linux-musl
+            build: npx napi build --platform --release --target aarch64-unknown-linux-musl
             platform: linux-arm64-musl
           - host: ubuntu-22.04
             target: armv7-unknown-linux-gnueabihf
-            build: napi build --platform --release --target armv7-unknown-linux-gnueabihf
+            build: npx napi build --platform --release --target armv7-unknown-linux-gnueabihf
             platform: linux-arm-gnueabihf
           - host: macos-13
             target: x86_64-apple-darwin
-            build: napi build --platform --release --target x86_64-apple-darwin
+            build: npx napi build --platform --release --target x86_64-apple-darwin
             platform: darwin-x64
           - host: macos-14
             target: aarch64-apple-darwin
-            build: napi build --platform --release --target aarch64-apple-darwin
+            build: npx napi build --platform --release --target aarch64-apple-darwin
             platform: darwin-arm64
           - host: windows-2022
             target: x86_64-pc-windows-msvc
-            build: napi build --platform --release --target x86_64-pc-windows-msvc
+            build: npx napi build --platform --release --target x86_64-pc-windows-msvc
             platform: win32-x64-msvc
 
     name: Build ${{ matrix.settings.platform }}
