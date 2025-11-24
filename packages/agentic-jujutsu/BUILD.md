@@ -232,9 +232,39 @@ This is why optionalDependencies are needed in `package.json`.
 The workflow requires the following GitHub secret:
 - `NPM_TOKEN` - npm access token with publish permissions
 
+**CRITICAL**: The automated workflow will fail without this secret configured. All platform builds will succeed, but the publish job will fail with `ENEEDAUTH` errors.
+
 To set up:
 1. Generate token at https://www.npmjs.com/settings/YOUR_USERNAME/tokens
-2. Add as secret at https://github.com/ruvnet/agentic-flow/settings/secrets/actions
+   - Token type: "Automation" (for CI/CD)
+   - Permissions: "Read and write" (for publishing)
+2. Add as repository secret at https://github.com/ruvnet/agentic-flow/settings/secrets/actions
+   - Name: `NPM_TOKEN`
+   - Value: Your npm automation token
+3. Verify in workflow runs that `NODE_AUTH_TOKEN` is set (masked in logs)
+
+### Manual Publishing (if NPM_TOKEN not configured)
+
+If the GitHub secret is not configured, you can publish manually after builds complete:
+
+```bash
+# Wait for all 8 platform builds to complete
+gh run watch <run-id>
+
+# Download artifacts
+gh run download <run-id> -D /tmp/artifacts
+
+# Build local binary
+cd packages/agentic-jujutsu
+npm install
+npm run build
+
+# Publish (requires npm login)
+npm whoami  # Verify authentication
+npm publish --access public
+```
+
+The main package includes the linux-x64-gnu binary by default, so it will work on Linux platforms immediately after manual publishing.
 
 ## Performance Notes
 
