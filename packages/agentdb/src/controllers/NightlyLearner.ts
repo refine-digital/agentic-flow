@@ -185,12 +185,15 @@ export class NightlyLearner {
       LIMIT 1000
     `).all() as any[];
 
+    // Better-sqlite3 best practice: Prepare statements OUTSIDE loops for better performance
+    const checkExistingStmt = this.db.prepare(`
+      SELECT id FROM causal_edges
+      WHERE from_memory_id = ? AND to_memory_id = ?
+    `);
+
     for (const pair of candidatePairs) {
       // Check if edge already exists
-      const existing = this.db.prepare(`
-        SELECT id FROM causal_edges
-        WHERE from_memory_id = ? AND to_memory_id = ?
-      `).get(pair.from_id, pair.to_id);
+      const existing = checkExistingStmt.get(pair.from_id, pair.to_id);
 
       if (existing) continue;
 
@@ -309,6 +312,7 @@ export class NightlyLearner {
    * Complete running A/B experiments and calculate uplift
    */
   private async completeExperiments(): Promise<number> {
+    // Better-sqlite3 best practice: Prepare statements OUTSIDE loops for better performance
     const runningExperiments = this.db.prepare(`
       SELECT id, start_time, sample_size
       FROM causal_experiments

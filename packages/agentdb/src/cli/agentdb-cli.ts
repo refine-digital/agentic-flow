@@ -20,6 +20,10 @@ import { EmbeddingService } from '../controllers/EmbeddingService.js';
 import { MMRDiversityRanker } from '../controllers/MMRDiversityRanker.js';
 import { ContextSynthesizer } from '../controllers/ContextSynthesizer.js';
 import { MetadataFilter } from '../controllers/MetadataFilter.js';
+import { initCommand } from './commands/init.js';
+import { statusCommand } from './commands/status.js';
+import { installEmbeddingsCommand } from './commands/install-embeddings.js';
+import { migrateCommand } from './commands/migrate.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as zlib from 'zlib';
@@ -118,14 +122,23 @@ class AgentDBCLI {
     // Initialize controllers
     this.causalGraph = new CausalMemoryGraph(this.db);
     this.explainableRecall = new ExplainableRecall(this.db);
-    this.causalRecall = new CausalRecall(this.db, this.embedder, {
+    this.causalRecall = new CausalRecall(this.db, this.embedder, undefined, {
       alpha: 0.7,
       beta: 0.2,
       gamma: 0.1,
       minConfidence: 0.6
     });
     this.nightlyLearner = new NightlyLearner(this.db, this.embedder);
-    this.reflexion = new ReflexionMemory(this.db, this.embedder);
+
+    // ReflexionMemory and SkillLibrary support optional GNN/Graph backends
+    // These will be undefined if @ruvector/gnn or @ruvector/graph-node are not installed
+    this.reflexion = new ReflexionMemory(
+      this.db,
+      this.embedder,
+      undefined,  // vectorBackend - would be created with detectBackends()
+      undefined,  // learningBackend - requires @ruvector/gnn
+      undefined   // graphBackend - requires @ruvector/graph-node
+    );
     this.skills = new SkillLibrary(this.db, this.embedder);
   }
 
@@ -1001,7 +1014,7 @@ async function main() {
       const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
       console.log(`agentdb v${packageJson.version}`);
     } catch {
-      console.log('agentdb v1.4.5');
+      console.log('agentdb v2.0.0-alpha.1');
     }
     process.exit(0);
   }
@@ -1020,9 +1033,82 @@ async function main() {
     return;
   }
 
-  // Handle init command
+  // Handle init command with new v2 implementation
   if (command === 'init') {
-    await handleInitCommand(args.slice(1));
+    const options: any = { dbPath: './agentdb.db', dimension: 384 };
+    for (let i = 1; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === '--backend' && i + 1 < args.length) {
+        options.backend = args[++i];
+      } else if (arg === '--dimension' && i + 1 < args.length) {
+        options.dimension = parseInt(args[++i]);
+      } else if (arg === '--dry-run') {
+        options.dryRun = true;
+      } else if (arg === '--db' && i + 1 < args.length) {
+        options.dbPath = args[++i];
+      } else if (!arg.startsWith('--')) {
+        options.dbPath = arg;
+      }
+    }
+    await initCommand(options);
+    return;
+  }
+
+  // Handle status command
+  if (command === 'status') {
+    const options: any = { dbPath: './agentdb.db', verbose: false };
+    for (let i = 1; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === '--db' && i + 1 < args.length) {
+        options.dbPath = args[++i];
+      } else if (arg === '--verbose' || arg === '-v') {
+        options.verbose = true;
+      } else if (!arg.startsWith('--')) {
+        options.dbPath = arg;
+      }
+    }
+    await statusCommand(options);
+    return;
+  }
+
+  // Handle install-embeddings command
+  if (command === 'install-embeddings') {
+    const options: any = { global: false };
+    for (let i = 1; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === '--global' || arg === '-g') {
+        options.global = true;
+      }
+    }
+    await installEmbeddingsCommand(options);
+    return;
+  }
+
+  // Handle migrate command
+  if (command === 'migrate') {
+    const options: any = { optimize: true, dryRun: false, verbose: false };
+    for (let i = 1; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === '--source' && i + 1 < args.length) {
+        options.sourceDb = args[++i];
+      } else if (arg === '--target' && i + 1 < args.length) {
+        options.targetDb = args[++i];
+      } else if (arg === '--no-optimize') {
+        options.optimize = false;
+      } else if (arg === '--dry-run') {
+        options.dryRun = true;
+      } else if (arg === '--verbose' || arg === '-v') {
+        options.verbose = true;
+      } else if (!arg.startsWith('--') && !options.sourceDb) {
+        options.sourceDb = arg;
+      }
+    }
+    if (!options.sourceDb) {
+      log.error('Source database path required');
+      console.log('Usage: agentdb migrate <source-db> [--target <target-db>] [--no-optimize] [--dry-run] [--verbose]');
+      process.exit(1);
+    }
+    await migrateCommand(options);
     return;
   }
 
@@ -2194,7 +2280,18 @@ function printHelp() {
 ${colors.bright}${colors.cyan}█▀█ █▀▀ █▀▀ █▄░█ ▀█▀ █▀▄ █▄▄
 █▀█ █▄█ ██▄ █░▀█ ░█░ █▄▀ █▄█${colors.reset}
 
-${colors.bright}${colors.cyan}AgentDB CLI - Frontier Memory Features${colors.reset}
+${colors.bright}${colors.cyan}AgentDB v2 CLI - Vector Intelligence with Auto Backend Detection${colors.reset}
+
+${colors.bright}CORE COMMANDS:${colors.reset}
+  ${colors.cyan}init${colors.reset} [options]              Initialize database with backend detection
+    --backend <type>           Backend: auto (default), ruvector, hnswlib
+    --dimension <n>            Vector dimension (default: 384)
+    --dry-run                  Show detection info without initializing
+    --db <path>                Database path (default: ./agentdb.db)
+
+  ${colors.cyan}status${colors.reset} [options]            Show database and backend status
+    --db <path>                Database path (default: ./agentdb.db)
+    --verbose, -v              Show detailed statistics
 
 ${colors.bright}USAGE:${colors.reset}
   agentdb <command> <subcommand> [options]
@@ -2206,6 +2303,22 @@ ${colors.bright}SETUP COMMANDS:${colors.reset}
       --dimension <n>     Vector dimension (default: 1536 for OpenAI, 768 for sentence-transformers)
       --preset <size>     small (<10K), medium (10K-100K), large (>100K vectors)
       --in-memory         Use temporary in-memory database (:memory:)
+
+  agentdb install-embeddings [--global]
+    Install optional embedding dependencies (@xenova/transformers)
+    By default uses mock embeddings - run this for real ML-powered embeddings
+    Options:
+      --global, -g        Install globally instead of locally
+    Note: Requires build tools (python3, make, g++)
+
+  agentdb migrate <source-db> [--target <target-db>] [--no-optimize] [--dry-run] [-v]
+    Migrate legacy AgentDB v1 or claude-flow memory databases to v2 format
+    Automatically detects source type and optimizes for RuVector GNN
+    Options:
+      --target <path>     Target database path (default: source-v2.db)
+      --no-optimize       Skip GNN optimization analysis
+      --dry-run           Analyze migration without making changes
+      --verbose, -v       Show detailed migration progress
 
 ${colors.bright}VECTOR SEARCH COMMANDS:${colors.reset}
   agentdb vector-search <db-path> <vector> [-k 10] [-t 0.75] [-m cosine] [-f json] [-v] [--mmr [lambda]]

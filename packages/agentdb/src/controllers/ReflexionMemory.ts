@@ -11,6 +11,9 @@
 // Database type from db-fallback
 type Database = any;
 import { EmbeddingService } from './EmbeddingService.js';
+import type { VectorBackend } from '../backends/VectorBackend.js';
+import type { LearningBackend } from '../backends/LearningBackend.js';
+import type { GraphBackend, GraphNode } from '../backends/GraphBackend.js';
 
 export interface Episode {
   id?: number;
@@ -46,10 +49,22 @@ export interface ReflexionQuery {
 export class ReflexionMemory {
   private db: Database;
   private embedder: EmbeddingService;
+  private vectorBackend?: VectorBackend;
+  private learningBackend?: LearningBackend;
+  private graphBackend?: GraphBackend;
 
-  constructor(db: Database, embedder: EmbeddingService) {
+  constructor(
+    db: Database,
+    embedder: EmbeddingService,
+    vectorBackend?: VectorBackend,
+    learningBackend?: LearningBackend,
+    graphBackend?: GraphBackend
+  ) {
     this.db = db;
     this.embedder = embedder;
+    this.vectorBackend = vectorBackend;
+    this.learningBackend = learningBackend;
+    this.graphBackend = graphBackend;
   }
 
   /**
@@ -86,7 +101,33 @@ export class ReflexionMemory {
     const text = this.buildEpisodeText(episode);
     const embedding = await this.embedder.embed(text);
 
+    // Use vector backend if available (150x faster retrieval)
+    if (this.vectorBackend) {
+      this.vectorBackend.insert(episodeId.toString(), embedding);
+    }
+
+    // Also store in SQL for fallback
     this.storeEmbedding(episodeId, embedding);
+
+    // Create graph node for episode if graph backend available
+    if (this.graphBackend) {
+      await this.createEpisodeGraphNode(episodeId, episode, embedding);
+    }
+
+    // Add training sample if learning backend available
+    if (this.learningBackend && episode.success !== undefined) {
+      this.learningBackend.addSample({
+        embedding,
+        label: episode.success ? 1 : 0,
+        weight: Math.abs(episode.reward),
+        context: {
+          task: episode.task,
+          sessionId: episode.sessionId,
+          latencyMs: episode.latencyMs,
+          tokensUsed: episode.tokensUsed
+        }
+      });
+    }
 
     return episodeId;
   }
@@ -107,9 +148,72 @@ export class ReflexionMemory {
 
     // Generate query embedding
     const queryText = currentState ? `${task}\n${currentState}` : task;
-    const queryEmbedding = await this.embedder.embed(queryText);
+    let queryEmbedding = await this.embedder.embed(queryText);
 
-    // Build SQL filters
+    // Enhance query with GNN if learning backend available
+    if (this.learningBackend) {
+      queryEmbedding = await this.enhanceQueryWithGNN(queryEmbedding, k);
+    }
+
+    // Use optimized vector backend if available (150x faster)
+    if (this.vectorBackend) {
+      // Get candidates from vector backend
+      const searchResults = this.vectorBackend.search(queryEmbedding, k * 3, {
+        threshold: 0.0
+      });
+
+      // Fetch full episode data from DB
+      const episodeIds = searchResults.map(r => parseInt(r.id));
+      if (episodeIds.length === 0) {
+        return [];
+      }
+
+      const placeholders = episodeIds.map(() => '?').join(',');
+      const stmt = this.db.prepare(`
+        SELECT * FROM episodes
+        WHERE id IN (${placeholders})
+      `);
+
+      const rows = stmt.all(...episodeIds) as any[];
+      const episodeMap = new Map(rows.map(r => [r.id.toString(), r]));
+
+      // Map results back with similarity scores and apply filters
+      const episodes: EpisodeWithEmbedding[] = [];
+
+      for (const result of searchResults) {
+        const row = episodeMap.get(result.id);
+        if (!row) continue;
+
+        // Apply additional filters
+        if (minReward !== undefined && row.reward < minReward) continue;
+        if (onlyFailures && row.success === 1) continue;
+        if (onlySuccesses && row.success === 0) continue;
+        if (timeWindowDays && row.ts < (Date.now() / 1000 - timeWindowDays * 86400)) continue;
+
+        episodes.push({
+          id: row.id,
+          ts: row.ts,
+          sessionId: row.session_id,
+          task: row.task,
+          input: row.input,
+          output: row.output,
+          critique: row.critique,
+          reward: row.reward,
+          success: row.success === 1,
+          latencyMs: row.latency_ms,
+          tokensUsed: row.tokens_used,
+          tags: row.tags ? JSON.parse(row.tags) : undefined,
+          metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
+          similarity: result.similarity
+        });
+
+        if (episodes.length >= k) break;
+      }
+
+      return episodes;
+    }
+
+    // Fallback to SQL-based similarity search
     const filters: string[] = [];
     const params: any[] = [];
 
@@ -133,7 +237,6 @@ export class ReflexionMemory {
 
     const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
 
-    // Retrieve all candidates
     const stmt = this.db.prepare(`
       SELECT
         e.*,
@@ -146,7 +249,7 @@ export class ReflexionMemory {
 
     const rows = stmt.all(...params) as any[];
 
-    // Calculate similarities
+    // Calculate similarities manually
     const episodes: EpisodeWithEmbedding[] = rows.map(row => {
       const embedding = this.deserializeEmbedding(row.embedding);
       const similarity = this.cosineSimilarity(queryEmbedding, embedding);
@@ -276,6 +379,36 @@ export class ReflexionMemory {
   }
 
   /**
+   * Get recent episodes for a session
+   */
+  async getRecentEpisodes(sessionId: string, limit: number = 10): Promise<Episode[]> {
+    const stmt = this.db.prepare(`
+      SELECT * FROM episodes
+      WHERE session_id = ?
+      ORDER BY ts DESC
+      LIMIT ?
+    `);
+
+    const rows = stmt.all(sessionId, limit) as any[];
+
+    return rows.map(row => ({
+      id: row.id,
+      ts: row.ts,
+      sessionId: row.session_id,
+      task: row.task,
+      input: row.input,
+      output: row.output,
+      critique: row.critique,
+      reward: row.reward,
+      success: row.success === 1,
+      latencyMs: row.latency_ms,
+      tokensUsed: row.tokens_used,
+      tags: row.tags ? JSON.parse(row.tags) : undefined,
+      metadata: row.metadata ? JSON.parse(row.metadata) : undefined
+    }));
+  }
+
+  /**
    * Prune low-quality episodes based on TTL and quality threshold
    */
   pruneEpisodes(config: {
@@ -350,5 +483,241 @@ export class ReflexionMemory {
     }
 
     return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+  }
+
+  // ========================================================================
+  // GNN and Graph Integration Methods
+  // ========================================================================
+
+  /**
+   * Create graph node for episode with relationships
+   */
+  private async createEpisodeGraphNode(
+    episodeId: number,
+    episode: Episode,
+    embedding: Float32Array
+  ): Promise<void> {
+    if (!this.graphBackend) return;
+
+    // Create episode node
+    const nodeId = await this.graphBackend.createNode(
+      ['Episode', episode.success ? 'Success' : 'Failure'],
+      {
+        episodeId,
+        sessionId: episode.sessionId,
+        task: episode.task,
+        reward: episode.reward,
+        success: episode.success,
+        timestamp: episode.ts || Date.now(),
+        latencyMs: episode.latencyMs,
+        tokensUsed: episode.tokensUsed
+      }
+    );
+
+    // Find similar episodes using graph vector search
+    const similarEpisodes = await this.graphBackend.vectorSearch(embedding, 5, nodeId);
+
+    // Create similarity relationships to similar episodes
+    for (const similar of similarEpisodes) {
+      if (similar.id !== nodeId && similar.properties.episodeId !== episodeId) {
+        await this.graphBackend.createRelationship(
+          nodeId,
+          similar.id,
+          'SIMILAR_TO',
+          {
+            similarity: this.cosineSimilarity(
+              embedding,
+              similar.embedding || new Float32Array()
+            ),
+            createdAt: Date.now()
+          }
+        );
+      }
+    }
+
+    // Create session relationship
+    const sessionNodes = await this.graphBackend.execute(
+      'MATCH (s:Session {sessionId: $sessionId}) RETURN s',
+      { sessionId: episode.sessionId }
+    );
+
+    let sessionNodeId: string;
+    if (sessionNodes.rows.length === 0) {
+      // Create session node if doesn't exist
+      sessionNodeId = await this.graphBackend.createNode(
+        ['Session'],
+        {
+          sessionId: episode.sessionId,
+          startTime: episode.ts || Date.now()
+        }
+      );
+    } else {
+      sessionNodeId = sessionNodes.rows[0].s.id;
+    }
+
+    await this.graphBackend.createRelationship(
+      nodeId,
+      sessionNodeId,
+      'BELONGS_TO_SESSION',
+      { timestamp: episode.ts || Date.now() }
+    );
+
+    // If episode has critique, create causal relationship to previous failures
+    if (episode.critique && !episode.success) {
+      const previousFailures = await this.graphBackend.execute(
+        `MATCH (e:Episode:Failure {sessionId: $sessionId})
+         WHERE e.timestamp < $timestamp
+         RETURN e
+         ORDER BY e.timestamp DESC
+         LIMIT 3`,
+        { sessionId: episode.sessionId, timestamp: episode.ts || Date.now() }
+      );
+
+      for (const prevFailure of previousFailures.rows) {
+        await this.graphBackend.createRelationship(
+          nodeId,
+          prevFailure.e.id,
+          'LEARNED_FROM',
+          {
+            critique: episode.critique,
+            improvementAttempt: true
+          }
+        );
+      }
+    }
+  }
+
+  /**
+   * Enhance query embedding using GNN attention mechanism
+   */
+  private async enhanceQueryWithGNN(
+    queryEmbedding: Float32Array,
+    k: number
+  ): Promise<Float32Array> {
+    if (!this.learningBackend || !this.vectorBackend) {
+      return queryEmbedding;
+    }
+
+    try {
+      // Get initial neighbors
+      const initialResults = this.vectorBackend.search(queryEmbedding, k * 2, {
+        threshold: 0.0
+      });
+
+      if (initialResults.length === 0) {
+        return queryEmbedding;
+      }
+
+      // Fetch neighbor embeddings
+      const neighborEmbeddings: Float32Array[] = [];
+      const weights: number[] = [];
+
+      const episodeIds = initialResults.map(r => r.id);
+      const placeholders = episodeIds.map(() => '?').join(',');
+      const episodes = this.db.prepare(`
+        SELECT ee.embedding, e.reward
+        FROM episode_embeddings ee
+        JOIN episodes e ON e.id = ee.episode_id
+        WHERE ee.episode_id IN (${placeholders})
+      `).all(...episodeIds) as any[];
+
+      for (const ep of episodes) {
+        const embedding = this.deserializeEmbedding(ep.embedding);
+        neighborEmbeddings.push(embedding);
+        // Use reward as weight (higher reward = more important)
+        weights.push(Math.max(0.1, ep.reward));
+      }
+
+      // Enhance query using GNN
+      const enhanced = this.learningBackend.enhance(
+        queryEmbedding,
+        neighborEmbeddings,
+        weights
+      );
+
+      return enhanced;
+    } catch (error) {
+      console.warn('[ReflexionMemory] GNN enhancement failed:', error);
+      return queryEmbedding;
+    }
+  }
+
+  /**
+   * Get graph-based episode relationships
+   */
+  async getEpisodeRelationships(episodeId: number): Promise<{
+    similar: number[];
+    session: string;
+    learnedFrom: number[];
+  }> {
+    if (!this.graphBackend) {
+      return { similar: [], session: '', learnedFrom: [] };
+    }
+
+    const result = await this.graphBackend.execute(
+      `MATCH (e:Episode {episodeId: $episodeId})
+       OPTIONAL MATCH (e)-[:SIMILAR_TO]->(similar:Episode)
+       OPTIONAL MATCH (e)-[:BELONGS_TO_SESSION]->(s:Session)
+       OPTIONAL MATCH (e)-[:LEARNED_FROM]->(learned:Episode)
+       RETURN e, collect(DISTINCT similar.episodeId) as similar,
+              s.sessionId as session,
+              collect(DISTINCT learned.episodeId) as learnedFrom`,
+      { episodeId }
+    );
+
+    if (result.rows.length === 0) {
+      return { similar: [], session: '', learnedFrom: [] };
+    }
+
+    const row = result.rows[0];
+    return {
+      similar: (row.similar || []).filter((id: any) => id != null),
+      session: row.session || '',
+      learnedFrom: (row.learnedFrom || []).filter((id: any) => id != null)
+    };
+  }
+
+  /**
+   * Train GNN model on accumulated samples
+   */
+  async trainGNN(options?: { epochs?: number }): Promise<void> {
+    if (!this.learningBackend) {
+      console.warn('[ReflexionMemory] No learning backend available for training');
+      return;
+    }
+
+    const stats = this.learningBackend.getStats();
+    if (stats.samplesCollected < 10) {
+      console.warn('[ReflexionMemory] Not enough samples for training (need at least 10)');
+      return;
+    }
+
+    const result = await this.learningBackend.train(options);
+    console.log('[ReflexionMemory] GNN training complete:', {
+      epochs: result.epochs,
+      finalLoss: result.finalLoss.toFixed(4),
+      improvement: `${(result.improvement * 100).toFixed(1)}%`,
+      duration: `${result.duration}ms`
+    });
+  }
+
+  /**
+   * Get learning backend statistics
+   */
+  getLearningStats() {
+    if (!this.learningBackend) {
+      return null;
+    }
+    return this.learningBackend.getStats();
+  }
+
+  /**
+   * Get graph backend statistics
+   */
+  getGraphStats() {
+    if (!this.graphBackend) {
+      return null;
+    }
+    return this.graphBackend.getStats();
   }
 }
