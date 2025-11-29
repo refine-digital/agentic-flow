@@ -79,6 +79,8 @@ export class UnifiedDatabase {
             console.log('🔄 Auto-migration enabled, will migrate to GraphDatabase...');
             await this.migrateSQLiteToGraph(dbPath, embedder);
             this.mode = 'graph';
+            // Migration already initialized graphDb, skip initializeMode
+            return;
           } else {
             console.log('ℹ️  Running in legacy SQLite mode');
             console.log('💡 To migrate to RuVector Graph: set autoMigrate: true');
@@ -161,9 +163,9 @@ export class UnifiedDatabase {
 
     const startTime = Date.now();
 
-    // Load SQLite database
-    const sqliteImpl = await getDatabaseImplementation();
-    const sqliteDb = await require('./db-fallback.js').createDatabase(sqlitePath);
+    // Load SQLite database using ESM import
+    const { createDatabase } = await import('./db-fallback.js');
+    const sqliteDb = await createDatabase(sqlitePath);
 
     // Create new GraphDatabase
     const graphPath = sqlitePath.replace(/\.db$/, '.graph');
@@ -183,7 +185,7 @@ export class UnifiedDatabase {
     for (const ep of episodes) {
       // Generate embedding for episode
       const text = `${ep.task} ${ep.input || ''} ${ep.output || ''}`;
-      const embedding = await embedder.generateEmbedding(text);
+      const embedding = await embedder.embed(text);
 
       await graphDb.storeEpisode({
         id: `ep-${ep.id}`,
@@ -207,7 +209,7 @@ export class UnifiedDatabase {
 
     for (const skill of skills) {
       const text = `${skill.name} ${skill.description} ${skill.code}`;
-      const embedding = await embedder.generateEmbedding(text);
+      const embedding = await embedder.embed(text);
 
       await graphDb.storeSkill({
         id: `skill-${skill.id}`,
@@ -229,7 +231,7 @@ export class UnifiedDatabase {
 
     for (const edge of edges) {
       const text = edge.mechanism;
-      const embedding = await embedder.generateEmbedding(text);
+      const embedding = await embedder.embed(text);
 
       await graphDb.createCausalEdge({
         from: `ep-${edge.from_memory_id}`,
