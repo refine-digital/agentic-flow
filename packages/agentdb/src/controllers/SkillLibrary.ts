@@ -17,15 +17,15 @@ export interface Skill {
   id?: number;
   name: string;
   description?: string;
-  signature: {
+  signature?: {  // v1 API: optional
     inputs: Record<string, any>;
     outputs: Record<string, any>;
   };
   code?: string;
   successRate: number;
-  uses: number;
-  avgReward: number;
-  avgLatencyMs: number;
+  uses?: number;  // v1 API: optional (defaults to 0)
+  avgReward?: number;  // v1 API: optional (defaults to 0)
+  avgLatencyMs?: number;  // v1 API: optional (defaults to 0)
   createdFromEpisode?: number;
   metadata?: Record<string, any>;
 }
@@ -39,7 +39,10 @@ export interface SkillLink {
 }
 
 export interface SkillQuery {
-  task: string;
+  /** v2 API: task description */
+  task?: string;
+  /** v1 API: query string (alias for task) */
+  query?: string;
   k?: number;
   minSuccessRate?: number;
   preferRecent?: boolean;
@@ -67,15 +70,21 @@ export class SkillLibrary {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
+    // v1 API compatibility: provide defaults for optional fields
+    const signature = skill.signature || { inputs: {}, outputs: {} };
+    const uses = skill.uses ?? 0;
+    const avgReward = skill.avgReward ?? 0;
+    const avgLatencyMs = skill.avgLatencyMs ?? 0;
+
     const result = stmt.run(
       skill.name,
       skill.description || null,
-      JSON.stringify(skill.signature),
+      JSON.stringify(signature),
       skill.code || null,
       skill.successRate,
-      skill.uses,
-      skill.avgReward,
-      skill.avgLatencyMs,
+      uses,
+      avgReward,
+      avgLatencyMs,
       skill.metadata ? JSON.stringify(skill.metadata) : null
     );
 
@@ -130,7 +139,13 @@ export class SkillLibrary {
   }
 
   async retrieveSkills(query: SkillQuery): Promise<Skill[]> {
-    const { task, k = 5, minSuccessRate = 0.5, preferRecent = true } = query;
+    // v1 API compatibility: accept both 'query' and 'task'
+    const task = query.task || query.query;
+    if (!task) {
+      throw new Error('SkillQuery must provide either task (v2) or query (v1)');
+    }
+
+    const { k = 5, minSuccessRate = 0.5, preferRecent = true } = query;
 
     // Generate query embedding
     const queryEmbedding = await this.embedder.embed(task);
@@ -191,7 +206,13 @@ export class SkillLibrary {
    * Legacy SQL-based skill retrieval (fallback when VectorBackend not available)
    */
   private async retrieveSkillsLegacy(query: SkillQuery): Promise<Skill[]> {
-    const { task, k = 5, minSuccessRate = 0.5 } = query;
+    // v1 API compatibility: accept both 'query' and 'task'
+    const task = query.task || query.query;
+    if (!task) {
+      throw new Error('SkillQuery must provide either task (v2) or query (v1)');
+    }
+
+    const { k = 5, minSuccessRate = 0.5 } = query;
     const queryEmbedding = await this.embedder.embed(task);
 
     // Fetch all skills with embeddings
@@ -702,11 +723,14 @@ export class SkillLibrary {
    */
   private computeSkillScore(skill: Skill & { similarity: number }): number {
     // Composite score: similarity * 0.4 + success_rate * 0.3 + (uses/1000) * 0.1 + avg_reward * 0.2
+    const uses = skill.uses ?? 0;
+    const avgReward = skill.avgReward ?? 0;
+
     return (
       skill.similarity * 0.4 +
       skill.successRate * 0.3 +
-      Math.min(skill.uses / 1000, 1.0) * 0.1 +
-      skill.avgReward * 0.2
+      Math.min(uses / 1000, 1.0) * 0.1 +
+      avgReward * 0.2
     );
   }
 }

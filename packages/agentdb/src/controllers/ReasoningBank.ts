@@ -38,7 +38,10 @@ export interface ReasoningPattern {
 }
 
 export interface PatternSearchQuery {
-  taskEmbedding: Float32Array;
+  /** v1 API: Task string (will be embedded automatically) */
+  task?: string;
+  /** v2 API: Pre-computed embedding */
+  taskEmbedding?: Float32Array;
   k?: number;
   threshold?: number;
   /** Enable GNN-based query enhancement (requires LearningBackend) */
@@ -229,19 +232,35 @@ export class ReasoningBank {
     const k = query.k || 10;
     const threshold = query.threshold || 0.0;
 
+    // Generate embedding if task string provided (v1 API compatibility)
+    let queryEmbedding: Float32Array;
+    if (query.task && !query.taskEmbedding) {
+      queryEmbedding = await this.embedder.embed(query.task);
+    } else if (query.taskEmbedding) {
+      queryEmbedding = query.taskEmbedding;
+    } else {
+      throw new Error('PatternSearchQuery must provide either task (v1) or taskEmbedding (v2)');
+    }
+
+    // Create enriched query with embedding (ensure taskEmbedding is always defined)
+    const enrichedQuery: PatternSearchQuery & { taskEmbedding: Float32Array } = {
+      ...query,
+      taskEmbedding: queryEmbedding
+    };
+
     // Use VectorBackend if available (v2 mode)
     if (this.vectorBackend) {
-      return this.searchPatternsV2(query);
+      return this.searchPatternsV2(enrichedQuery);
     }
 
     // Legacy v1 search (100% backward compatible)
-    return this.searchPatternsLegacy(query);
+    return this.searchPatternsLegacy(enrichedQuery);
   }
 
   /**
    * v2: Search using VectorBackend with optional GNN enhancement
    */
-  private async searchPatternsV2(query: PatternSearchQuery): Promise<ReasoningPattern[]> {
+  private async searchPatternsV2(query: PatternSearchQuery & { taskEmbedding: Float32Array }): Promise<ReasoningPattern[]> {
     const k = query.k || 10;
     const threshold = query.threshold || 0.0;
     let queryEmbedding = query.taskEmbedding;
@@ -273,7 +292,7 @@ export class ReasoningBank {
   /**
    * v1: Legacy search using SQLite (backward compatible)
    */
-  private async searchPatternsLegacy(query: PatternSearchQuery): Promise<ReasoningPattern[]> {
+  private async searchPatternsLegacy(query: PatternSearchQuery & { taskEmbedding: Float32Array }): Promise<ReasoningPattern[]> {
     const k = query.k || 10;
     const threshold = query.threshold || 0.0;
 
