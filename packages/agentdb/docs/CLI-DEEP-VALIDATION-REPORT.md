@@ -48,9 +48,11 @@ Comprehensive deep validation of all AgentDB CLI commands with actual execution.
 - ✅ `causal query` - Query causal edges with filters
 
 **Known Issues**:
-- `add-observation` fails with JSON parsing error when passing boolean `true`
+- `add-observation` fails with FOREIGN KEY constraint error
 - `calculate` fails because `add-observation` didn't succeed
-- These are minor CLI argument parsing issues, not core functionality problems
+- Root cause: causal_experiments table requires episode foreign keys that don't exist yet
+- Impact: Low (affects experiment workflow, other causal features work)
+- Workaround: Use `causal add-edge` directly instead of experiment workflow
 
 ### 5. Learner Commands (2/2 PASSED)
 - ✅ `learner run` - Discover causal edges from patterns
@@ -163,9 +165,9 @@ npx agentdb causal experiment calculate 1
 ❌ Error: Experiment 1 not found (dependent on previous command)
 ```
 
-**Root Cause**: The `add-observation` command has an issue parsing the boolean `true` argument. This is a minor CLI argument parser bug, not a core functionality issue.
+**Root Cause**: The `add-observation` command fails due to FOREIGN KEY constraint in causal_experiments table. The schema requires treatment_id/control_id to reference existing episodes, but experiment creation doesn't automatically create these episodes.
 
-**Workaround**: Pass boolean as string or use different syntax.
+**Workaround**: Use `agentdb causal add-edge <cause> <effect> <uplift> <confidence> <sample-size>` to add causal relationships directly without the experiment workflow.
 
 ### Skipped Commands (5)
 

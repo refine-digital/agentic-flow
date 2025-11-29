@@ -188,10 +188,17 @@ class AgentDBCLI {
     log.info(`Cause: ${params.cause}`);
     log.info(`Effect: ${params.effect}`);
 
+    // Create a dummy episode for treatment reference
+    const dummyEpisode = this.db!.prepare(
+      'INSERT INTO episodes (session_id, task, reward, success, created_at) VALUES (?, ?, ?, ?, ?)'
+    ).run('experiment-placeholder', params.name, 0.0, 0, Math.floor(Date.now() / 1000));
+
+    const treatmentId = Number(dummyEpisode.lastInsertRowid);
+
     const expId = this.causalGraph.createExperiment({
       name: params.name,
       hypothesis: `Does ${params.cause} causally affect ${params.effect}?`,
-      treatmentId: 0,
+      treatmentId: treatmentId,
       treatmentType: params.cause,
       controlId: undefined,
       startTime: Math.floor(Date.now() / 1000),
@@ -225,7 +232,7 @@ class AgentDBCLI {
       isTreatment: params.isTreatment,
       outcomeValue: params.outcome,
       outcomeType: 'reward',
-      context: params.context ? JSON.parse(params.context) : undefined
+      context: params.context && params.context.trim() ? JSON.parse(params.context) : undefined
     });
 
     // Save database to persist changes
