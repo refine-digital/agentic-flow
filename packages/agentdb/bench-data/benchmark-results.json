@@ -1,0 +1,26 @@
+{
+  "Graph Node Create (single)": {
+    "iterations": 100,
+    "totalDurationMs": "82.97",
+    "avgDurationMs": "0.8297",
+    "opsPerSec": 1205
+  },
+  "Graph Node Create (batch 100)": {
+    "iterations": 10,
+    "totalDurationMs": "4.81",
+    "avgDurationMs": "0.4814",
+    "opsPerSec": 2077
+  },
+  "Cypher Query (MATCH simple)": {
+    "iterations": 100,
+    "totalDurationMs": "36.14",
+    "avgDurationMs": "0.3614",
+    "opsPerSec": 2766
+  },
+  "Cypher Query (MATCH with WHERE)": {
+    "iterations": 100,
+    "totalDurationMs": "39.98",
+    "avgDurationMs": "0.3998",
+    "opsPerSec": 2501
+  }
+}
