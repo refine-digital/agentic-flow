@@ -11,6 +11,57 @@
 
 **AgentDB v2 delivers breakthrough performance with RuVector integration (150x faster), Graph Neural Networks for adaptive learning, and comprehensive MCP tool optimizations. Zero config, instant startup, runs everywhere.**
 
+
+## 🎯 Why AgentDB v2?
+
+### Built for the Agentic Era
+
+AgentDB v2 is the **only vector database** designed specifically for autonomous agents with:
+
+**🧠 Cognitive Architecture**
+- **6 Frontier Memory Patterns**: Reflexion, Skills, Causal Memory, Explainable Recall, Utility Ranking, Nightly Learner
+- **ReasoningBank**: Pattern learning, similarity detection, memory optimization
+- **GNN Enhancement**: Adaptive query improvement through graph neural networks
+- **Self-Learning**: Automatic skill extraction and iterative refinement
+
+**⚡ Performance Without Compromise**
+- **Instant Startup**: Milliseconds (optimized sql.js WASM)
+- **150x Faster Search**: RuVector Rust backend with SIMD
+- **Super-Linear Scaling**: Performance improves with data size
+- **Intelligent Caching**: 8.8x speedup for frequently accessed data
+
+**🔧 Zero-Config Production**
+- **Universal Runtime**: Node.js, Browser, Edge, MCP — runs anywhere
+- **Auto Backend Selection**: RuVector → HNSWLib → better-sqlite3 → sql.js
+- **Graceful Degradation**: Works with mock embeddings if ML models unavailable
+- **Docker-Ready**: 9-stage build with CI/CD validation
+
+**🤖 AI-Native Integration**
+- **29 MCP Tools**: Zero-code setup for Claude Code, Cursor, Copilot
+- **Parallel Execution**: 3x faster multi-tool workflows
+- **Batch Operations**: 3-4x throughput improvement
+- **Smart Caching**: 60% token reduction with format parameter
+
+### Comparison with Traditional Systems
+
+| Capability | AgentDB v2.0 | Pinecone/Weaviate | ChromaDB | Qdrant |
+|------------|--------------|-------------------|----------|--------|
+| **Search Speed** | 🚀 150x w/ RuVector | 🐢 Network latency | 🐢 Python overhead | ⚡ Fast (Rust) |
+| **Startup Time** | ⚡ Milliseconds | 🐌 Minutes (cloud) | 🐌 Seconds | ⚡ Seconds |
+| **Memory Model** | 🧠 6 frontier patterns + GNN | ❌ Vectors only | ❌ Vectors only | ❌ Vectors only |
+| **Causal Reasoning** | ✅ `p(y\|do(x))` | ❌ Correlation | ❌ Correlation | ❌ Correlation |
+| **Self-Learning** | ✅ ReasoningBank | ❌ External ML | ❌ External ML | ❌ External ML |
+| **Explainability** | ✅ Merkle proofs | ❌ Black box | ❌ Black box | ❌ Black box |
+| **Runtime** | 🌐 Anywhere | ☁️ Cloud only | 💻 Server | 💻 Server |
+| **Setup** | ⚙️ `npm install` | 🔧 Complex | 🔧 Python env | 🔧 Config |
+| **Cost** | 💰 $0 (local) | 💸 $70+/mo | 💰 Self-host | 💸 Self-host |
+| **Batch Ops** | ✅ 3-4x faster | ❌ Sequential | ❌ Sequential | ⚡ Good |
+| **MCP Integration** | ✅ 29 tools | ❌ None | ❌ None | ❌ None |
+| **RL Algorithms** | ✅ 9 built-in | ❌ External | ❌ External | ❌ External |
+
+---
+
+
 ## 🚀 What's New in v2.0
 
 ### ⚡ Performance Revolution
@@ -72,55 +123,6 @@ See [OPTIMIZATION-REPORT.md](OPTIMIZATION-REPORT.md) for comprehensive benchmark
 
 ---
 
-## 🎯 Why AgentDB v2?
-
-### Built for the Agentic Era
-
-AgentDB v2 is the **only vector database** designed specifically for autonomous agents with:
-
-**🧠 Cognitive Architecture**
-- **6 Frontier Memory Patterns**: Reflexion, Skills, Causal Memory, Explainable Recall, Utility Ranking, Nightly Learner
-- **ReasoningBank**: Pattern learning, similarity detection, memory optimization
-- **GNN Enhancement**: Adaptive query improvement through graph neural networks
-- **Self-Learning**: Automatic skill extraction and iterative refinement
-
-**⚡ Performance Without Compromise**
-- **Instant Startup**: Milliseconds (optimized sql.js WASM)
-- **150x Faster Search**: RuVector Rust backend with SIMD
-- **Super-Linear Scaling**: Performance improves with data size
-- **Intelligent Caching**: 8.8x speedup for frequently accessed data
-
-**🔧 Zero-Config Production**
-- **Universal Runtime**: Node.js, Browser, Edge, MCP — runs anywhere
-- **Auto Backend Selection**: RuVector → HNSWLib → better-sqlite3 → sql.js
-- **Graceful Degradation**: Works with mock embeddings if ML models unavailable
-- **Docker-Ready**: 9-stage build with CI/CD validation
-
-**🤖 AI-Native Integration**
-- **29 MCP Tools**: Zero-code setup for Claude Code, Cursor, Copilot
-- **Parallel Execution**: 3x faster multi-tool workflows
-- **Batch Operations**: 3-4x throughput improvement
-- **Smart Caching**: 60% token reduction with format parameter
-
-### Comparison with Traditional Systems
-
-| Capability | AgentDB v2.0 | Pinecone/Weaviate | ChromaDB | Qdrant |
-|------------|--------------|-------------------|----------|--------|
-| **Search Speed** | 🚀 150x w/ RuVector | 🐢 Network latency | 🐢 Python overhead | ⚡ Fast (Rust) |
-| **Startup Time** | ⚡ Milliseconds | 🐌 Minutes (cloud) | 🐌 Seconds | ⚡ Seconds |
-| **Memory Model** | 🧠 6 frontier patterns + GNN | ❌ Vectors only | ❌ Vectors only | ❌ Vectors only |
-| **Causal Reasoning** | ✅ `p(y\|do(x))` | ❌ Correlation | ❌ Correlation | ❌ Correlation |
-| **Self-Learning** | ✅ ReasoningBank | ❌ External ML | ❌ External ML | ❌ External ML |
-| **Explainability** | ✅ Merkle proofs | ❌ Black box | ❌ Black box | ❌ Black box |
-| **Runtime** | 🌐 Anywhere | ☁️ Cloud only | 💻 Server | 💻 Server |
-| **Setup** | ⚙️ `npm install` | 🔧 Complex | 🔧 Python env | 🔧 Config |
-| **Cost** | 💰 $0 (local) | 💸 $70+/mo | 💰 Self-host | 💸 Self-host |
-| **Batch Ops** | ✅ 3-4x faster | ❌ Sequential | ❌ Sequential | ⚡ Good |
-| **MCP Integration** | ✅ 29 tools | ❌ None | ❌ None | ❌ None |
-| **RL Algorithms** | ✅ 9 built-in | ❌ External | ❌ External | ❌ External |
-
----
-
 ## 🚀 Quick Start (60 Seconds)
 
 ### Installation
@@ -162,10 +164,11 @@ Add to `~/.config/claude/claude_desktop_config.json`:
 agentdb init ./my-agent-memory.db
 
 # Store reasoning patterns (NEW v2.0)
-agentdb pattern store "code_review" "Security-first analysis" 0.95
+agentdb store-pattern --type "code_review" --domain "code-review" \
+  --pattern '{"approach":"Security-first analysis"}' --confidence 0.95
 
 # Search patterns semantically (32.6M ops/sec)
-agentdb pattern search "security analysis" 10 0.7
+agentdb query --query "security analysis" --k 10 --min-confidence 0.7
 
 # Store reflexion episodes
 agentdb reflexion store "session-1" "implement_auth" 0.95 true \
@@ -182,7 +185,9 @@ agentdb learner run 3 0.6 0.7 false
 agentdb db stats
 
 # Prune old/low-quality data (NEW v2.0)
-agentdb prune --max-age 90 --min-reward 0.3 --dry-run
+agentdb reflexion prune 90 0.3     # Prune episodes older than 90 days with reward < 0.3
+agentdb skill prune 3 0.4 60       # Prune skills with < 3 uses, < 40% success, > 60 days
+agentdb learner prune 0.5 0.05 90  # Prune causal edges with low confidence/uplift
 
 # Get help
 agentdb --help
@@ -191,12 +196,14 @@ agentdb --help
 ### Programmatic Usage
 
 ```typescript
-import { createDatabase } from 'agentdb';
-import { ReasoningBank } from 'agentdb/controllers/ReasoningBank';
-import { ReflexionMemory } from 'agentdb/controllers/ReflexionMemory';
-import { SkillLibrary } from 'agentdb/controllers/SkillLibrary';
-import { EmbeddingService } from 'agentdb/controllers/EmbeddingService';
-import { BatchOperations } from 'agentdb/optimizations/BatchOperations';
+import {
+  createDatabase,
+  ReasoningBank,
+  ReflexionMemory,
+  SkillLibrary,
+  EmbeddingService,
+  BatchOperations
+} from 'agentdb';
 
 // Initialize database
 const db = await createDatabase('./agent-memory.db');
@@ -280,18 +287,18 @@ const batchOps = new BatchOperations(db, embedder, {
   parallelism: 4
 });
 
-// Batch create skills (304 → 900 ops/sec)
+// Batch create skills (1,539 → 5,556 ops/sec - 3.6x faster)
 const skillIds = await batchOps.insertSkills([
   { name: 'skill-1', description: 'First skill', successRate: 0.8 },
   { name: 'skill-2', description: 'Second skill', successRate: 0.9 },
   // ... up to 100 skills
 ]);
 
-// Batch store patterns (4x faster)
-const patternIds = await batchOps.insertPatterns([
-  { taskType: 'debugging', approach: 'Binary search', successRate: 0.85 },
-  { taskType: 'optimization', approach: 'Profiling first', successRate: 0.90 },
-  // ... up to 500 patterns
+// Batch store episodes (2,273 → 7,692 ops/sec - 3.4x faster)
+const episodeIds = await batchOps.insertEpisodes([
+  { sessionId: 'session-1', task: 'debug-1', reward: 0.85, success: true },
+  { sessionId: 'session-2', task: 'optimize-1', reward: 0.90, success: true },
+  // ... up to 100 episodes
 ]);
 
 // Prune old data (NEW v2.0)
