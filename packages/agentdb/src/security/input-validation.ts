@@ -86,6 +86,172 @@ export class ValidationError extends Error {
 }
 
 /**
+ * Validate task string (NEW - for MCP tool optimization)
+ */
+export function validateTaskString(task: unknown, fieldName: string = 'task'): string {
+  if (task === null || task === undefined) {
+    throw new ValidationError(`${fieldName} is required`, 'MISSING_REQUIRED_FIELD', fieldName);
+  }
+
+  if (typeof task !== 'string') {
+    throw new ValidationError(`${fieldName} must be a string`, 'INVALID_TYPE', fieldName);
+  }
+
+  const trimmed = task.trim();
+
+  if (trimmed.length === 0) {
+    throw new ValidationError(`${fieldName} cannot be empty`, 'EMPTY_STRING', fieldName);
+  }
+
+  if (trimmed.length > 10000) {
+    throw new ValidationError(`${fieldName} exceeds maximum length of 10000 characters`, 'STRING_TOO_LONG', fieldName);
+  }
+
+  // Check for potentially malicious patterns
+  const suspiciousPatterns = [
+    /<script/i,
+    /javascript:/i,
+    /on\w+\s*=/i, // onclick=, onload=, etc.
+    /\x00/, // Null bytes
+  ];
+
+  for (const pattern of suspiciousPatterns) {
+    if (pattern.test(trimmed)) {
+      throw new ValidationError(`${fieldName} contains potentially malicious content`, 'SUSPICIOUS_CONTENT', fieldName);
+    }
+  }
+
+  return trimmed;
+}
+
+/**
+ * Validate numeric range (NEW - for MCP tool optimization)
+ */
+export function validateNumericRange(
+  value: unknown,
+  fieldName: string,
+  min: number,
+  max: number
+): number {
+  if (value === null || value === undefined) {
+    throw new ValidationError(`${fieldName} is required`, 'MISSING_REQUIRED_FIELD', fieldName);
+  }
+
+  if (typeof value !== 'number' || isNaN(value) || !isFinite(value)) {
+    throw new ValidationError(`${fieldName} must be a valid number`, 'INVALID_NUMBER', fieldName);
+  }
+
+  if (value < min || value > max) {
+    throw new ValidationError(
+      `${fieldName} must be between ${min} and ${max} (got ${value})`,
+      'OUT_OF_RANGE',
+      fieldName
+    );
+  }
+
+  return value;
+}
+
+/**
+ * Validate array length (NEW - for MCP tool optimization)
+ */
+export function validateArrayLength<T>(
+  arr: unknown,
+  fieldName: string,
+  minLength: number,
+  maxLength: number
+): T[] {
+  if (arr === null || arr === undefined) {
+    throw new ValidationError(`${fieldName} is required`, 'MISSING_REQUIRED_FIELD', fieldName);
+  }
+
+  if (!Array.isArray(arr)) {
+    throw new ValidationError(`${fieldName} must be an array`, 'INVALID_ARRAY', fieldName);
+  }
+
+  if (arr.length < minLength || arr.length > maxLength) {
+    throw new ValidationError(
+      `${fieldName} must contain between ${minLength} and ${maxLength} items (got ${arr.length})`,
+      'ARRAY_LENGTH_INVALID',
+      fieldName
+    );
+  }
+
+  return arr as T[];
+}
+
+/**
+ * Validate object (NEW - for MCP tool optimization)
+ */
+export function validateObject(
+  obj: unknown,
+  fieldName: string,
+  required: boolean = true
+): Record<string, any> {
+  if (obj === null || obj === undefined) {
+    if (required) {
+      throw new ValidationError(`${fieldName} is required`, 'MISSING_REQUIRED_FIELD', fieldName);
+    }
+    return {};
+  }
+
+  if (typeof obj !== 'object' || Array.isArray(obj)) {
+    throw new ValidationError(`${fieldName} must be an object`, 'INVALID_OBJECT', fieldName);
+  }
+
+  return obj as Record<string, any>;
+}
+
+/**
+ * Validate boolean (NEW - for MCP tool optimization)
+ */
+export function validateBoolean(
+  value: unknown,
+  fieldName: string,
+  defaultValue?: boolean
+): boolean {
+  if (value === null || value === undefined) {
+    if (defaultValue !== undefined) {
+      return defaultValue;
+    }
+    throw new ValidationError(`${fieldName} is required`, 'MISSING_REQUIRED_FIELD', fieldName);
+  }
+
+  if (typeof value !== 'boolean') {
+    throw new ValidationError(`${fieldName} must be a boolean`, 'INVALID_BOOLEAN', fieldName);
+  }
+
+  return value;
+}
+
+/**
+ * Validate enum value (NEW - for MCP tool optimization)
+ */
+export function validateEnum<T extends string>(
+  value: unknown,
+  fieldName: string,
+  allowedValues: readonly T[]
+): T {
+  if (value === null || value === undefined) {
+    throw new ValidationError(`${fieldName} is required`, 'MISSING_REQUIRED_FIELD', fieldName);
+  }
+
+  if (typeof value !== 'string') {
+    throw new ValidationError(`${fieldName} must be a string`, 'INVALID_TYPE', fieldName);
+  }
+
+  if (!allowedValues.includes(value as T)) {
+    throw new ValidationError(
+      `${fieldName} must be one of: ${allowedValues.join(', ')} (got "${value}")`,
+      'INVALID_ENUM_VALUE',
+      fieldName
+    );
+  }
+
+  return value as T;
+}
+
+/**
  * Validate table name against whitelist
  */
 export function validateTableName(tableName: string): string {
