@@ -54,12 +54,14 @@
    Average skill improvement: 25% (0.60 → 0.85)
 
 ⚡ MCP Tools Performance
-   pattern_search:   32.6M ops/sec  🚀 Ultra-fast
-   pattern_store:    388K ops/sec   🚀 Excellent
-   episode_retrieve: 957 ops/sec    ✅ Very Good
-   skill_search:     694 ops/sec    ✅ Good
-   skill_create:     304 ops/sec    ⚠️  Optimization target (→ 900 with batch)
-   episode_store:    152 ops/sec    ⚠️  Optimization target (→ 500 with batch)
+   pattern_search:      32.6M ops/sec  🚀 Ultra-fast
+   pattern_store:       388K ops/sec   🚀 Excellent
+   skill_create_batch:  5556 ops/sec   🚀 Excellent (6.2x target, 3.6x speedup)
+   episode_store_batch: 7692 ops/sec   🚀 Excellent (15.4x target, 3.4x speedup)
+   episode_retrieve:    957 ops/sec    ✅ Very Good
+   skill_search:        694 ops/sec    ✅ Good
+   skill_create:        1539 ops/sec   ✅ Good (individual, use batch for bulk)
+   episode_store:       2273 ops/sec   ✅ Good (individual, use batch for bulk)
 
 💾 Memory Efficiency
    5,000 patterns: 4MB memory (0.8KB per pattern)
