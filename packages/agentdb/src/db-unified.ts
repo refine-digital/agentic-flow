@@ -25,7 +25,7 @@ export type DatabaseMode = 'graph' | 'sqlite-legacy';
 
 export interface UnifiedDatabaseConfig {
   path: string;
-  dimensions?: number;
+  dimensions?: number;       // Default: 384 (sentence-transformers standard)
   forceMode?: DatabaseMode;  // Force specific mode
   autoMigrate?: boolean;     // Auto-migrate SQLite → Graph
 }

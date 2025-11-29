@@ -56,7 +56,7 @@ type JsBatchInsert = {
 
 export interface GraphDatabaseConfig {
   storagePath: string;
-  dimensions: number;
+  dimensions?: number; // Default: 384 (matches sentence-transformers models)
   distanceMetric?: 'Cosine' | 'Euclidean' | 'DotProduct' | 'Manhattan';
 }
 
@@ -139,7 +139,7 @@ export class GraphDatabaseAdapter {
       // Create new database
       this.db = new GraphDatabase({
         distanceMetric: this.config.distanceMetric || 'Cosine',
-        dimensions: this.config.dimensions,
+        dimensions: this.config.dimensions || 384, // Default to 384 (all-MiniLM-L6-v2 standard)
         storagePath: this.config.storagePath
       });
 
