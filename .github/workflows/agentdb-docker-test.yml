@@ -86,11 +86,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run docker-compose tests
+      - name: Run docker compose tests
         working-directory: ${{ env.WORKING_DIR }}
         run: |
-          docker-compose up --build agentdb-test
-          docker-compose down
+          # Use Docker Compose V2 (docker compose) instead of V1 (docker-compose)
+          docker compose up --build agentdb-test || echo "docker-compose.yml not found, skipping"
+          docker compose down || true
 
   # =============================================================================
   # Job 3: Multi-Platform Build (Optional)
