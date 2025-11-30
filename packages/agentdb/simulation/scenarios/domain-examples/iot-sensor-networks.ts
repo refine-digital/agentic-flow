@@ -216,8 +216,8 @@ export function adaptConfigToBattery(
   if (chargingStatus === 'charging') {
     return {
       ...baseConfig,
-      heads: 8,                    // Use more resources
-      precision: 'float16' as const
+      heads: 8                     // Use more resources when charging
+      // Note: Precision optimization coming in future release
     };
   }
 

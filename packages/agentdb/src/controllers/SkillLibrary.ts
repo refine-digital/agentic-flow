@@ -75,7 +75,7 @@ export class SkillLibrary {
       const embedding = await this.embedder.embed(text);
 
       const nodeId = await graphAdapter.storeSkill({
-        id: skill.id ? `skill-${skill.id}` : undefined,
+        id: skill.id ? `skill-${skill.id}` : `skill-${Date.now()}-${Math.random()}`,
         name: skill.name,
         description: skill.description || '',
         code: skill.code || '',

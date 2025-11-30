@@ -55,23 +55,24 @@ program
     await initScenario(scenario, options);
   });
 
-program
-  .command('analyze <report>')
-  .description('Analyze simulation results')
-  .option('-f, --format <type>', 'Output format (json|markdown|html)', 'markdown')
-  .action(async (report, options) => {
-    const { analyzeResults } = await import('./analyzer.js');
-    await analyzeResults(report, options);
-  });
+// Analyze and benchmark commands coming in beta
+// program
+//   .command('analyze <report>')
+//   .description('Analyze simulation results')
+//   .option('-f, --format <type>', 'Output format (json|markdown|html)', 'markdown')
+//   .action(async (report, options) => {
+//     const { analyzeResults} = await import('./analyzer.js');
+//     await analyzeResults(report, options);
+//   });
 
-program
-  .command('benchmark')
-  .description('Run comprehensive benchmark suite')
-  .option('-a, --all', 'Run all scenarios', false)
-  .option('-o, --output <dir>', 'Output directory', 'simulation/reports/benchmarks')
-  .action(async (options) => {
-    const { runBenchmark } = await import('./benchmark.js');
-    await runBenchmark(options);
-  });
+// program
+//   .command('benchmark')
+//   .description('Run comprehensive benchmark suite')
+//   .option('-a, --all', 'Run all scenarios', false)
+//   .option('-o, --output <dir>', 'Output directory', 'simulation/reports/benchmarks')
+//   .action(async (options) => {
+//     const { runBenchmark } = await import('./benchmark.js');
+//     await runBenchmark(options);
+//   });
 
 program.parse();

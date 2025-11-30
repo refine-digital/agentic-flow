@@ -86,7 +86,7 @@ export const attentionAnalysisScenario: SimulationScenario = {
   async run(config) {
     console.log('🧠 Starting Multi-Head Attention Analysis...\n');
 
-    const results = [];
+    const results: any[] = [];
     const startTime = Date.now();
 
     for (const backend of config.backends) {
@@ -453,7 +453,7 @@ function klDivergence(p: number[], q: number[]): number {
 function applyAttentionEnhancement(model: any, query: number[]): number[] {
   // Simplified attention mechanism
   const heads = model.config.heads;
-  const headOutputs = [];
+  const headOutputs: number[][] = [];
 
   for (let h = 0; h < heads; h++) {
     // Q = query * W_Q
@@ -531,8 +531,8 @@ function analyzeScalability(results: any[]) {
 
   return Object.entries(groupedByVectorCount).map(([count, group]) => ({
     vectorCount: parseInt(count),
-    avgForwardPassMs: average(group.map(r => r.metrics.performance.forwardPassMs)),
-    avgMemoryMB: average(group.map(r => r.metrics.performance.memoryMB)),
+    avgForwardPassMs: average((group as any[]).map((r: any) => r.metrics.performance.forwardPassMs)),
+    avgMemoryMB: average((group as any[]).map((r: any) => r.metrics.performance.memoryMB)),
   }));
 }
 

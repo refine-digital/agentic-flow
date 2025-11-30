@@ -344,7 +344,7 @@ async function customWizard(): Promise<void> {
   console.log(`   Search: ${chalk.cyan(finalConfig.searchStrategy)}`);
   console.log(`   Clustering: ${chalk.cyan(finalConfig.clustering)}`);
   console.log(`   Self-healing: ${chalk.cyan(finalConfig.selfHealing)}`);
-  console.log(`   Neural features: ${chalk.cyan(finalConfig.neuralFeatures.length)} enabled`);
+  console.log(`   Neural features: ${chalk.cyan(finalConfig.neuralFeatures?.length || 0)} enabled`);
   console.log('');
 
   const { confirm } = await inquirer.prompt([

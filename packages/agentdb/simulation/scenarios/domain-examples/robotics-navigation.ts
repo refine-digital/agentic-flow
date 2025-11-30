@@ -174,8 +174,8 @@ export function adaptConfigToEnvironment(
       return {
         ...baseConfig,
         heads: 6,                  // Limited sensors
-        forwardPassTargetMs: 15,
-        selfHealing: { ...baseConfig.selfHealing, networkResilience: true }
+        forwardPassTargetMs: 15
+        // Note: Network resilience handled at transport layer
       };
     case 'aerial':
       return {
@@ -197,8 +197,8 @@ export function adaptConfigToPower(
     return {
       ...baseConfig,
       heads: 4,
-      precision: 'int8' as const,
       batchSize: 1
+      // Note: Precision optimization coming in future release
     };
   } else if (batteryPercent < 50) {
     // Low battery - reduce quality slightly

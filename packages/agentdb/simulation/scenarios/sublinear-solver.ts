@@ -36,8 +36,7 @@ export default {
       path.join(process.cwd(), 'simulation', 'data', 'advanced', 'sublinear.graph'),
       embedder,
       {
-        forceMode: 'graph',
-        distanceMetric: 'Euclidean'  // Optimal for HNSW indexing
+        forceMode: 'graph'
       }
     );
 

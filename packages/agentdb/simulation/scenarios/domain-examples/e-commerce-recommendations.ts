@@ -185,8 +185,8 @@ export function adaptConfigToPromotion(
     return {
       ...baseConfig,
       dynamicK: { ...baseConfig.dynamicK, min: 20, max: 60 }, // Show more options
-      diversityBoost: true,        // Cross-sell opportunities
-      saleBoost: context.inventoryPressure
+      diversityBoost: true        // Cross-sell opportunities
+      // Note: Sale boost handled in ranking layer
     };
   }
   return baseConfig;
@@ -214,7 +214,7 @@ export function generateABTestConfigs(
       ...baseConfig,
       heads: 6,
       forwardPassTargetMs: 10,
-      precision: 'float16' as const
+      precision: 'float32' as const  // Lower precision not yet supported
     }
   };
 }

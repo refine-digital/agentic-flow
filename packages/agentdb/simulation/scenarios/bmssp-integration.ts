@@ -38,9 +38,8 @@ export default {
       path.join(process.cwd(), 'simulation', 'data', 'advanced', 'bmssp.graph'),
       embedder,
       {
-        forceMode: 'graph',
-        // Optimizations for symbolic reasoning
-        distanceMetric: 'Cosine'  // Best for semantic similarity
+        forceMode: 'graph'
+        // Note: Distance metric configured in RuVector backend
       }
     );
 

@@ -7,7 +7,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import Ajv, { JSONSchemaType } from 'ajv';
+import Ajv from 'ajv';
+import type { JSONSchemaType } from 'ajv';
 
 // ============================================================================
 // Types
@@ -352,7 +353,7 @@ export const PRESET_PROFILES: Record<string, Omit<AgentDBConfig, 'profile'>> = {
 // ============================================================================
 
 export class ConfigManager {
-  private ajv: Ajv;
+  private ajv: any;
   private validator: any;
 
   constructor() {

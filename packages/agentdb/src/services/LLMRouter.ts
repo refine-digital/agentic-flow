@@ -225,12 +225,12 @@ export class LLMRouter {
       throw new Error(`OpenRouter API error: ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
 
     return {
-      content: data.choices[0]?.message?.content || '',
-      tokensUsed: data.usage?.total_tokens || 0,
-      cost: parseFloat(data.usage?.cost || '0')
+      content: (data.choices?.[0]?.message?.content as string) || '',
+      tokensUsed: (data.usage?.total_tokens as number) || 0,
+      cost: parseFloat((data.usage?.cost as string) || '0')
     };
   }
 
@@ -271,11 +271,11 @@ export class LLMRouter {
       throw new Error(`Gemini API error: ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
 
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const tokensUsed = (data.usageMetadata?.promptTokenCount || 0) +
-                       (data.usageMetadata?.candidatesTokenCount || 0);
+    const content = (data.candidates?.[0]?.content?.parts?.[0]?.text as string) || '';
+    const tokensUsed = ((data.usageMetadata?.promptTokenCount as number) || 0) +
+                       ((data.usageMetadata?.candidatesTokenCount as number) || 0);
 
     return {
       content,
@@ -317,14 +317,14 @@ export class LLMRouter {
       throw new Error(`Anthropic API error: ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
 
-    const content = data.content?.[0]?.text || '';
-    const tokensUsed = (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0);
+    const content = (data.content?.[0]?.text as string) || '';
+    const tokensUsed = ((data.usage?.input_tokens as number) || 0) + ((data.usage?.output_tokens as number) || 0);
 
     // Rough cost estimate (Claude 3.5 Sonnet: $3/MTok input, $15/MTok output)
-    const inputCost = (data.usage?.input_tokens || 0) * 0.000003;
-    const outputCost = (data.usage?.output_tokens || 0) * 0.000015;
+    const inputCost = ((data.usage?.input_tokens as number) || 0) * 0.000003;
+    const outputCost = ((data.usage?.output_tokens as number) || 0) * 0.000015;
     const cost = inputCost + outputCost;
 
     return {

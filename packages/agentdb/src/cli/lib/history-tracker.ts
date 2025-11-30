@@ -277,7 +277,7 @@ export class HistoryTracker {
     }
 
     // Compare metrics
-    const comparisons = [];
+    const comparisons: any[] = [];
 
     for (const metric of Object.keys(currentRun.metrics)) {
       const baselineValue = baseline.metrics[metric] || 0;
@@ -320,7 +320,7 @@ export class HistoryTracker {
     const runs = await this.store.findByScenario(scenarioId);
 
     const labels = runs.map(r => r.timestamp.toLocaleDateString());
-    const datasets = [];
+    const datasets: any[] = [];
 
     const colors = [
       '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
@@ -368,7 +368,7 @@ export class HistoryTracker {
     }
 
     const labels = Array.from(allMetrics);
-    const datasets = [];
+    const datasets: any[] = [];
 
     const colors = [
       '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',

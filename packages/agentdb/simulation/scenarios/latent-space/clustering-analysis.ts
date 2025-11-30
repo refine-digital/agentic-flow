@@ -278,7 +278,7 @@ async function detectCommunities(graph: any, algorithm: CommunityAlgorithm): Pro
     case 'leiden':
       return leidenAlgorithm(graph, algorithm.parameters.resolution || 1.0);
     case 'spectral':
-      return spectralClustering(graph, algorithm.parameters.numClusters || 10);
+      return spectralClustering(graph, (algorithm.parameters as any).numClusters || 10);
     default:
       throw new Error(`Unknown algorithm: ${algorithm.name}`);
   }

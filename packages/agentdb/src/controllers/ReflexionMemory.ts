@@ -83,7 +83,7 @@ export class ReflexionMemory {
 
       // Create episode node using GraphDatabaseAdapter
       const nodeId = await graphAdapter.storeEpisode({
-        id: episode.id ? `episode-${episode.id}` : undefined,
+        id: episode.id ? `episode-${episode.id}` : `episode-${Date.now()}-${Math.random()}`,
         sessionId: episode.sessionId,
         task: episode.task,
         reward: episode.reward,
@@ -131,11 +131,10 @@ export class ReflexionMemory {
 
       // Store embedding using vectorBackend if available
       if (this.vectorBackend && taskEmbedding) {
-        await this.vectorBackend.insert([{
-          id: nodeId,
-          vector: taskEmbedding,
-          metadata: { type: 'episode', sessionId: episode.sessionId }
-        }]);
+        this.vectorBackend.insert(nodeId, taskEmbedding, {
+          type: 'episode',
+          sessionId: episode.sessionId
+        });
       }
 
       // Return a numeric ID (parse from string ID)

@@ -253,7 +253,7 @@ async function analyzeGraphTopology(index: any): Promise<HNSWGraphMetrics> {
   // Extract graph structure from HNSW index
   const layers = Math.ceil(Math.log2(index.vectorCount)) + 1;
   const nodesPerLayer: number[] = [];
-  const connectivityDistribution = [];
+  const connectivityDistribution: any[] = [];
 
   // Calculate nodes per layer (exponential decay)
   let remainingNodes = index.vectorCount;
@@ -310,7 +310,7 @@ async function measureSearchPerformance(
   kValues: number[],
   iterations: number
 ): Promise<{ qps: number; latencies: any[] }> {
-  const latencies = [];
+  const latencies: any[] = [];
 
   for (const k of kValues) {
     const measurements: number[] = [];
@@ -345,7 +345,7 @@ async function measureSearchPerformance(
  * Calculate recall@k for different k values
  */
 async function calculateRecall(index: any, kValues: number[]): Promise<any[]> {
-  const recalls = [];
+  const recalls: any[] = [];
   const testQueries = 100;
 
   for (const k of kValues) {
