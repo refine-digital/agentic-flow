@@ -122,7 +122,8 @@ export class SimulationRegistry {
 
     // Default discovery paths
     this.discoveryPaths = [
-      path.join(__dirname, '../../simulation/scenarios'), // Core scenarios
+      path.join(__dirname, '../../simulation/scenarios'), // dist/src/cli/lib/../../simulation/scenarios (local dev)
+      path.join(__dirname, '../../../simulation/scenarios'), // dist/simulation/scenarios (published package)
       path.join(process.env.HOME || '', '.agentdb', 'plugins'), // User plugins
       path.join(process.cwd(), 'agentdb-plugins') // Project-local plugins
     ];

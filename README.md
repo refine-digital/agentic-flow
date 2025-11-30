@@ -54,7 +54,7 @@ Most AI coding agents are **painfully slow** and **frustratingly forgetful**. Th
 | Component | Description | Performance | Documentation |
 |-----------|-------------|-------------|---------------|
 | **Agent Booster** | Ultra-fast local code transformations via Rust/WASM (auto-detects edits) | 352x faster, $0 cost | [Docs](https://github.com/ruvnet/agentic-flow/tree/main/agent-booster) |
-| **AgentDB** | State-of-the-art memory with causal reasoning, reflexion, and skill learning | p95 < 50ms, 80% hit rate | [Docs](./agentic-flow/src/agentdb/README.md) |
+| **AgentDB v2** 🆕 | RuVector-powered graph database with vector search, GNN learning, and comprehensive diagnostics | 150x faster than SQLite, sub-ms latency | [Docs](./packages/agentdb/README.md) |
 | **ReasoningBank** | Persistent learning memory system with semantic search | 46% faster, 100% success | [Docs](https://github.com/ruvnet/agentic-flow/tree/main/agentic-flow/src/reasoningbank) |
 | **Multi-Model Router** | Intelligent cost optimization across 100+ LLMs | 85-99% cost savings | [Docs](https://github.com/ruvnet/agentic-flow/tree/main/agentic-flow/src/router) |
 | **QUIC Transport** | Ultra-low latency agent communication via Rust/WASM QUIC protocol | 50-70% faster than TCP, 0-RTT | [Docs](https://github.com/ruvnet/agentic-flow/tree/main/crates/agentic-flow-quic) |
@@ -62,7 +62,7 @@ Most AI coding agents are **painfully slow** and **frustratingly forgetful**. Th
 | **Swarm Optimization** 🆕 | Self-learning parallel execution with AI topology selection | 3-5x speedup, auto-optimizes | [Docs](./docs/swarm-optimization-report.md) |
 
 **CLI Usage**:
-- **AgentDB**: Full CLI with 17 commands (`npx agentdb <command>`)
+- **AgentDB v2**: Full CLI with doctor diagnostics, migration, and reflexion memory (`npx agentdb@alpha <command>`) 🆕
 - **Multi-Model Router**: Via `--optimize` flag
 - **Agent Booster**: Automatic on code edits
 - **ReasoningBank**: API only
@@ -74,11 +74,13 @@ Most AI coding agents are **painfully slow** and **frustratingly forgetful**. Th
 
 **Get Started:**
 ```bash
-# CLI: AgentDB memory operations
-npx agentdb reflexion store "session-1" "implement_auth" 0.95 true "Success!"
-npx agentdb skill search "authentication" 10
-npx agentdb causal query "" "code_quality" 0.8
-npx agentdb learner run
+# CLI: AgentDB v2 - System diagnostics and memory operations
+npx agentdb@alpha init --dimension 768 --preset medium
+npx agentdb@alpha doctor --verbose               # Comprehensive diagnostics 🆕
+npx agentdb@alpha reflexion store "session-1" "implement_auth" 0.95 true
+npx agentdb@alpha reflexion retrieve "authentication" --synthesize-context
+npx agentdb@alpha skill search "authentication" 10
+npx agentdb@alpha migrate legacy.db --target new-v2.db  # Migration tool 🆕
 
 # CLI: Auto-optimization (Agent Booster runs automatically on code edits)
 npx agentic-flow --agent coder --task "Build a REST API" --optimize

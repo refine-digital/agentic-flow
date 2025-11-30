@@ -24,6 +24,7 @@ import { initCommand } from './commands/init.js';
 import { statusCommand } from './commands/status.js';
 import { installEmbeddingsCommand } from './commands/install-embeddings.js';
 import { migrateCommand } from './commands/migrate.js';
+import { doctorCommand } from './commands/doctor.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as zlib from 'zlib';
@@ -74,7 +75,8 @@ class AgentDBCLI {
     // Load both schemas: main schema (episodes, skills) + frontier schema (causal)
     const schemaFiles = ['schema.sql', 'frontier-schema.sql'];
     const basePaths = [
-      path.join(__dirname, '../schemas'),  // dist/cli/../schemas
+      path.join(__dirname, '../schemas'),  // dist/cli/../schemas (local dev)
+      path.join(__dirname, '../../schemas'),  // dist/schemas (published package)
       path.join(__dirname, '../../src/schemas'),  // dist/cli/../../src/schemas
       path.join(process.cwd(), 'dist/schemas'),  // current/dist/schemas
       path.join(process.cwd(), 'src/schemas'),  // current/src/schemas
@@ -1019,13 +1021,29 @@ async function main() {
 
   // Handle version flag
   if (args[0] === '--version' || args[0] === '-v' || args[0] === 'version') {
-    const packageJsonPath = path.join(__dirname, '../../package.json');
-    try {
-      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
-      console.log(`agentdb v${packageJson.version}`);
-    } catch {
-      console.log('agentdb v2.0.0-alpha.1');
+    // Try multiple paths to find package.json (handles different execution contexts)
+    const possiblePaths = [
+      path.join(__dirname, '../../package.json'),  // dist/src/cli/../../package.json (local dev)
+      path.join(__dirname, '../../../package.json'), // dist/package.json (published package)
+      path.join(process.cwd(), 'package.json'),
+      path.join(process.cwd(), 'node_modules/agentdb/package.json')
+    ];
+
+    let version = '2.0.0-alpha.2.6'; // Fallback version
+    for (const pkgPath of possiblePaths) {
+      try {
+        if (fs.existsSync(pkgPath)) {
+          const packageJson = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+          if (packageJson.name === 'agentdb' && packageJson.version) {
+            version = packageJson.version;
+            break;
+          }
+        }
+      } catch {
+        continue;
+      }
     }
+    console.log(`agentdb v${version}`);
     process.exit(0);
   }
 
@@ -1125,6 +1143,23 @@ async function main() {
       process.exit(1);
     }
     await migrateCommand(options);
+    return;
+  }
+
+  // Handle doctor command
+  if (command === 'doctor') {
+    const options: any = { verbose: false };
+    for (let i = 1; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === '--db' && i + 1 < args.length) {
+        options.dbPath = args[++i];
+      } else if (arg === '--verbose' || arg === '-v') {
+        options.verbose = true;
+      } else if (!arg.startsWith('--')) {
+        options.dbPath = arg;
+      }
+    }
+    await doctorCommand(options);
     return;
   }
 
@@ -2389,6 +2424,10 @@ ${colors.bright}CORE COMMANDS:${colors.reset}
   ${colors.cyan}status${colors.reset} [options]            Show database and backend status
     --db <path>                Database path (default: ./agentdb.db)
     --verbose, -v              Show detailed statistics
+
+  ${colors.cyan}doctor${colors.reset} [options]            System diagnostics and health check
+    --db <path>                Database path to check (optional)
+    --verbose, -v              Show detailed system information
 
 ${colors.bright}USAGE:${colors.reset}
   agentdb <command> <subcommand> [options]
