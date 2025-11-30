@@ -32,11 +32,18 @@ describe('CausalMemoryGraph', () => {
     db = new Database(TEST_DB_PATH);
     db.pragma('journal_mode = WAL');
 
-    // Load schema
-    const schemaPath = path.join(__dirname, '../../../src/schemas/frontier-schema.sql');
-    if (fs.existsSync(schemaPath)) {
-      const schema = fs.readFileSync(schemaPath, 'utf-8');
-      db.exec(schema);
+    // Load base schema first (contains episodes, skills, patterns tables)
+    const baseSchemaPath = path.join(__dirname, '../../../src/schemas/schema.sql');
+    if (fs.existsSync(baseSchemaPath)) {
+      const baseSchema = fs.readFileSync(baseSchemaPath, 'utf-8');
+      db.exec(baseSchema);
+    }
+
+    // Load frontier schema (contains causal_edges, experiments, observations)
+    const frontierSchemaPath = path.join(__dirname, '../../../src/schemas/frontier-schema.sql');
+    if (fs.existsSync(frontierSchemaPath)) {
+      const frontierSchema = fs.readFileSync(frontierSchemaPath, 'utf-8');
+      db.exec(frontierSchema);
     }
 
     causalGraph = new CausalMemoryGraph(db);
@@ -162,6 +169,12 @@ describe('CausalMemoryGraph', () => {
 
   describe('recordObservation', () => {
     it('should record treatment observation', () => {
+      // Create episode first (required by foreign key constraint)
+      db.prepare(`
+        INSERT INTO episodes (id, ts, session_id, task, reward, success)
+        VALUES (1, ?, 'test-session', 'test task', 0.85, 1)
+      `).run(Date.now());
+
       const expId = causalGraph.createExperiment({
         name: 'Test',
         hypothesis: 'Tests help',
@@ -184,6 +197,12 @@ describe('CausalMemoryGraph', () => {
     });
 
     it('should record control observation', () => {
+      // Create episode first (required by foreign key constraint)
+      db.prepare(`
+        INSERT INTO episodes (id, ts, session_id, task, reward, success)
+        VALUES (2, ?, 'test-session', 'test task', 0.65, 1)
+      `).run(Date.now());
+
       const expId = causalGraph.createExperiment({
         name: 'Test',
         hypothesis: 'Tests help',
@@ -208,6 +227,16 @@ describe('CausalMemoryGraph', () => {
 
   describe('calculateUplift', () => {
     it('should calculate positive uplift', () => {
+      // Create all episodes first (required by foreign key constraint)
+      const insertEpisode = db.prepare(`
+        INSERT INTO episodes (id, ts, session_id, task, reward, success)
+        VALUES (?, ?, 'test-session', 'test task', ?, 1)
+      `);
+
+      for (let i = 0; i < 20; i++) {
+        insertEpisode.run(i, Date.now(), i < 10 ? 0.85 : 0.65);
+      }
+
       const expId = causalGraph.createExperiment({
         name: 'Test',
         hypothesis: 'Tests help',

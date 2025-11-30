@@ -20,6 +20,11 @@ import { EmbeddingService } from '../controllers/EmbeddingService.js';
 import { MMRDiversityRanker } from '../controllers/MMRDiversityRanker.js';
 import { ContextSynthesizer } from '../controllers/ContextSynthesizer.js';
 import { MetadataFilter } from '../controllers/MetadataFilter.js';
+import { initCommand } from './commands/init.js';
+import { statusCommand } from './commands/status.js';
+import { installEmbeddingsCommand } from './commands/install-embeddings.js';
+import { migrateCommand } from './commands/migrate.js';
+import { doctorCommand } from './commands/doctor.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as zlib from 'zlib';
@@ -70,7 +75,8 @@ class AgentDBCLI {
     // Load both schemas: main schema (episodes, skills) + frontier schema (causal)
     const schemaFiles = ['schema.sql', 'frontier-schema.sql'];
     const basePaths = [
-      path.join(__dirname, '../schemas'),  // dist/cli/../schemas
+      path.join(__dirname, '../schemas'),  // dist/cli/../schemas (local dev)
+      path.join(__dirname, '../../schemas'),  // dist/schemas (published package)
       path.join(__dirname, '../../src/schemas'),  // dist/cli/../../src/schemas
       path.join(process.cwd(), 'dist/schemas'),  // current/dist/schemas
       path.join(process.cwd(), 'src/schemas'),  // current/src/schemas
@@ -118,14 +124,23 @@ class AgentDBCLI {
     // Initialize controllers
     this.causalGraph = new CausalMemoryGraph(this.db);
     this.explainableRecall = new ExplainableRecall(this.db);
-    this.causalRecall = new CausalRecall(this.db, this.embedder, {
+    this.causalRecall = new CausalRecall(this.db, this.embedder, undefined, {
       alpha: 0.7,
       beta: 0.2,
       gamma: 0.1,
       minConfidence: 0.6
     });
     this.nightlyLearner = new NightlyLearner(this.db, this.embedder);
-    this.reflexion = new ReflexionMemory(this.db, this.embedder);
+
+    // ReflexionMemory and SkillLibrary support optional GNN/Graph backends
+    // These will be undefined if @ruvector/gnn or @ruvector/graph-node are not installed
+    this.reflexion = new ReflexionMemory(
+      this.db,
+      this.embedder,
+      undefined,  // vectorBackend - would be created with detectBackends()
+      undefined,  // learningBackend - requires @ruvector/gnn
+      undefined   // graphBackend - requires @ruvector/graph-node
+    );
     this.skills = new SkillLibrary(this.db, this.embedder);
   }
 
@@ -175,10 +190,17 @@ class AgentDBCLI {
     log.info(`Cause: ${params.cause}`);
     log.info(`Effect: ${params.effect}`);
 
+    // Create a dummy episode for treatment reference
+    const dummyEpisode = this.db!.prepare(
+      'INSERT INTO episodes (session_id, task, reward, success, created_at) VALUES (?, ?, ?, ?, ?)'
+    ).run('experiment-placeholder', params.name, 0.0, 0, Math.floor(Date.now() / 1000));
+
+    const treatmentId = Number(dummyEpisode.lastInsertRowid);
+
     const expId = this.causalGraph.createExperiment({
       name: params.name,
       hypothesis: `Does ${params.cause} causally affect ${params.effect}?`,
-      treatmentId: 0,
+      treatmentId: treatmentId,
       treatmentType: params.cause,
       controlId: undefined,
       startTime: Math.floor(Date.now() / 1000),
@@ -189,6 +211,9 @@ class AgentDBCLI {
 
     log.success(`Created experiment #${expId}`);
     log.info('Use `agentdb causal experiment add-observation` to record data');
+
+    // Save database to persist experiment
+    this.db.save();
   }
 
   async causalExperimentAddObservation(params: {
@@ -212,7 +237,7 @@ class AgentDBCLI {
       isTreatment: params.isTreatment,
       outcomeValue: params.outcome,
       outcomeType: 'reward',
-      context: params.context ? JSON.parse(params.context) : undefined
+      context: params.context && params.context.trim() ? JSON.parse(params.context) : undefined
     });
 
     // Save database to persist changes
@@ -996,13 +1021,29 @@ async function main() {
 
   // Handle version flag
   if (args[0] === '--version' || args[0] === '-v' || args[0] === 'version') {
-    const packageJsonPath = path.join(__dirname, '../../package.json');
-    try {
-      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
-      console.log(`agentdb v${packageJson.version}`);
-    } catch {
-      console.log('agentdb v1.4.5');
+    // Try multiple paths to find package.json (handles different execution contexts)
+    const possiblePaths = [
+      path.join(__dirname, '../../package.json'),  // dist/src/cli/../../package.json (local dev)
+      path.join(__dirname, '../../../package.json'), // dist/package.json (published package)
+      path.join(process.cwd(), 'package.json'),
+      path.join(process.cwd(), 'node_modules/agentdb/package.json')
+    ];
+
+    let version = '2.0.0-alpha.2.6'; // Fallback version
+    for (const pkgPath of possiblePaths) {
+      try {
+        if (fs.existsSync(pkgPath)) {
+          const packageJson = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+          if (packageJson.name === 'agentdb' && packageJson.version) {
+            version = packageJson.version;
+            break;
+          }
+        }
+      } catch {
+        continue;
+      }
     }
+    console.log(`agentdb v${version}`);
     process.exit(0);
   }
 
@@ -1020,9 +1061,105 @@ async function main() {
     return;
   }
 
-  // Handle init command
+  // Handle init command with new v2 implementation
   if (command === 'init') {
-    await handleInitCommand(args.slice(1));
+    const options: any = { dbPath: './agentdb.db', dimension: 384 };
+    for (let i = 1; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === '--backend' && i + 1 < args.length) {
+        options.backend = args[++i];
+      } else if (arg === '--dimension' && i + 1 < args.length) {
+        options.dimension = parseInt(args[++i]);
+      } else if (arg === '--model' && i + 1 < args.length) {
+        options.model = args[++i];
+      } else if (arg === '--preset' && i + 1 < args.length) {
+        options.preset = args[++i];
+      } else if (arg === '--in-memory') {
+        options.inMemory = true;
+      } else if (arg === '--dry-run') {
+        options.dryRun = true;
+      } else if (arg === '--db' && i + 1 < args.length) {
+        options.dbPath = args[++i];
+      } else if (!arg.startsWith('--')) {
+        options.dbPath = arg;
+      }
+    }
+    await initCommand(options);
+    return;
+  }
+
+  // Handle status command
+  if (command === 'status') {
+    const options: any = { dbPath: './agentdb.db', verbose: false };
+    for (let i = 1; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === '--db' && i + 1 < args.length) {
+        options.dbPath = args[++i];
+      } else if (arg === '--verbose' || arg === '-v') {
+        options.verbose = true;
+      } else if (!arg.startsWith('--')) {
+        options.dbPath = arg;
+      }
+    }
+    await statusCommand(options);
+    return;
+  }
+
+  // Handle install-embeddings command
+  if (command === 'install-embeddings') {
+    const options: any = { global: false };
+    for (let i = 1; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === '--global' || arg === '-g') {
+        options.global = true;
+      }
+    }
+    await installEmbeddingsCommand(options);
+    return;
+  }
+
+  // Handle migrate command
+  if (command === 'migrate') {
+    const options: any = { optimize: true, dryRun: false, verbose: false };
+    for (let i = 1; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === '--source' && i + 1 < args.length) {
+        options.sourceDb = args[++i];
+      } else if (arg === '--target' && i + 1 < args.length) {
+        options.targetDb = args[++i];
+      } else if (arg === '--no-optimize') {
+        options.optimize = false;
+      } else if (arg === '--dry-run') {
+        options.dryRun = true;
+      } else if (arg === '--verbose' || arg === '-v') {
+        options.verbose = true;
+      } else if (!arg.startsWith('--') && !options.sourceDb) {
+        options.sourceDb = arg;
+      }
+    }
+    if (!options.sourceDb) {
+      log.error('Source database path required');
+      console.log('Usage: agentdb migrate <source-db> [--target <target-db>] [--no-optimize] [--dry-run] [--verbose]');
+      process.exit(1);
+    }
+    await migrateCommand(options);
+    return;
+  }
+
+  // Handle doctor command
+  if (command === 'doctor') {
+    const options: any = { verbose: false };
+    for (let i = 1; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === '--db' && i + 1 < args.length) {
+        options.dbPath = args[++i];
+      } else if (arg === '--verbose' || arg === '-v') {
+        options.verbose = true;
+      } else if (!arg.startsWith('--')) {
+        options.dbPath = arg;
+      }
+    }
+    await doctorCommand(options);
     return;
   }
 
@@ -1045,6 +1182,84 @@ async function main() {
   if (command === 'stats') {
     await handleStatsCommand(args.slice(1));
     return;
+  }
+
+  // Handle simulate command - run simulation CLI
+  if (command === 'simulate') {
+    // Use pathToFileURL for proper ESM module resolution
+    const { pathToFileURL } = await import('url');
+
+    // Get current directory using import.meta.url
+    const currentUrl = import.meta.url;
+    const currentPath = currentUrl.replace(/^file:\/\//, '');
+    const __dirname = path.dirname(currentPath);
+
+    // Dynamic import with proper file URL for ESM compatibility
+    // Note: simulation files are in dist/simulation, not dist/src/simulation
+    const runnerPath = path.resolve(__dirname, '../../simulation/runner.js');
+    const runnerUrl = pathToFileURL(runnerPath).href;
+
+    try {
+      const { runSimulation, listScenarios, initScenario } = await import(runnerUrl);
+      const subcommand = args[1];
+
+      if (!subcommand || subcommand === 'list') {
+        await listScenarios();
+        return;
+      }
+
+      if (subcommand === 'init') {
+        const scenario = args[2];
+        const options: any = { template: 'basic' };
+        for (let i = 3; i < args.length; i++) {
+          if (args[i] === '-t' || args[i] === '--template') {
+            options.template = args[++i];
+          }
+        }
+        await initScenario(scenario, options);
+        return;
+      }
+
+      if (subcommand === 'run') {
+        const scenario = args[2];
+        const options: any = {
+          config: 'simulation/configs/default.json',
+          verbosity: '2',
+          iterations: '10',
+          swarmSize: '5',
+          model: 'anthropic/claude-3.5-sonnet',
+          parallel: false,
+          output: 'simulation/reports',
+          stream: false,
+          optimize: false
+        };
+
+        for (let i = 3; i < args.length; i++) {
+          const arg = args[i];
+          if (arg === '-c' || arg === '--config') options.config = args[++i];
+          else if (arg === '-v' || arg === '--verbosity') options.verbosity = args[++i];
+          else if (arg === '-i' || arg === '--iterations') options.iterations = args[++i];
+          else if (arg === '-s' || arg === '--swarm-size') options.swarmSize = args[++i];
+          else if (arg === '-m' || arg === '--model') options.model = args[++i];
+          else if (arg === '-p' || arg === '--parallel') options.parallel = true;
+          else if (arg === '-o' || arg === '--output') options.output = args[++i];
+          else if (arg === '--stream') options.stream = true;
+          else if (arg === '--optimize') options.optimize = true;
+        }
+
+        await runSimulation(scenario, options);
+        return;
+      }
+
+      log.error(`Unknown simulate subcommand: ${subcommand}`);
+      log.info('Available: simulate list, simulate run <scenario>, simulate init <scenario>');
+      return;
+    } catch (error) {
+      log.error(`Failed to load simulation module: ${(error as Error).message}`);
+      log.info('Falling back to agentdb-simulate binary...');
+      log.info('Usage: npx agentdb-simulate <command>');
+      return;
+    }
   }
 
   const cli = new AgentDBCLI();
@@ -2194,18 +2409,58 @@ function printHelp() {
 ${colors.bright}${colors.cyan}█▀█ █▀▀ █▀▀ █▄░█ ▀█▀ █▀▄ █▄▄
 █▀█ █▄█ ██▄ █░▀█ ░█░ █▄▀ █▄█${colors.reset}
 
-${colors.bright}${colors.cyan}AgentDB CLI - Frontier Memory Features${colors.reset}
+${colors.bright}${colors.cyan}AgentDB v2 CLI - Vector Intelligence with Auto Backend Detection${colors.reset}
+
+${colors.bright}CORE COMMANDS:${colors.reset}
+  ${colors.cyan}init${colors.reset} [options]              Initialize database with backend detection
+    --backend <type>           Backend: auto (default), ruvector, hnswlib
+    --dimension <n>            Vector dimension (default: 384)
+    --model <name>             Embedding model (default: Xenova/all-MiniLM-L6-v2)
+                               Popular: Xenova/bge-base-en-v1.5 (768d production)
+                                        Xenova/bge-small-en-v1.5 (384d best quality)
+    --dry-run                  Show detection info without initializing
+    --db <path>                Database path (default: ./agentdb.db)
+
+  ${colors.cyan}status${colors.reset} [options]            Show database and backend status
+    --db <path>                Database path (default: ./agentdb.db)
+    --verbose, -v              Show detailed statistics
+
+  ${colors.cyan}doctor${colors.reset} [options]            System diagnostics and health check
+    --db <path>                Database path to check (optional)
+    --verbose, -v              Show detailed system information
 
 ${colors.bright}USAGE:${colors.reset}
   agentdb <command> <subcommand> [options]
 
 ${colors.bright}SETUP COMMANDS:${colors.reset}
-  agentdb init [db-path] [--dimension 1536] [--preset small|medium|large] [--in-memory]
+  agentdb init [db-path] [--dimension 384] [--model <name>] [--preset small|medium|large] [--in-memory]
     Initialize a new AgentDB database (default: ./agentdb.db)
     Options:
-      --dimension <n>     Vector dimension (default: 1536 for OpenAI, 768 for sentence-transformers)
+      --dimension <n>     Vector dimension (default: 384 for all-MiniLM, 768 for bge-base)
+      --model <name>      Embedding model (default: Xenova/all-MiniLM-L6-v2)
+                          Examples:
+                            Xenova/bge-small-en-v1.5 (384d) - Best quality at 384-dim
+                            Xenova/bge-base-en-v1.5 (768d)  - Production quality
+                            Xenova/all-mpnet-base-v2 (768d) - All-around excellence
+                          See: docs/EMBEDDING-MODELS-GUIDE.md for full list
       --preset <size>     small (<10K), medium (10K-100K), large (>100K vectors)
       --in-memory         Use temporary in-memory database (:memory:)
+
+  agentdb install-embeddings [--global]
+    Install optional embedding dependencies (@xenova/transformers)
+    By default uses mock embeddings - run this for real ML-powered embeddings
+    Options:
+      --global, -g        Install globally instead of locally
+    Note: Requires build tools (python3, make, g++)
+
+  agentdb migrate <source-db> [--target <target-db>] [--no-optimize] [--dry-run] [-v]
+    Migrate legacy AgentDB v1 or claude-flow memory databases to v2 format
+    Automatically detects source type and optimizes for RuVector GNN
+    Options:
+      --target <path>     Target database path (default: source-v2.db)
+      --no-optimize       Skip GNN optimization analysis
+      --dry-run           Analyze migration without making changes
+      --verbose, -v       Show detailed migration progress
 
 ${colors.bright}VECTOR SEARCH COMMANDS:${colors.reset}
   agentdb vector-search <db-path> <vector> [-k 10] [-t 0.75] [-m cosine] [-f json] [-v] [--mmr [lambda]]

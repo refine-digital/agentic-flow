@@ -11,20 +11,23 @@
 // Database type from db-fallback
 type Database = any;
 import { EmbeddingService } from './EmbeddingService.js';
+import { VectorBackend } from '../backends/VectorBackend.js';
+import type { GraphDatabaseAdapter } from '../backends/graph/GraphDatabaseAdapter.js';
+import { NodeIdMapper } from '../utils/NodeIdMapper.js';
 
 export interface Skill {
   id?: number;
   name: string;
   description?: string;
-  signature: {
+  signature?: {  // v1 API: optional
     inputs: Record<string, any>;
     outputs: Record<string, any>;
   };
   code?: string;
   successRate: number;
-  uses: number;
-  avgReward: number;
-  avgLatencyMs: number;
+  uses?: number;  // v1 API: optional (defaults to 0)
+  avgReward?: number;  // v1 API: optional (defaults to 0)
+  avgLatencyMs?: number;  // v1 API: optional (defaults to 0)
   createdFromEpisode?: number;
   metadata?: Record<string, any>;
 }
@@ -38,7 +41,10 @@ export interface SkillLink {
 }
 
 export interface SkillQuery {
-  task: string;
+  /** v2 API: task description */
+  task?: string;
+  /** v1 API: query string (alias for task) */
+  query?: string;
   k?: number;
   minSuccessRate?: number;
   preferRecent?: boolean;
@@ -47,16 +53,45 @@ export interface SkillQuery {
 export class SkillLibrary {
   private db: Database;
   private embedder: EmbeddingService;
+  private vectorBackend: VectorBackend | null;
+  private graphBackend?: any; // GraphBackend or GraphDatabaseAdapter
 
-  constructor(db: Database, embedder: EmbeddingService) {
+  constructor(db: Database, embedder: EmbeddingService, vectorBackend?: VectorBackend, graphBackend?: any) {
     this.db = db;
     this.embedder = embedder;
+    this.vectorBackend = vectorBackend || null;
+    this.graphBackend = graphBackend;
   }
 
   /**
    * Create a new skill manually or from an episode
    */
   async createSkill(skill: Skill): Promise<number> {
+    // Use GraphDatabaseAdapter if available (AgentDB v2)
+    if (this.graphBackend && 'storeSkill' in this.graphBackend) {
+      const graphAdapter = this.graphBackend as any as GraphDatabaseAdapter;
+
+      const text = this.buildSkillText(skill);
+      const embedding = await this.embedder.embed(text);
+
+      const nodeId = await graphAdapter.storeSkill({
+        id: skill.id ? `skill-${skill.id}` : `skill-${Date.now()}-${Math.random()}`,
+        name: skill.name,
+        description: skill.description || '',
+        code: skill.code || '',
+        usageCount: skill.uses ?? 0,
+        avgReward: skill.avgReward ?? 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        tags: JSON.stringify(skill.metadata || {})
+      }, embedding);
+
+      const numericId = parseInt(nodeId.split('-').pop() || '0', 36);
+      NodeIdMapper.getInstance().register(numericId, nodeId);
+      return numericId;
+    }
+
+    // Fallback to SQLite
     const stmt = this.db.prepare(`
       INSERT INTO skills (
         name, description, signature, code, success_rate, uses,
@@ -64,24 +99,46 @@ export class SkillLibrary {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
+    // v1 API compatibility: provide defaults for optional fields
+    const signature = skill.signature || { inputs: {}, outputs: {} };
+    const uses = skill.uses ?? 0;
+    const avgReward = skill.avgReward ?? 0;
+    const avgLatencyMs = skill.avgLatencyMs ?? 0;
+
     const result = stmt.run(
       skill.name,
       skill.description || null,
-      JSON.stringify(skill.signature),
+      JSON.stringify(signature),
       skill.code || null,
       skill.successRate,
-      skill.uses,
-      skill.avgReward,
-      skill.avgLatencyMs,
+      uses,
+      avgReward,
+      avgLatencyMs,
       skill.metadata ? JSON.stringify(skill.metadata) : null
     );
 
     const skillId = result.lastInsertRowid as number;
 
-    // Generate and store embedding
+    // Generate and store embedding in VectorBackend
     const text = this.buildSkillText(skill);
     const embedding = await this.embedder.embed(text);
-    this.storeSkillEmbedding(skillId, embedding);
+
+    // Store in VectorBackend with skill metadata (if available)
+    if (this.vectorBackend) {
+      this.vectorBackend.insert(
+        `skill:${skillId}`,
+        embedding,
+        {
+          name: skill.name,
+          description: skill.description,
+          successRate: skill.successRate,
+          avgReward: skill.avgReward
+        }
+      );
+    } else {
+      // Legacy: store in database
+      this.storeSkillEmbeddingLegacy(skillId, embedding);
+    }
 
     return skillId;
   }
@@ -111,33 +168,139 @@ export class SkillLibrary {
   }
 
   async retrieveSkills(query: SkillQuery): Promise<Skill[]> {
-    const { task, k = 5, minSuccessRate = 0.5, preferRecent = true } = query;
+    // v1 API compatibility: accept both 'query' and 'task'
+    const task = query.task || query.query;
+    if (!task) {
+      throw new Error('SkillQuery must provide either task (v2) or query (v1)');
+    }
+
+    const { k = 5, minSuccessRate = 0.5, preferRecent = true } = query;
 
     // Generate query embedding
     const queryEmbedding = await this.embedder.embed(task);
 
-    // Build filters
-    const filters = ['s.success_rate >= ?'];
-    const params: any[] = [minSuccessRate];
+    // Use GraphDatabaseAdapter if available (AgentDB v2)
+    if (this.graphBackend && 'searchSkills' in this.graphBackend) {
+      const graphAdapter = this.graphBackend as any as GraphDatabaseAdapter;
 
+      const searchResults = await graphAdapter.searchSkills(queryEmbedding, k);
+
+      return searchResults.map(result => {
+        // Handle metadata/tags parsing
+        let metadata: any = undefined;
+        if (result.tags) {
+          if (typeof result.tags === 'string') {
+            // Skip parsing if it's a String object representation
+            if (!result.tags.startsWith('String(')) {
+              try {
+                metadata = JSON.parse(result.tags);
+              } catch (e) {
+                // Invalid JSON, skip
+                metadata = undefined;
+              }
+            }
+          } else {
+            // Already an object
+            metadata = result.tags;
+          }
+        }
+
+        return {
+          id: parseInt(result.id.split('-').pop() || '0', 36),
+          name: result.name,
+          description: result.description,
+          code: result.code,
+          successRate: result.avgReward, // Use avgReward as successRate proxy
+          uses: result.usageCount,
+          avgReward: result.avgReward,
+          metadata
+        };
+      }).filter(skill => skill.successRate >= minSuccessRate);
+    }
+
+    // Use VectorBackend for semantic search (if available)
+    if (this.vectorBackend) {
+      const searchResults = this.vectorBackend.search(queryEmbedding, k * 3);
+
+      // Map results back to skill IDs and fetch full skill data
+      const skillsWithSimilarity: (Skill & { similarity: number })[] = [];
+
+      // Prepare statement ONCE outside loop (better-sqlite3 best practice)
+      const getSkillStmt = this.db.prepare('SELECT * FROM skills WHERE id = ?');
+
+      for (const result of searchResults) {
+        // Extract skill ID from vector ID (format: "skill:123")
+        const skillId = parseInt(result.id.replace('skill:', ''));
+
+        // Fetch full skill data from database
+        const row = getSkillStmt.get(skillId);
+
+        if (!row) continue;
+
+        // Apply filters
+        if (row.success_rate < minSuccessRate) continue;
+
+        skillsWithSimilarity.push({
+          id: row.id,
+          name: row.name,
+          description: row.description,
+          signature: JSON.parse(row.signature),
+          code: row.code,
+          successRate: row.success_rate,
+          uses: row.uses,
+          avgReward: row.avg_reward,
+          avgLatencyMs: row.avg_latency_ms,
+          createdFromEpisode: row.created_from_episode,
+          metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
+          similarity: result.similarity
+        });
+      }
+
+      // Compute composite scores
+      skillsWithSimilarity.sort((a, b) => {
+        const scoreA = this.computeSkillScore(a);
+        const scoreB = this.computeSkillScore(b);
+        return scoreB - scoreA;
+      });
+
+      return skillsWithSimilarity.slice(0, k);
+    } else {
+      // Legacy: use SQL-based similarity search
+      return this.retrieveSkillsLegacy(query);
+    }
+  }
+
+  /**
+   * Legacy SQL-based skill retrieval (fallback when VectorBackend not available)
+   */
+  private async retrieveSkillsLegacy(query: SkillQuery): Promise<Skill[]> {
+    // v1 API compatibility: accept both 'query' and 'task'
+    const task = query.task || query.query;
+    if (!task) {
+      throw new Error('SkillQuery must provide either task (v2) or query (v1)');
+    }
+
+    const { k = 5, minSuccessRate = 0.5 } = query;
+    const queryEmbedding = await this.embedder.embed(task);
+
+    // Fetch all skills with embeddings
     const stmt = this.db.prepare(`
-      SELECT
-        s.*,
-        se.embedding
+      SELECT s.*, e.embedding
       FROM skills s
-      JOIN skill_embeddings se ON s.id = se.skill_id
-      WHERE ${filters.join(' AND ')}
-      ORDER BY ${preferRecent ? 's.last_used_at DESC,' : ''} s.success_rate DESC
+      LEFT JOIN skill_embeddings e ON s.id = e.skill_id
+      WHERE s.success_rate >= ?
     `);
+    const rows = stmt.all(minSuccessRate);
 
-    const rows = stmt.all(...params) as any[];
+    // Compute similarities
+    const skillsWithSimilarity: (Skill & { similarity: number })[] = [];
+    for (const row of rows) {
+      if (!row.embedding) continue;
 
-    // Calculate similarities and rank
-    const skills: (Skill & { similarity: number })[] = rows.map(row => {
-      const embedding = this.deserializeEmbedding(row.embedding);
+      const embedding = new Float32Array(row.embedding.buffer);
       const similarity = this.cosineSimilarity(queryEmbedding, embedding);
 
-      return {
+      skillsWithSimilarity.push({
         id: row.id,
         name: row.name,
         description: row.description,
@@ -150,17 +313,47 @@ export class SkillLibrary {
         createdFromEpisode: row.created_from_episode,
         metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
         similarity
-      };
-    });
+      });
+    }
 
-    // Compute composite scores
-    skills.sort((a, b) => {
+    // Sort by composite score
+    skillsWithSimilarity.sort((a, b) => {
       const scoreA = this.computeSkillScore(a);
       const scoreB = this.computeSkillScore(b);
       return scoreB - scoreA;
     });
 
-    return skills.slice(0, k);
+    return skillsWithSimilarity.slice(0, k);
+  }
+
+  /**
+   * Store skill embedding (legacy fallback)
+   */
+  private storeSkillEmbeddingLegacy(skillId: number, embedding: Float32Array): void {
+    const stmt = this.db.prepare(`
+      INSERT INTO skill_embeddings (skill_id, embedding)
+      VALUES (?, ?)
+      ON CONFLICT(skill_id) DO UPDATE SET embedding = excluded.embedding
+    `);
+    const buffer = Buffer.from(embedding.buffer);
+    stmt.run(skillId, buffer);
+  }
+
+  /**
+   * Cosine similarity between two vectors
+   */
+  private cosineSimilarity(a: Float32Array, b: Float32Array): number {
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+
+    for (let i = 0; i < a.length; i++) {
+      dotProduct += a[i] * b[i];
+      normA += a[i] * a[i];
+      normB += b[i] * b[i];
+    }
+
+    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
   }
 
   /**
@@ -592,39 +785,20 @@ export class SkillLibrary {
     return parts.join('\n');
   }
 
-  private storeSkillEmbedding(skillId: number, embedding: Float32Array): void {
-    const stmt = this.db.prepare(`
-      INSERT INTO skill_embeddings (skill_id, embedding)
-      VALUES (?, ?)
-    `);
-    stmt.run(skillId, Buffer.from(embedding.buffer));
-  }
-
-  private deserializeEmbedding(buffer: Buffer): Float32Array {
-    return new Float32Array(buffer.buffer, buffer.byteOffset, buffer.length / 4);
-  }
-
-  private cosineSimilarity(a: Float32Array, b: Float32Array): number {
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-
-    for (let i = 0; i < a.length; i++) {
-      dotProduct += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
-    }
-
-    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
-  }
-
+  /**
+   * Compute composite skill score from similarity and metadata
+   * VectorBackend provides normalized similarity (0-1)
+   */
   private computeSkillScore(skill: Skill & { similarity: number }): number {
     // Composite score: similarity * 0.4 + success_rate * 0.3 + (uses/1000) * 0.1 + avg_reward * 0.2
+    const uses = skill.uses ?? 0;
+    const avgReward = skill.avgReward ?? 0;
+
     return (
       skill.similarity * 0.4 +
       skill.successRate * 0.3 +
-      Math.min(skill.uses / 1000, 1.0) * 0.1 +
-      skill.avgReward * 0.2
+      Math.min(uses / 1000, 1.0) * 0.1 +
+      avgReward * 0.2
     );
   }
 }

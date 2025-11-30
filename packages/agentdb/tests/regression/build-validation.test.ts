@@ -127,7 +127,7 @@ describe('Build Validation Tests', () => {
       );
 
       expect(packageJson.name).toBe('agentdb');
-      expect(packageJson.version).toBe('1.6.0');
+      expect(packageJson.version).toBe('1.6.1');
       expect(packageJson.type).toBe('module');
       expect(packageJson.main).toBe('dist/index.js');
       expect(packageJson.types).toBe('dist/index.d.ts');

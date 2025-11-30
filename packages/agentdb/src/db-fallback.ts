@@ -53,6 +53,9 @@ function createSqlJsWrapper(SQL: any) {
   return class SqlJsDatabase {
     private db: any;
     private filename: string;
+    private activeStatements: Map<number, any> = new Map();
+    private statementCounter: number = 0;
+    private intervalId: NodeJS.Timeout | null = null;
 
     constructor(filename: string, options?: any) {
       this.filename = filename;
@@ -74,66 +77,115 @@ function createSqlJsWrapper(SQL: any) {
           this.db = new SQL.Database();
         }
       }
+
+      // Warn if too many active statements (memory leak detection)
+      this.intervalId = setInterval(() => {
+        if (this.activeStatements.size > 50) {
+          console.warn(`⚠️  Detected ${this.activeStatements.size} active SQL statements - possible memory leak`);
+        }
+      }, 10000);
     }
 
     prepare(sql: string) {
       const stmt = this.db.prepare(sql);
+      let isFinalized = false;
+      const stmtId = ++this.statementCounter;
+
+      // Track active statement
+      this.activeStatements.set(stmtId, stmt);
 
       return {
         run: (...params: any[]) => {
-          stmt.bind(params);
-          stmt.step();
-          stmt.reset();
+          if (isFinalized) throw new Error('Statement already finalized');
+          try {
+            stmt.bind(params);
+            stmt.step();
+            stmt.reset();
 
-          return {
-            changes: this.db.getRowsModified(),
-            lastInsertRowid: this.db.exec('SELECT last_insert_rowid()')[0]?.values[0]?.[0] || 0
-          };
+            return {
+              changes: this.db.getRowsModified(),
+              lastInsertRowid: this.db.exec('SELECT last_insert_rowid()')[0]?.values[0]?.[0] || 0
+            };
+          } catch (error) {
+            // Auto-free on error to prevent memory leak
+            if (!isFinalized) {
+              stmt.free();
+              isFinalized = true;
+              this.activeStatements.delete(stmtId);
+            }
+            throw error;
+          }
         },
 
         get: (...params: any[]) => {
-          stmt.bind(params);
-          const hasRow = stmt.step();
+          if (isFinalized) throw new Error('Statement already finalized');
+          try {
+            stmt.bind(params);
+            const hasRow = stmt.step();
 
-          if (!hasRow) {
-            stmt.reset();
-            return undefined;
-          }
+            if (!hasRow) {
+              stmt.reset();
+              return undefined;
+            }
 
-          const columns = stmt.getColumnNames();
-          const values = stmt.get();
-          stmt.reset();
-
-          const result: any = {};
-          columns.forEach((col: string, idx: number) => {
-            result[col] = values[idx];
-          });
-
-          return result;
-        },
-
-        all: (...params: any[]) => {
-          stmt.bind(params);
-          const results: any[] = [];
-
-          while (stmt.step()) {
             const columns = stmt.getColumnNames();
             const values = stmt.get();
+            stmt.reset();
 
             const result: any = {};
             columns.forEach((col: string, idx: number) => {
               result[col] = values[idx];
             });
 
-            results.push(result);
+            return result;
+          } catch (error) {
+            // Auto-free on error to prevent memory leak
+            if (!isFinalized) {
+              stmt.free();
+              isFinalized = true;
+              this.activeStatements.delete(stmtId);
+            }
+            throw error;
           }
+        },
 
-          stmt.reset();
-          return results;
+        all: (...params: any[]) => {
+          if (isFinalized) throw new Error('Statement already finalized');
+          try {
+            stmt.bind(params);
+            const results: any[] = [];
+
+            while (stmt.step()) {
+              const columns = stmt.getColumnNames();
+              const values = stmt.get();
+
+              const result: any = {};
+              columns.forEach((col: string, idx: number) => {
+                result[col] = values[idx];
+              });
+
+              results.push(result);
+            }
+
+            stmt.reset();
+            return results;
+          } catch (error) {
+            // Auto-free on error to prevent memory leak
+            if (!isFinalized) {
+              stmt.free();
+              isFinalized = true;
+              this.activeStatements.delete(stmtId);
+            }
+            throw error;
+          }
         },
 
         finalize: () => {
-          stmt.free();
+          if (!isFinalized) {
+            stmt.free();
+            isFinalized = true;
+            this.activeStatements.delete(stmtId);
+          }
         }
       };
     }
@@ -162,6 +214,22 @@ function createSqlJsWrapper(SQL: any) {
     }
 
     close() {
+      // Clear interval timer
+      if (this.intervalId) {
+        clearInterval(this.intervalId);
+        this.intervalId = null;
+      }
+
+      // Free all active statements to prevent memory leaks
+      for (const [stmtId, stmt] of this.activeStatements.entries()) {
+        try {
+          stmt.free();
+        } catch (e) {
+          // Statement may already be freed
+        }
+      }
+      this.activeStatements.clear();
+
       // Save to file before closing
       this.save();
       this.db.close();

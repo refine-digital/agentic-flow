@@ -5,7 +5,7 @@
     "lib": ["ES2022"],
     "moduleResolution": "node",
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": ".",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
@@ -29,7 +29,9 @@
     "types": ["node"]
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "simulation/**/*",
+    "simulation/scenarios/**/*"
   ],
   "exclude": [
     "node_modules",

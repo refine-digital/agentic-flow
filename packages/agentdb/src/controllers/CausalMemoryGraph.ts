@@ -10,6 +10,9 @@
  * - Instrumental variable methods
  */
 
+import type { GraphDatabaseAdapter, CausalEdge as GraphCausalEdge } from '../backends/graph/GraphDatabaseAdapter.js';
+import { NodeIdMapper } from '../utils/NodeIdMapper.js';
+
 // Database type from db-fallback
 type Database = any;
 
@@ -80,15 +83,52 @@ export interface CausalQuery {
 
 export class CausalMemoryGraph {
   private db: Database;
+  private graphBackend?: any; // GraphBackend or GraphDatabaseAdapter
 
-  constructor(db: Database) {
+  constructor(db: Database, graphBackend?: any) {
     this.db = db;
+    this.graphBackend = graphBackend;
   }
 
   /**
    * Add a causal edge between memories
    */
-  addCausalEdge(edge: CausalEdge): number {
+  async addCausalEdge(edge: CausalEdge): Promise<number> {
+    // Use GraphDatabaseAdapter if available (AgentDB v2)
+    if (this.graphBackend && 'createCausalEdge' in this.graphBackend) {
+      const graphAdapter = this.graphBackend as any as GraphDatabaseAdapter;
+
+      // Create embedding for causal mechanism
+      const mechanismText = edge.mechanism || `${edge.fromMemoryType}-${edge.toMemoryType} causal link`;
+      const embedding = new Float32Array(384).fill(0); // Placeholder - would use embedder in production
+
+      // Convert episode IDs to string format expected by graph database
+      // Use NodeIdMapper to get full node IDs from numeric IDs
+      const mapper = NodeIdMapper.getInstance();
+
+      const fromNodeId = typeof edge.fromMemoryId === 'string'
+        ? edge.fromMemoryId
+        : (mapper.getNodeId(edge.fromMemoryId) || `${edge.fromMemoryType}-${edge.fromMemoryId}`);
+
+      const toNodeId = typeof edge.toMemoryId === 'string'
+        ? edge.toMemoryId
+        : (mapper.getNodeId(edge.toMemoryId) || `${edge.toMemoryType}-${edge.toMemoryId}`);
+
+      const graphEdge: GraphCausalEdge = {
+        from: fromNodeId,
+        to: toNodeId,
+        mechanism: mechanismText,
+        uplift: edge.uplift || 0,
+        confidence: edge.confidence,
+        sampleSize: edge.sampleSize || 0
+      };
+
+      const edgeId = await graphAdapter.createCausalEdge(graphEdge, embedding);
+      // Return a numeric ID for compatibility
+      return edge.fromMemoryId as number;
+    }
+
+    // Fallback to SQLite
     const stmt = this.db.prepare(`
       INSERT INTO causal_edges (
         from_memory_id, from_memory_type, to_memory_id, to_memory_type,

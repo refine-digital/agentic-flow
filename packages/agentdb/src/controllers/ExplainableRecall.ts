@@ -267,6 +267,104 @@ export class ExplainableRecall {
   }
 
   /**
+   * Trace provenance lineage for a certificate
+   * Returns full provenance chain from certificate to original sources
+   */
+  traceProvenance(certificateId: string): {
+    certificate: RecallCertificate;
+    sources: Map<string, ProvenanceSource[]>;
+    graph: {
+      nodes: Array<{ id: string; type: string; label: string }>;
+      edges: Array<{ from: string; to: string; type: string }>;
+    };
+  } {
+    const certRow = this.db.prepare(
+      'SELECT * FROM recall_certificates WHERE id = ?'
+    ).get(certificateId) as any;
+
+    if (!certRow) {
+      throw new Error(`Certificate ${certificateId} not found`);
+    }
+
+    const certificate: RecallCertificate = {
+      id: certRow.id,
+      queryId: certRow.query_id,
+      queryText: certRow.query_text,
+      chunkIds: JSON.parse(certRow.chunk_ids),
+      chunkTypes: JSON.parse(certRow.chunk_types),
+      minimalWhy: JSON.parse(certRow.minimal_why),
+      redundancyRatio: certRow.redundancy_ratio,
+      completenessScore: certRow.completeness_score,
+      merkleRoot: certRow.merkle_root,
+      sourceHashes: JSON.parse(certRow.source_hashes),
+      proofChain: JSON.parse(certRow.proof_chain),
+      policyProof: certRow.policy_proof,
+      policyVersion: certRow.policy_version,
+      accessLevel: certRow.access_level,
+      latencyMs: certRow.latency_ms
+    };
+
+    // Build provenance map for all sources
+    const sources = new Map<string, ProvenanceSource[]>();
+    for (const hash of certificate.sourceHashes) {
+      sources.set(hash, this.getProvenanceLineage(hash));
+    }
+
+    // Build provenance graph
+    const nodes: Array<{ id: string; type: string; label: string }> = [];
+    const edges: Array<{ from: string; to: string; type: string }> = [];
+
+    // Add certificate node
+    nodes.push({
+      id: certificateId,
+      type: 'certificate',
+      label: `Certificate: ${certificate.queryText.substring(0, 30)}...`
+    });
+
+    // Add source nodes and edges
+    for (const [hash, lineage] of sources.entries()) {
+      for (let i = 0; i < lineage.length; i++) {
+        const source = lineage[i];
+        const nodeId = `${source.sourceType}-${source.sourceId}`;
+
+        // Add node if not exists
+        if (!nodes.find(n => n.id === nodeId)) {
+          nodes.push({
+            id: nodeId,
+            type: source.sourceType,
+            label: `${source.sourceType} #${source.sourceId}`
+          });
+        }
+
+        // Add edge from certificate to first source
+        if (i === 0) {
+          edges.push({
+            from: certificateId,
+            to: nodeId,
+            type: 'includes'
+          });
+        }
+
+        // Add edge to parent if exists
+        if (i < lineage.length - 1) {
+          const parentNodeId = `${lineage[i + 1].sourceType}-${lineage[i + 1].sourceId}`;
+          edges.push({
+            from: nodeId,
+            to: parentNodeId,
+            type: 'derived_from'
+          });
+        }
+      }
+    }
+
+    return {
+      certificate,
+      sources,
+      graph: { nodes, edges }
+    };
+  }
+
+  /**
    * Audit certificate access
    */
   auditCertificate(certificateId: string): {
@@ -398,9 +496,11 @@ export class ExplainableRecall {
   private calculateCompleteness(minimalWhy: string[], requirements: string[]): number {
     if (requirements.length === 0) return 1.0;
 
+    // Prepare statement ONCE outside loop (better-sqlite3 best practice)
+    const stmt = this.db.prepare('SELECT output FROM episodes WHERE id = ?');
     const chunks = minimalWhy.map(id => {
       // Get chunk content
-      const episode = this.db.prepare('SELECT output FROM episodes WHERE id = ?').get(parseInt(id));
+      const episode = stmt.get(parseInt(id));
       return episode ? (episode as any).output : '';
     });
 
@@ -436,6 +536,12 @@ export class ExplainableRecall {
     return contentHash;
   }
 
+  // Prepare statement ONCE outside loop (better-sqlite3 best practice)
+  private _episodeStmt?: any;
+  private _skillStmt?: any;
+  private _noteStmt?: any;
+  private _factStmt?: any;
+
   /**
    * Get content hash for a memory
    */
@@ -444,19 +550,31 @@ export class ExplainableRecall {
 
     switch (sourceType) {
       case 'episode':
-        const episode = this.db.prepare('SELECT task, output FROM episodes WHERE id = ?').get(sourceId) as any;
+        if (!this._episodeStmt) {
+          this._episodeStmt = this.db.prepare('SELECT task, output FROM episodes WHERE id = ?');
+        }
+        const episode = this._episodeStmt.get(sourceId) as any;
         content = episode ? `${episode.task}:${episode.output}` : '';
         break;
       case 'skill':
-        const skill = this.db.prepare('SELECT name, code FROM skills WHERE id = ?').get(sourceId) as any;
+        if (!this._skillStmt) {
+          this._skillStmt = this.db.prepare('SELECT name, code FROM skills WHERE id = ?');
+        }
+        const skill = this._skillStmt.get(sourceId) as any;
         content = skill ? `${skill.name}:${skill.code}` : '';
         break;
       case 'note':
-        const note = this.db.prepare('SELECT text FROM notes WHERE id = ?').get(sourceId) as any;
+        if (!this._noteStmt) {
+          this._noteStmt = this.db.prepare('SELECT text FROM notes WHERE id = ?');
+        }
+        const note = this._noteStmt.get(sourceId) as any;
         content = note ? note.text : '';
         break;
       case 'fact':
-        const fact = this.db.prepare('SELECT subject, predicate, object FROM facts WHERE id = ?').get(sourceId) as any;
+        if (!this._factStmt) {
+          this._factStmt = this.db.prepare('SELECT subject, predicate, object FROM facts WHERE id = ?');
+        }
+        const fact = this._factStmt.get(sourceId) as any;
         content = fact ? `${fact.subject}:${fact.predicate}:${fact.object}` : '';
         break;
     }
