@@ -1052,6 +1052,12 @@ async function main() {
         options.backend = args[++i];
       } else if (arg === '--dimension' && i + 1 < args.length) {
         options.dimension = parseInt(args[++i]);
+      } else if (arg === '--model' && i + 1 < args.length) {
+        options.model = args[++i];
+      } else if (arg === '--preset' && i + 1 < args.length) {
+        options.preset = args[++i];
+      } else if (arg === '--in-memory') {
+        options.inMemory = true;
       } else if (arg === '--dry-run') {
         options.dryRun = true;
       } else if (arg === '--db' && i + 1 < args.length) {
@@ -1141,6 +1147,84 @@ async function main() {
   if (command === 'stats') {
     await handleStatsCommand(args.slice(1));
     return;
+  }
+
+  // Handle simulate command - run simulation CLI
+  if (command === 'simulate') {
+    // Use pathToFileURL for proper ESM module resolution
+    const { pathToFileURL } = await import('url');
+
+    // Get current directory using import.meta.url
+    const currentUrl = import.meta.url;
+    const currentPath = currentUrl.replace(/^file:\/\//, '');
+    const __dirname = path.dirname(currentPath);
+
+    // Dynamic import with proper file URL for ESM compatibility
+    // Note: simulation files are in dist/simulation, not dist/src/simulation
+    const runnerPath = path.resolve(__dirname, '../../simulation/runner.js');
+    const runnerUrl = pathToFileURL(runnerPath).href;
+
+    try {
+      const { runSimulation, listScenarios, initScenario } = await import(runnerUrl);
+      const subcommand = args[1];
+
+      if (!subcommand || subcommand === 'list') {
+        await listScenarios();
+        return;
+      }
+
+      if (subcommand === 'init') {
+        const scenario = args[2];
+        const options: any = { template: 'basic' };
+        for (let i = 3; i < args.length; i++) {
+          if (args[i] === '-t' || args[i] === '--template') {
+            options.template = args[++i];
+          }
+        }
+        await initScenario(scenario, options);
+        return;
+      }
+
+      if (subcommand === 'run') {
+        const scenario = args[2];
+        const options: any = {
+          config: 'simulation/configs/default.json',
+          verbosity: '2',
+          iterations: '10',
+          swarmSize: '5',
+          model: 'anthropic/claude-3.5-sonnet',
+          parallel: false,
+          output: 'simulation/reports',
+          stream: false,
+          optimize: false
+        };
+
+        for (let i = 3; i < args.length; i++) {
+          const arg = args[i];
+          if (arg === '-c' || arg === '--config') options.config = args[++i];
+          else if (arg === '-v' || arg === '--verbosity') options.verbosity = args[++i];
+          else if (arg === '-i' || arg === '--iterations') options.iterations = args[++i];
+          else if (arg === '-s' || arg === '--swarm-size') options.swarmSize = args[++i];
+          else if (arg === '-m' || arg === '--model') options.model = args[++i];
+          else if (arg === '-p' || arg === '--parallel') options.parallel = true;
+          else if (arg === '-o' || arg === '--output') options.output = args[++i];
+          else if (arg === '--stream') options.stream = true;
+          else if (arg === '--optimize') options.optimize = true;
+        }
+
+        await runSimulation(scenario, options);
+        return;
+      }
+
+      log.error(`Unknown simulate subcommand: ${subcommand}`);
+      log.info('Available: simulate list, simulate run <scenario>, simulate init <scenario>');
+      return;
+    } catch (error) {
+      log.error(`Failed to load simulation module: ${(error as Error).message}`);
+      log.info('Falling back to agentdb-simulate binary...');
+      log.info('Usage: npx agentdb-simulate <command>');
+      return;
+    }
   }
 
   const cli = new AgentDBCLI();
@@ -2296,6 +2380,9 @@ ${colors.bright}CORE COMMANDS:${colors.reset}
   ${colors.cyan}init${colors.reset} [options]              Initialize database with backend detection
     --backend <type>           Backend: auto (default), ruvector, hnswlib
     --dimension <n>            Vector dimension (default: 384)
+    --model <name>             Embedding model (default: Xenova/all-MiniLM-L6-v2)
+                               Popular: Xenova/bge-base-en-v1.5 (768d production)
+                                        Xenova/bge-small-en-v1.5 (384d best quality)
     --dry-run                  Show detection info without initializing
     --db <path>                Database path (default: ./agentdb.db)
 
@@ -2307,10 +2394,16 @@ ${colors.bright}USAGE:${colors.reset}
   agentdb <command> <subcommand> [options]
 
 ${colors.bright}SETUP COMMANDS:${colors.reset}
-  agentdb init [db-path] [--dimension 1536] [--preset small|medium|large] [--in-memory]
+  agentdb init [db-path] [--dimension 384] [--model <name>] [--preset small|medium|large] [--in-memory]
     Initialize a new AgentDB database (default: ./agentdb.db)
     Options:
-      --dimension <n>     Vector dimension (default: 1536 for OpenAI, 768 for sentence-transformers)
+      --dimension <n>     Vector dimension (default: 384 for all-MiniLM, 768 for bge-base)
+      --model <name>      Embedding model (default: Xenova/all-MiniLM-L6-v2)
+                          Examples:
+                            Xenova/bge-small-en-v1.5 (384d) - Best quality at 384-dim
+                            Xenova/bge-base-en-v1.5 (768d)  - Production quality
+                            Xenova/all-mpnet-base-v2 (768d) - All-around excellence
+                          See: docs/EMBEDDING-MODELS-GUIDE.md for full list
       --preset <size>     small (<10K), medium (10K-100K), large (>100K vectors)
       --in-memory         Use temporary in-memory database (:memory:)
 

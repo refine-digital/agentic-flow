@@ -23,6 +23,9 @@ const colors = {
 interface InitOptions {
   backend?: 'auto' | 'ruvector' | 'hnswlib';
   dimension?: number;
+  model?: string;
+  preset?: 'small' | 'medium' | 'large';
+  inMemory?: boolean;
   dryRun?: boolean;
   dbPath?: string;
 }
@@ -40,6 +43,9 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
   const {
     backend = 'auto',
     dimension = 384,
+    model,
+    preset,
+    inMemory = false,
     dryRun = false,
     dbPath = './agentdb.db'
   } = options;
@@ -69,14 +75,24 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
     // Determine actual backend to use
     const selectedBackend = backend === 'auto' ? detection.backend : backend;
 
+    // Determine actual database path (handle in-memory)
+    const actualDbPath = inMemory ? ':memory:' : dbPath;
+
+    // Determine embedding model (with dimension-aware defaults)
+    const embeddingModel = model || (dimension === 768 ? 'Xenova/bge-base-en-v1.5' : 'Xenova/all-MiniLM-L6-v2');
+
     console.log(`\n${colors.bright}${colors.cyan}🚀 Initializing AgentDB${colors.reset}\n`);
-    console.log(`  Database:      ${colors.blue}${dbPath}${colors.reset}`);
+    console.log(`  Database:      ${colors.blue}${actualDbPath}${colors.reset}`);
     console.log(`  Backend:       ${getBackendColor(selectedBackend)}${selectedBackend}${colors.reset}`);
     console.log(`  Dimension:     ${colors.blue}${dimension}${colors.reset}`);
+    console.log(`  Model:         ${colors.blue}${embeddingModel}${colors.reset}`);
+    if (preset) {
+      console.log(`  Preset:        ${colors.blue}${preset}${colors.reset}`);
+    }
     console.log('');
 
     // Initialize database
-    const db = await createDatabase(dbPath);
+    const db = await createDatabase(actualDbPath);
 
     // Configure for performance
     db.pragma('journal_mode = WAL');
@@ -84,11 +100,11 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
     db.pragma('cache_size = -64000');
 
     // Load schemas (use package dist directory, not cwd)
-    // When running from dist/cli/commands/init.js, schemas are in dist/schemas/
+    // When running from dist/src/cli/commands/init.js, schemas are in dist/schemas/
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    // __dirname is dist/cli/commands, so go up 2 levels to dist/
-    const distDir = path.join(__dirname, '../..');
+    // __dirname is dist/src/cli/commands, so go up 3 levels to dist/
+    const distDir = path.join(__dirname, '../../..');
     const basePath = path.join(distDir, 'schemas');
     const schemaFiles = ['schema.sql', 'frontier-schema.sql'];
 
@@ -120,6 +136,18 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
       INSERT OR REPLACE INTO agentdb_config (key, value)
       VALUES (?, ?)
     `).run('dimension', dimension.toString());
+
+    db.prepare(`
+      INSERT OR REPLACE INTO agentdb_config (key, value)
+      VALUES (?, ?)
+    `).run('embedding_model', embeddingModel);
+
+    if (preset) {
+      db.prepare(`
+        INSERT OR REPLACE INTO agentdb_config (key, value)
+        VALUES (?, ?)
+      `).run('preset', preset);
+    }
 
     db.prepare(`
       INSERT OR REPLACE INTO agentdb_config (key, value)

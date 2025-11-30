@@ -89,6 +89,67 @@ See [📖 Complete Tutorial](#-tutorial) below for step-by-step examples.
 
 ---
 
+## 🎯 Embedding Models
+
+AgentDB supports multiple embedding models with different tradeoffs:
+
+### Quick Start (Default)
+
+```bash
+# Uses Xenova/all-MiniLM-L6-v2 (384 dimensions)
+npx agentdb init
+```
+
+### Production Quality
+
+```bash
+# Best quality for production RAG systems
+npx agentdb init --dimension 768 --model "Xenova/bge-base-en-v1.5"
+```
+
+### Model Comparison
+
+| Model | Dimension | Quality | Speed | Best For |
+|-------|-----------|---------|-------|----------|
+| **all-MiniLM-L6-v2** (default) | 384 | ⭐⭐⭐⭐ | ⚡⚡⚡⚡⚡ | Prototyping, demos |
+| **bge-small-en-v1.5** | 384 | ⭐⭐⭐⭐⭐ | ⚡⚡⚡⚡ | Best 384-dim quality |
+| **bge-base-en-v1.5** | 768 | ⭐⭐⭐⭐⭐ | ⚡⚡⚡ | Production systems |
+| all-mpnet-base-v2 | 768 | ⭐⭐⭐⭐⭐ | ⚡⚡⚡ | All-around excellence |
+| e5-base-v2 | 768 | ⭐⭐⭐⭐⭐ | ⚡⚡⚡ | Multilingual (100+ languages) |
+
+### Usage Examples
+
+```typescript
+import AgentDB from 'agentdb';
+
+// Default (fast, 384-dim)
+const db1 = new AgentDB({
+  dbPath: './fast.db',
+  dimension: 384  // Uses all-MiniLM-L6-v2
+});
+
+// Production (high quality, 768-dim)
+const db2 = new AgentDB({
+  dbPath: './quality.db',
+  dimension: 768,
+  embeddingConfig: {
+    model: 'Xenova/bge-base-en-v1.5',
+    dimension: 768,
+    provider: 'transformers'
+  }
+});
+```
+
+**📖 Complete guide**: See [docs/EMBEDDING-MODELS-GUIDE.md](docs/EMBEDDING-MODELS-GUIDE.md) for:
+- 7+ recommended models with benchmarks
+- OpenAI API integration
+- Model selection guide by use case
+- Storage/memory calculations
+- Migration instructions
+
+**No API key needed** - All Xenova models run locally via Transformers.js! 🚀
+
+---
 
 ## 🚀 What's New in v2.0
 

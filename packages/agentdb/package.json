@@ -1,13 +1,12 @@
 {
   "name": "agentdb",
-  "version": "2.0.0-alpha.2",
+  "version": "2.0.0-alpha.2.4",
   "description": "AgentDB v2 - RuVector-powered graph database with Cypher queries, hyperedges, and ACID persistence. 150x faster than SQLite with integrated vector search, GNN learning, semantic routing, and comprehensive memory patterns. Includes reflexion memory, skill library, causal reasoning, and MCP integration.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "agentdb": "dist/cli/agentdb-cli.js",
-    "agentdb-simulate": "simulation/cli.js"
+    "agentdb": "dist/src/cli/agentdb-cli.js"
   },
   "exports": {
     ".": "./dist/index.js",
@@ -87,6 +86,7 @@
     "chalk": "^5.3.0",
     "cli-table3": "^0.6.0",
     "commander": "^12.1.0",
+    "dotenv": "^16.4.7",
     "hnswlib-node": "^3.0.0",
     "inquirer": "^9.3.8",
     "marked-terminal": "^6.0.0",
@@ -110,6 +110,8 @@
   "files": [
     "dist",
     "src",
+    "simulation",
+    "examples",
     "scripts/postinstall.cjs",
     "README.md",
     "LICENSE"
