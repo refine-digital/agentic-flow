@@ -17,6 +17,10 @@ AgentDB is the first vector database built specifically for autonomous AI agents
 
 **Perfect for:** LangChain agents, AutoGPT, Claude Code tools, custom AI assistants, RAG systems, or any application where AI needs to remember, learn, and improve.
 
+---
+
+> **📢 v2.0 Alpha Available!** Early adopters can test the new features with `npm install agentdb@alpha`. Production users should continue using `npm install agentdb@latest` for the stable version. See [Publishing Guide](docs/PUBLISHING_GUIDE.md) for details.
+
 
 ## ⚡ Key Features
 
@@ -36,7 +40,10 @@ AgentDB is the first vector database built specifically for autonomous AI agents
 Get started in 60 seconds:
 
 ```bash
-# Install
+# Install Alpha (v2.0 with all new features - for early adopters)
+npm install agentdb@alpha
+
+# Or install Stable (current production version)
 npm install agentdb@latest
 
 # Use in your code
@@ -64,6 +71,10 @@ const patterns = await reasoningBank.searchPatterns({
 
 **For Claude Code / MCP Integration** (zero-code setup):
 ```bash
+# Alpha version (v2.0 features)
+claude mcp add agentdb npx agentdb@alpha mcp start
+
+# Or stable version
 claude mcp add agentdb npx agentdb@latest mcp start
 ```
 
@@ -1236,8 +1247,8 @@ AgentDB v2 builds on research from:
 
 ## 📊 Project Status
 
-**Version:** 2.0.0
-**Status:** ✅ Production Ready
+**Version:** 2.0.0-alpha.1
+**Status:** 🧪 Alpha Testing (Early Adopters)
 **MCP Tools:** 32 (optimized with latent space research)
 **CLI Commands:** 59 (including simulation suite)
 **Simulations:** 25 scenarios (98.2% reproducibility)
