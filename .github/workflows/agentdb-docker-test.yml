@@ -30,40 +30,33 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build base stage
+      - name: Build all stages with cache
         working-directory: ${{ env.WORKING_DIR }}
         run: |
-          docker build --target base -t agentdb-base .
+          # Build stages in dependency order with layer caching
+          docker buildx build --target base -t agentdb-base --load \
+            --cache-from type=gha --cache-to type=gha,mode=max .
 
-      - name: Build and run tests
-        working-directory: ${{ env.WORKING_DIR }}
-        run: |
-          docker build --target test -t agentdb-test .
+          docker buildx build --target test -t agentdb-test --load \
+            --cache-from type=gha .
 
-      - name: Validate package
-        working-directory: ${{ env.WORKING_DIR }}
-        run: |
-          docker build --target package-test -t agentdb-package .
+          docker buildx build --target package-test -t agentdb-package --load \
+            --cache-from type=gha .
 
-      - name: Test CLI
-        working-directory: ${{ env.WORKING_DIR }}
-        run: |
-          docker build --target cli-test -t agentdb-cli .
+          docker buildx build --target cli-test -t agentdb-cli --load \
+            --cache-from type=gha .
 
-      - name: Test MCP server
-        working-directory: ${{ env.WORKING_DIR }}
-        run: |
-          docker build --target mcp-test -t agentdb-mcp .
+          docker buildx build --target mcp-test -t agentdb-mcp --load \
+            --cache-from type=gha .
 
-      - name: Build production image
-        working-directory: ${{ env.WORKING_DIR }}
-        run: |
-          docker build --target production -t agentdb-production .
+          docker buildx build --target production -t agentdb-production --load \
+            --cache-from type=gha .
 
       - name: Generate test report
         working-directory: ${{ env.WORKING_DIR }}
         run: |
-          docker build --target test-report -t agentdb-report .
+          docker buildx build --target test-report -t agentdb-report --load \
+            --cache-from type=gha .
           docker run --rm agentdb-report > test-report.txt
           cat test-report.txt
 
