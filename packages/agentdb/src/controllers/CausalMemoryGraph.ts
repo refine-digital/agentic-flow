@@ -171,8 +171,14 @@ export class CausalMemoryGraph {
       };
 
       const edgeId = await graphAdapter.createCausalEdge(graphEdge, embedding);
-      // Return a numeric ID for compatibility
-      return edge.fromMemoryId as number;
+      // Convert string ID to numeric ID for compatibility
+      // Extract numeric ID from string format "type-number" or return hash
+      if (typeof edgeId === 'number') {
+        return edgeId;
+      }
+      // Parse numeric ID from string format like "edge-123"
+      const numMatch = String(edgeId).match(/(\d+)$/);
+      return numMatch ? parseInt(numMatch[1], 10) : Math.abs(this.hashString(String(edgeId)));
     }
 
     // Fallback to SQLite
@@ -434,6 +440,20 @@ export class CausalMemoryGraph {
       totalUplift: row.total_uplift,
       confidence: row.min_confidence
     }));
+  }
+
+  /**
+   * Hash a string to a positive integer
+   * Used for converting string IDs to numeric IDs for backward compatibility
+   */
+  private hashString(str: string): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash);
   }
 
   /**

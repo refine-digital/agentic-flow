@@ -16,11 +16,11 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { AgentDB } from '../../src/index';
-import { MemoryController } from '../../src/controllers/MemoryController';
-import { SelfAttentionController } from '../../src/controllers/attention/SelfAttentionController';
-import { CrossAttentionController } from '../../src/controllers/attention/CrossAttentionController';
-import { MultiHeadAttentionController } from '../../src/controllers/attention/MultiHeadAttentionController';
+import AgentDB from '../../src/index.js';
+import { MemoryController } from '../../src/controllers/MemoryController.js';
+import { SelfAttentionController } from '../../src/controllers/attention/SelfAttentionController.js';
+import { CrossAttentionController } from '../../src/controllers/attention/CrossAttentionController.js';
+import { MultiHeadAttentionController } from '../../src/controllers/attention/MultiHeadAttentionController.js';
 import fs from 'fs';
 import path from 'path';
 
