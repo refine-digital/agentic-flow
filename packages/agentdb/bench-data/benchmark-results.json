@@ -1,32 +1,32 @@
 {
   "Graph Node Create (single)": {
     "iterations": 100,
-    "totalDurationMs": "104.28",
-    "avgDurationMs": "1.0428",
-    "opsPerSec": 958
+    "totalDurationMs": "109.64",
+    "avgDurationMs": "1.0964",
+    "opsPerSec": 912
   },
   "Cypher Query (MATCH simple)": {
     "iterations": 100,
-    "totalDurationMs": "56.80",
-    "avgDurationMs": "0.5680",
-    "opsPerSec": 1760
+    "totalDurationMs": "53.72",
+    "avgDurationMs": "0.5372",
+    "opsPerSec": 1861
   },
   "Cypher Query (MATCH with WHERE)": {
     "iterations": 100,
-    "totalDurationMs": "49.73",
-    "avgDurationMs": "0.4973",
-    "opsPerSec": 2010
+    "totalDurationMs": "52.04",
+    "avgDurationMs": "0.5204",
+    "opsPerSec": 1921
   },
   "ReflexionMemory Store Episode": {
     "iterations": 50,
-    "totalDurationMs": "756.44",
-    "avgDurationMs": "15.1289",
-    "opsPerSec": 66
+    "totalDurationMs": "640.74",
+    "avgDurationMs": "12.8147",
+    "opsPerSec": 78
   },
   "ReflexionMemory Retrieve Episodes": {
     "iterations": 50,
-    "totalDurationMs": "103.00",
-    "avgDurationMs": "2.0601",
-    "opsPerSec": 485
+    "totalDurationMs": "109.60",
+    "avgDurationMs": "2.1920",
+    "opsPerSec": 456
   }
 }

@@ -48,7 +48,13 @@ export class RuVectorBackend implements VectorBackend {
         VectorDB = core.VectorDB || core.default;
       }
 
-      this.db = new VectorDB(this.config.dimension, {
+      // RuVector WASM expects dimensions (plural) not dimension (singular)
+      const dimensions = this.config.dimension;
+      if (!dimensions) {
+        throw new Error('Vector dimension is required');
+      }
+
+      this.db = new VectorDB(dimensions, {
         metric: this.config.metric,
         maxElements: this.config.maxElements || 100000,
         efConstruction: this.config.efConstruction || 200,
