@@ -16,6 +16,7 @@ export { MetadataFilter } from './MetadataFilter.js';
 export { QUICServer } from './QUICServer.js';
 export { QUICClient } from './QUICClient.js';
 export { SyncCoordinator } from './SyncCoordinator.js';
+export { AttentionService } from './AttentionService.js';
 
 export type { Episode, EpisodeWithEmbedding, ReflexionQuery } from './ReflexionMemory.js';
 export type { Skill, SkillLink, SkillQuery } from './SkillLibrary.js';
@@ -29,3 +30,4 @@ export type { MetadataFilters, FilterableItem, FilterOperator, FilterValue } fro
 export type { QUICServerConfig, SyncRequest, SyncResponse } from './QUICServer.js';
 export type { QUICClientConfig, SyncOptions, SyncResult, SyncProgress } from './QUICClient.js';
 export type { SyncCoordinatorConfig, SyncState, SyncReport } from './SyncCoordinator.js';
+export type { AttentionConfig, AttentionResult, AttentionStats } from './AttentionService.js';

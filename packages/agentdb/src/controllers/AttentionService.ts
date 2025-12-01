@@ -45,6 +45,11 @@ export interface AttentionConfig {
 }
 
 /**
+ * Options for attention operations (alias for AttentionConfig)
+ */
+export type AttentionOptions = AttentionConfig;
+
+/**
  * Result from attention computation
  */
 export interface AttentionResult {
@@ -75,6 +80,11 @@ export interface AttentionStats {
   /** Runtime usage counts */
   runtimeCounts: Record<string, number>;
 }
+
+/**
+ * Performance metrics for attention operations (alias for AttentionStats)
+ */
+export type AttentionMetrics = AttentionStats;
 
 /**
  * Runtime environment detection

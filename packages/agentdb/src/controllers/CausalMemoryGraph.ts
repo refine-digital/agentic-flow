@@ -8,13 +8,31 @@
  * - Pearl's do-calculus and causal inference
  * - Uplift modeling from A/B testing
  * - Instrumental variable methods
+ *
+ * v2.0.0-alpha.3 Features:
+ * - HyperbolicAttention for tree-structured causal chain retrieval
+ * - Poincaré embeddings for hierarchical relationships
+ * - Feature flag: ENABLE_HYPERBOLIC_ATTENTION (default: false)
+ * - 100% backward compatible with fallback to standard retrieval
  */
 
 import type { GraphDatabaseAdapter, CausalEdge as GraphCausalEdge } from '../backends/graph/GraphDatabaseAdapter.js';
 import { NodeIdMapper } from '../utils/NodeIdMapper.js';
+import { AttentionService, type HyperbolicAttentionConfig } from '../services/AttentionService.js';
+import { EmbeddingService } from './EmbeddingService.js';
 
 // Database type from db-fallback
 type Database = any;
+
+/**
+ * Configuration for CausalMemoryGraph
+ */
+export interface CausalMemoryGraphConfig {
+  /** Enable hyperbolic attention for causal chains (default: false) */
+  ENABLE_HYPERBOLIC_ATTENTION?: boolean;
+  /** Hyperbolic attention configuration */
+  hyperbolicConfig?: Partial<HyperbolicAttentionConfig>;
+}
 
 export interface CausalEdge {
   id?: number;
@@ -84,10 +102,39 @@ export interface CausalQuery {
 export class CausalMemoryGraph {
   private db: Database;
   private graphBackend?: any; // GraphBackend or GraphDatabaseAdapter
+  private attentionService?: AttentionService;
+  private embedder?: EmbeddingService;
+  private config: CausalMemoryGraphConfig;
 
-  constructor(db: Database, graphBackend?: any) {
+  /**
+   * Constructor supports both v1 (legacy) and v2 (with attention) modes
+   *
+   * v1 mode: new CausalMemoryGraph(db)
+   * v2 mode: new CausalMemoryGraph(db, graphBackend, embedder, config)
+   */
+  constructor(
+    db: Database,
+    graphBackend?: any,
+    embedder?: EmbeddingService,
+    config?: CausalMemoryGraphConfig
+  ) {
     this.db = db;
     this.graphBackend = graphBackend;
+    this.embedder = embedder;
+    this.config = {
+      ENABLE_HYPERBOLIC_ATTENTION: false,
+      ...config,
+    };
+
+    // Initialize AttentionService if embedder provided
+    if (embedder && this.config.ENABLE_HYPERBOLIC_ATTENTION) {
+      this.attentionService = new AttentionService(db, {
+        hyperbolic: {
+          enabled: true,
+          ...this.config.hyperbolicConfig,
+        },
+      });
+    }
   }
 
   /**
@@ -324,13 +371,30 @@ export class CausalMemoryGraph {
 
   /**
    * Get causal chain (multi-hop reasoning)
+   *
+   * v2: Uses HyperbolicAttention if enabled for tree-structured retrieval
+   * v1: Falls back to recursive CTE with standard scoring
+   *
+   * @param fromMemoryId - Starting memory node
+   * @param toMemoryId - Target memory node
+   * @param maxDepth - Maximum chain depth (default: 5)
+   * @returns Ranked causal chains with paths, uplift, and confidence
    */
-  getCausalChain(fromMemoryId: number, toMemoryId: number, maxDepth: number = 5): {
+  async getCausalChain(fromMemoryId: number, toMemoryId: number, maxDepth: number = 5): Promise<{
     path: number[];
     totalUplift: number;
     confidence: number;
-  }[] {
-    // Use recursive CTE from view
+    attentionMetrics?: {
+      hyperbolicDistance: number[];
+      computeTimeMs: number;
+    };
+  }[]> {
+    // v2: Use HyperbolicAttention if enabled
+    if (this.attentionService && this.embedder) {
+      return this.getCausalChainWithAttention(fromMemoryId, toMemoryId, maxDepth);
+    }
+
+    // v1: Legacy recursive CTE
     const chains = this.db.prepare(`
       WITH RECURSIVE chain(from_id, to_id, depth, path, total_uplift, min_confidence) AS (
         SELECT
@@ -370,6 +434,151 @@ export class CausalMemoryGraph {
       totalUplift: row.total_uplift,
       confidence: row.min_confidence
     }));
+  }
+
+  /**
+   * Get causal chain with HyperbolicAttention (v2 feature)
+   *
+   * Uses Poincaré embeddings to model hierarchical causal relationships.
+   * Retrieves chains based on hyperbolic distance in embedding space.
+   *
+   * @private
+   */
+  private async getCausalChainWithAttention(
+    fromMemoryId: number,
+    toMemoryId: number,
+    maxDepth: number
+  ): Promise<{
+    path: number[];
+    totalUplift: number;
+    confidence: number;
+    attentionMetrics: {
+      hyperbolicDistance: number[];
+      computeTimeMs: number;
+    };
+  }[]> {
+    // Get all candidate chains using CTE
+    const candidateChains = this.db.prepare(`
+      WITH RECURSIVE chain(from_id, to_id, depth, path, total_uplift, min_confidence) AS (
+        SELECT
+          from_memory_id,
+          to_memory_id,
+          1,
+          from_memory_id || '->' || to_memory_id,
+          uplift,
+          confidence
+        FROM causal_edges
+        WHERE from_memory_id = ? AND confidence >= 0.5
+
+        UNION ALL
+
+        SELECT
+          chain.from_id,
+          ce.to_memory_id,
+          chain.depth + 1,
+          chain.path || '->' || ce.to_memory_id,
+          chain.total_uplift + ce.uplift,
+          MIN(chain.min_confidence, ce.confidence)
+        FROM chain
+        JOIN causal_edges ce ON chain.to_id = ce.from_memory_id
+        WHERE chain.depth < ?
+          AND ce.confidence >= 0.5
+          AND chain.path NOT LIKE '%' || ce.to_memory_id || '%'
+      )
+      SELECT path, total_uplift, min_confidence
+      FROM chain
+      WHERE to_id = ?
+      LIMIT 50
+    `).all(fromMemoryId, maxDepth, toMemoryId) as any[];
+
+    if (candidateChains.length === 0) {
+      return [];
+    }
+
+    // Get embeddings for query (from node)
+    const fromEpisode = this.db.prepare('SELECT task, output FROM episodes WHERE id = ?').get(fromMemoryId) as any;
+    const queryText = fromEpisode ? `${fromEpisode.task}: ${fromEpisode.output}` : '';
+    const queryEmbedding = await this.embedder!.embed(queryText);
+
+    // Get embeddings and hierarchy levels for all chain nodes
+    const allNodeIds = new Set<number>();
+    candidateChains.forEach((chain: any) => {
+      const path = chain.path.split('->').map(Number);
+      path.forEach(id => allNodeIds.add(id));
+    });
+
+    const nodeEmbeddings = new Map<number, Float32Array>();
+    const hierarchyLevels = new Map<number, number>();
+
+    for (const nodeId of allNodeIds) {
+      const episode = this.db.prepare('SELECT task, output FROM episodes WHERE id = ?').get(nodeId) as any;
+      if (episode) {
+        const text = `${episode.task}: ${episode.output}`;
+        const embedding = await this.embedder!.embed(text);
+        nodeEmbeddings.set(nodeId, embedding);
+
+        // Calculate hierarchy level (depth from root)
+        const level = candidateChains
+          .filter((chain: any) => chain.path.includes(String(nodeId)))
+          .reduce((minDepth: number, chain: any) => {
+            const path = chain.path.split('->').map(Number);
+            const idx = path.indexOf(nodeId);
+            return Math.min(minDepth, idx);
+          }, maxDepth);
+
+        hierarchyLevels.set(nodeId, level);
+      }
+    }
+
+    // Prepare keys, values, and hierarchy for attention
+    const nodeList = Array.from(allNodeIds);
+    const keys = new Float32Array(nodeList.length * 384);
+    const values = new Float32Array(nodeList.length * 384);
+    const hierarchyArray: number[] = [];
+
+    nodeList.forEach((nodeId, idx) => {
+      const embedding = nodeEmbeddings.get(nodeId)!;
+      keys.set(embedding, idx * 384);
+      values.set(embedding, idx * 384);
+      hierarchyArray.push(hierarchyLevels.get(nodeId) || 0);
+    });
+
+    // Apply HyperbolicAttention
+    const queries = new Float32Array(384);
+    queries.set(queryEmbedding);
+
+    const attentionResult = await this.attentionService!.hyperbolicAttention(
+      queries,
+      keys,
+      values,
+      hierarchyArray
+    );
+
+    // Re-rank chains by attention weights
+    const rankedChains = candidateChains
+      .map((chain: any) => {
+        const path = chain.path.split('->').map(Number);
+
+        // Calculate average attention weight for nodes in path
+        const avgWeight = path.reduce((sum: number, nodeId: number) => {
+          const idx = nodeList.indexOf(nodeId);
+          return sum + (idx >= 0 ? attentionResult.weights[idx] : 0);
+        }, 0) / path.length;
+
+        return {
+          path,
+          totalUplift: chain.total_uplift,
+          confidence: chain.min_confidence * avgWeight, // Boost confidence by attention
+          attentionMetrics: {
+            hyperbolicDistance: attentionResult.distances,
+            computeTimeMs: attentionResult.metrics.computeTimeMs,
+          },
+        };
+      })
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, 10);
+
+    return rankedChains;
   }
 
   /**

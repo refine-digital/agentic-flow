@@ -27,6 +27,9 @@ export { EnhancedEmbeddingService } from './controllers/EnhancedEmbeddingService
 export { WASMVectorSearch } from './controllers/WASMVectorSearch.js';
 export { HNSWIndex } from './controllers/HNSWIndex.js';
 
+// Attention mechanisms
+export { AttentionService } from './controllers/AttentionService.js';
+
 // Database utilities
 export { createDatabase } from './db-fallback.js';
 

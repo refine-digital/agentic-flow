@@ -28,13 +28,17 @@
     "./controllers/QUICServer": "./dist/controllers/QUICServer.js",
     "./controllers/QUICClient": "./dist/controllers/QUICClient.js",
     "./controllers/SyncCoordinator": "./dist/controllers/SyncCoordinator.js",
-    "./controllers/HNSWIndex": "./dist/controllers/HNSWIndex.js"
+    "./controllers/HNSWIndex": "./dist/controllers/HNSWIndex.js",
+    "./controllers/AttentionService": "./dist/controllers/AttentionService.js"
   },
   "scripts": {
     "build": "npm run build:ts && npm run copy:schemas && npm run build:browser",
     "build:ts": "tsc",
     "copy:schemas": "mkdir -p dist/schemas && cp src/schemas/*.sql dist/schemas/",
     "build:browser": "node scripts/build-browser.js",
+    "build:napi": "bash scripts/optimize-napi.sh",
+    "build:wasm": "bash scripts/optimize-wasm.sh",
+    "build:optimized": "npm run build:napi && npm run build:wasm && npm run build",
     "postinstall": "node scripts/postinstall.cjs || true",
     "dev": "tsx src/cli/agentdb-cli.ts",
     "test": "vitest",
@@ -46,7 +50,11 @@
     "docker:test": "docker build -f docs/SQLITE-FIX-DOCKER-TEST.Dockerfile -t agentdb-test . && docker run --rm agentdb-test",
     "benchmark": "tsx benchmarks/simple-benchmark.ts",
     "benchmark:full": "tsx benchmarks/benchmark-runner.ts",
-    "benchmark:build": "cd benchmarks && tsc"
+    "benchmark:build": "cd benchmarks && tsc",
+    "benchmark:attention": "tsx benchmarks/attention-performance.ts",
+    "benchmark:backends": "tsx benchmarks/compare-backends.ts",
+    "benchmark:profile": "tsx scripts/profile-hot-paths.ts",
+    "benchmark:all": "npm run benchmark:attention && npm run benchmark:backends && npm run benchmark:profile"
   },
   "keywords": [
     "agentdb",
@@ -79,6 +87,7 @@
   "homepage": "https://agentdb.ruv.io",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.20.1",
+    "@ruvector/attention": "^0.1.1",
     "@ruvector/graph-node": "^0.1.15",
     "@ruvector/router": "^0.1.15",
     "@xenova/transformers": "^2.17.2",
@@ -92,6 +101,7 @@
     "marked-terminal": "^6.0.0",
     "ora": "^7.0.0",
     "ruvector": "^0.1.24",
+    "ruvector-attention-wasm": "^0.1.0",
     "sql.js": "^1.13.0",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7",

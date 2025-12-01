@@ -10,6 +10,12 @@
  *
  * Based on doubly robust learner:
  * τ̂(x) = μ1(x) − μ0(x) + [a*(y−μ1(x)) / e(x)] − [(1−a)*(y−μ0(x)) / (1−e(x))]
+ *
+ * v2.0.0-alpha.3 Features:
+ * - FlashAttention for memory-efficient episodic consolidation
+ * - Block-wise computation for large episode buffers
+ * - Feature flag: ENABLE_FLASH_CONSOLIDATION (default: false)
+ * - 100% backward compatible with fallback to standard consolidation
  */
 
 // Database type from db-fallback
@@ -18,6 +24,7 @@ import { CausalMemoryGraph, CausalEdge } from './CausalMemoryGraph.js';
 import { ReflexionMemory } from './ReflexionMemory.js';
 import { SkillLibrary } from './SkillLibrary.js';
 import { EmbeddingService } from './EmbeddingService.js';
+import { AttentionService, type FlashAttentionConfig } from '../services/AttentionService.js';
 
 export interface LearnerConfig {
   minSimilarity: number; // Min similarity to consider for causal edge (default: 0.7)
@@ -28,6 +35,12 @@ export interface LearnerConfig {
   edgeMaxAgeDays: number; // Max age for edges (default: 90)
   autoExperiments: boolean; // Automatically create A/B experiments (default: true)
   experimentBudget: number; // Max experiments to run concurrently (default: 10)
+
+  // v2 features
+  /** Enable FlashAttention for consolidation (default: false) */
+  ENABLE_FLASH_CONSOLIDATION?: boolean;
+  /** FlashAttention configuration */
+  flashConfig?: Partial<FlashAttentionConfig>;
 }
 
 export interface LearnerReport {
@@ -47,6 +60,8 @@ export class NightlyLearner {
   private causalGraph: CausalMemoryGraph;
   private reflexion: ReflexionMemory;
   private skillLibrary: SkillLibrary;
+  private embedder: EmbeddingService;
+  private attentionService?: AttentionService;
 
   constructor(
     db: Database,
@@ -59,13 +74,25 @@ export class NightlyLearner {
       pruneOldEdges: true,
       edgeMaxAgeDays: 90,
       autoExperiments: true,
-      experimentBudget: 10
+      experimentBudget: 10,
+      ENABLE_FLASH_CONSOLIDATION: false,
     }
   ) {
     this.db = db;
+    this.embedder = embedder;
     this.causalGraph = new CausalMemoryGraph(db);
     this.reflexion = new ReflexionMemory(db, embedder);
     this.skillLibrary = new SkillLibrary(db, embedder);
+
+    // Initialize AttentionService if FlashAttention enabled
+    if (this.config.ENABLE_FLASH_CONSOLIDATION) {
+      this.attentionService = new AttentionService(db, {
+        flash: {
+          enabled: true,
+          ...this.config.flashConfig,
+        },
+      });
+    }
   }
 
   /**
@@ -143,6 +170,8 @@ export class NightlyLearner {
    * - e(x) = propensity score (probability of treatment)
    * - a = treatment indicator
    * - y = observed outcome
+   *
+   * v2: Uses FlashAttention for memory-efficient consolidation if enabled
    */
   async discover(config: {
     minAttempts?: number;
@@ -161,6 +190,151 @@ export class NightlyLearner {
     // Return discovered edges (for non-dry runs)
     // Note: In a real implementation, we'd track and return the actual edges created
     return edges;
+  }
+
+  /**
+   * Consolidate episodic memories using FlashAttention (v2 feature)
+   *
+   * Processes large episode buffers efficiently using block-wise computation.
+   * Identifies patterns and relationships across episodes for causal edge discovery.
+   *
+   * @param sessionId - Session to consolidate (optional, processes all if not provided)
+   * @returns Number of edges discovered through consolidation
+   */
+  async consolidateEpisodes(sessionId?: string): Promise<{
+    edgesDiscovered: number;
+    episodesProcessed: number;
+    metrics?: {
+      computeTimeMs: number;
+      peakMemoryMB: number;
+      blocksProcessed: number;
+    };
+  }> {
+    if (!this.attentionService) {
+      // Fallback: Use standard discovery without attention
+      const edgesDiscovered = await this.discoverCausalEdges();
+      return {
+        edgesDiscovered,
+        episodesProcessed: 0,
+      };
+    }
+
+    // Get episodes to consolidate
+    const episodes = sessionId
+      ? this.db.prepare(`
+          SELECT id, task, output, reward FROM episodes
+          WHERE session_id = ?
+          ORDER BY ts ASC
+        `).all(sessionId) as any[]
+      : this.db.prepare(`
+          SELECT id, task, output, reward FROM episodes
+          ORDER BY ts ASC
+          LIMIT 1000
+        `).all() as any[];
+
+    if (episodes.length === 0) {
+      return { edgesDiscovered: 0, episodesProcessed: 0 };
+    }
+
+    // Generate embeddings for all episodes
+    const episodeEmbeddings: Float32Array[] = [];
+    for (const episode of episodes) {
+      const text = `${episode.task}: ${episode.output}`;
+      const embedding = await this.embedder.embed(text);
+      episodeEmbeddings.push(embedding);
+    }
+
+    // Prepare queries (each episode is a query)
+    const dim = 384;
+    const queries = new Float32Array(episodes.length * dim);
+    const keys = new Float32Array(episodes.length * dim);
+    const values = new Float32Array(episodes.length * dim);
+
+    episodeEmbeddings.forEach((embedding, idx) => {
+      queries.set(embedding, idx * dim);
+      keys.set(embedding, idx * dim);
+      values.set(embedding, idx * dim);
+    });
+
+    // Apply FlashAttention for memory-efficient consolidation
+    const attentionResult = await this.attentionService.flashAttention(queries, keys, values);
+
+    // Analyze attention output to discover causal relationships
+    let edgesDiscovered = 0;
+    const consolidatedEmbeddings = attentionResult.output;
+
+    // For each episode, find similar episodes in consolidated space
+    for (let i = 0; i < episodes.length; i++) {
+      const queryEmb = consolidatedEmbeddings.slice(i * dim, (i + 1) * dim);
+
+      // Find top-k similar episodes
+      const similarities: Array<{ idx: number; score: number }> = [];
+      for (let j = 0; j < episodes.length; j++) {
+        if (i === j) continue;
+
+        const keyEmb = consolidatedEmbeddings.slice(j * dim, (j + 1) * dim);
+        const score = this.cosineSimilarity(queryEmb, keyEmb);
+
+        if (score >= this.config.minSimilarity) {
+          similarities.push({ idx: j, score });
+        }
+      }
+
+      // Sort by similarity
+      similarities.sort((a, b) => b.score - a.score);
+
+      // Create causal edges for top matches
+      for (const { idx, score } of similarities.slice(0, 5)) {
+        // Only create edge if temporal sequence is correct
+        if (idx > i) {
+          const uplift = episodes[idx].reward - episodes[i].reward;
+
+          if (Math.abs(uplift) >= this.config.upliftThreshold) {
+            await this.causalGraph.addCausalEdge({
+              fromMemoryId: episodes[i].id,
+              fromMemoryType: 'episode',
+              toMemoryId: episodes[idx].id,
+              toMemoryType: 'episode',
+              similarity: score,
+              uplift,
+              confidence: score,
+              sampleSize: 1,
+              mechanism: 'flash_attention_consolidation',
+              metadata: {
+                consolidationMethod: 'flash_attention',
+                blockSize: this.config.flashConfig?.blockSize || 256,
+              },
+            });
+
+            edgesDiscovered++;
+          }
+        }
+      }
+    }
+
+    return {
+      edgesDiscovered,
+      episodesProcessed: episodes.length,
+      metrics: attentionResult.metrics,
+    };
+  }
+
+  /**
+   * Helper: Cosine similarity between two vectors
+   */
+  private cosineSimilarity(a: Float32Array, b: Float32Array): number {
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+
+    for (let i = 0; i < a.length; i++) {
+      dotProduct += a[i] * b[i];
+      normA += a[i] * a[i];
+      normB += b[i] * b[i];
+    }
+
+    const denom = Math.sqrt(normA) * Math.sqrt(normB);
+    return denom === 0 ? 0 : dotProduct / denom;
   }
 
   private async discoverCausalEdges(): Promise<number> {
