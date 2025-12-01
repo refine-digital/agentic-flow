@@ -136,6 +136,26 @@ export async function createBackend(
       console.log(
         `[AgentDB] Using RuVector backend (${detection.ruvector.native ? 'native' : 'WASM'})`
       );
+
+      // Try to initialize RuVector, fallback to HNSWLib if it fails
+      try {
+        await (backend as any).initialize();
+        return backend;
+      } catch (error) {
+        const errorMessage = (error as Error).message;
+
+        // If RuVector fails due to :memory: path or other initialization issues,
+        // try falling back to HNSWLib
+        if (detection.hnswlib) {
+          console.log('[AgentDB] RuVector initialization failed, falling back to HNSWLib');
+          console.log(`[AgentDB] Reason: ${errorMessage.split('\n')[0]}`);
+          backend = new HNSWLibBackend(config);
+          console.log('[AgentDB] Using HNSWLib backend (fallback)');
+        } else {
+          // No fallback available, re-throw error
+          throw error;
+        }
+      }
     } else if (detection.hnswlib) {
       backend = new HNSWLibBackend(config);
       console.log('[AgentDB] Using HNSWLib backend (fallback)');
@@ -149,8 +169,16 @@ export async function createBackend(
     }
   }
 
-  // Initialize the backend
-  await (backend as any).initialize();
+  // Initialize the backend (if not already initialized)
+  // Note: RuVector may already be initialized in the try block above
+  try {
+    await (backend as any).initialize();
+  } catch (error) {
+    // Ignore if already initialized
+    if (!(error as Error).message.includes('already initialized')) {
+      throw error;
+    }
+  }
 
   return backend;
 }

@@ -93,13 +93,15 @@ export class RuVectorLearning {
 
     try {
       // Forward pass through GNN layer
+      // Note: @ruvector/gnn v0.1.19+ expects Float32Array instead of number[]
       const result = this.gnnLayer.forward(
-        Array.from(query),
-        neighbors.map(n => Array.from(n)),
+        query,  // Already Float32Array
+        neighbors,  // Already Float32Array[]
         weights
       );
 
-      return new Float32Array(result);
+      // Result is already Float32Array in v0.1.19+
+      return result instanceof Float32Array ? result : new Float32Array(result);
     } catch (error) {
       console.warn(`[RuVectorLearning] Enhancement failed: ${(error as Error).message}`);
       return query;
@@ -128,9 +130,10 @@ export class RuVectorLearning {
     const temperature = options.temperature ?? 1.0;
 
     try {
+      // Note: @ruvector/gnn v0.1.19+ expects Float32Array instead of number[]
       const result = this.differentiableSearch(
-        Array.from(query),
-        candidates.map(c => Array.from(c)),
+        query,  // Already Float32Array
+        candidates,  // Already Float32Array[]
         k,
         temperature
       );
@@ -170,13 +173,15 @@ export class RuVectorLearning {
       // Serialize GNN layer for hierarchical processing
       const layerJson = this.gnnLayer.toJson();
 
+      // Note: @ruvector/gnn v0.1.19+ expects Float32Array instead of number[]
       const result = this.hierarchicalForward(
-        Array.from(query),
-        layerEmbeddings.map(layer => layer.map(e => Array.from(e))),
+        query,  // Already Float32Array
+        layerEmbeddings,  // Already Float32Array[][]
         [layerJson]  // Single layer for now
       );
 
-      return new Float32Array(result);
+      // Result is already Float32Array in v0.1.19+
+      return result instanceof Float32Array ? result : new Float32Array(result);
     } catch (error) {
       console.warn(`[RuVectorLearning] Hierarchical enhancement failed: ${(error as Error).message}`);
       return query;

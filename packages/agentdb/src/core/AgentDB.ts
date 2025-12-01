@@ -44,23 +44,26 @@ export class AgentDB {
     if (this.initialized) return;
 
     // Load schemas
-    const schemaPath = path.join(__dirname, '../schemas/schema.sql');
+    // When compiled, this file is at dist/src/core/AgentDB.js
+    // Schemas are at dist/schemas/, so we need ../../schemas/
+    const schemaPath = path.join(__dirname, '../../schemas/schema.sql');
     if (fs.existsSync(schemaPath)) {
       const schema = fs.readFileSync(schemaPath, 'utf-8');
       this.db.exec(schema);
     }
 
-    const frontierSchemaPath = path.join(__dirname, '../schemas/frontier-schema.sql');
+    const frontierSchemaPath = path.join(__dirname, '../../schemas/frontier-schema.sql');
     if (fs.existsSync(frontierSchemaPath)) {
       const frontierSchema = fs.readFileSync(frontierSchemaPath, 'utf-8');
       this.db.exec(frontierSchema);
     }
 
-    // Initialize embedder
+    // Initialize embedder with default Xenova model
+    // Falls back to mock embeddings if @xenova/transformers is not available
     this.embedder = new EmbeddingService({
-      model: 'mock-model',
+      model: 'Xenova/all-MiniLM-L6-v2',
       dimension: 384,
-      provider: 'local'
+      provider: 'transformers'
     });
     await this.embedder.initialize();
 
