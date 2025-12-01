@@ -24,10 +24,7 @@ import { MultiHeadAttentionController } from '../../src/controllers/attention/Mu
 import fs from 'fs';
 import path from 'path';
 
-// STUB TESTS - These tests are for a non-existent AgentDB class
-// The actual attention functionality is implemented in individual controllers
-// TODO: Rewrite these tests to use actual ReflexionMemory, SkillLibrary, etc.
-describe.skip('Attention Mechanism Integration - STUB TESTS', () => {
+describe('Attention Mechanism Integration', () => {
   let db: AgentDB;
   let memoryController: MemoryController;
   const testDbPath = path.join(__dirname, '../fixtures/test-attention.db');

@@ -19,8 +19,7 @@ import { SkillLibrary } from '../../src/controllers/SkillLibrary';
 import fs from 'fs';
 import path from 'path';
 
-// STUB TESTS - AgentDB class doesn't exist, these need to be rewritten
-describe.skip('Attention Mechanism Regression Tests - STUB TESTS', () => {
+describe('Attention Mechanism Regression Tests', () => {
   let db: AgentDB;
   const testDbPath = path.join(__dirname, '../fixtures/test-regression.db');
 
