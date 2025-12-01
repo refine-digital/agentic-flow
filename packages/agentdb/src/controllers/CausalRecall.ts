@@ -121,7 +121,7 @@ export class CausalRecall {
 
     // Step 4: Issue certificate
     const certStart = Date.now();
-    const certificate = this.issueCertificate({
+    const certificate = await this.issueCertificate({
       queryId,
       queryText,
       candidates: topK,
@@ -310,13 +310,13 @@ export class CausalRecall {
   /**
    * Issue certificate for the retrieval
    */
-  private issueCertificate(params: {
+  private async issueCertificate(params: {
     queryId: string;
     queryText: string;
     candidates: RerankCandidate[];
     requirements: string[];
     accessLevel: 'public' | 'internal' | 'confidential' | 'restricted';
-  }): RecallCertificate {
+  }): Promise<RecallCertificate> {
     const { queryId, queryText, candidates, requirements, accessLevel } = params;
 
     const chunks = candidates.map(c => ({
@@ -326,7 +326,7 @@ export class CausalRecall {
       relevance: c.similarity
     }));
 
-    return this.explainableRecall.createCertificate({
+    return await this.explainableRecall.createCertificate({
       queryId,
       queryText,
       chunks,

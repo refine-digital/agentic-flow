@@ -202,8 +202,8 @@ function createComputeCommand(): Command {
           options.query || '',
           keys,
           values,
-          parseInt(options.heads || '8'),
-          parseInt(options.dimension || '384')
+          parseInt(String(options.heads || '8')),
+          parseInt(String(options.dimension || '384'))
         );
 
         // Save or display results
@@ -258,7 +258,7 @@ function createBenchmarkCommand(): Command {
           ? [options.mechanism as AttentionMechanism]
           : ['flash'];
 
-        const iterations = parseInt(options.iterations || '100');
+        const iterations = parseInt(String(options.iterations || '100'));
         const results = await benchmarkMechanisms(mechanisms, iterations, options.verbose || false);
 
         // Save results if output path provided
@@ -308,8 +308,8 @@ function createOptimizeCommand(): Command {
 
         const optimizationResult = await optimizeMechanism(
           options.mechanism,
-          parseFloat(options.curvature || '-1.0'),
-          parseFloat(options.sparsity || '0.9')
+          parseFloat(String(options.curvature || '-1.0')),
+          parseFloat(String(options.sparsity || '0.9'))
         );
 
         // Save optimized configuration
