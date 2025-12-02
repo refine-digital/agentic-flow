@@ -58,9 +58,9 @@ function addSimpleCausalEdge(ctx: TestContext, params: {
   sampleSize: number;
 }): number {
   const edge: CausalEdge = {
-    fromMemoryId: 0,
+    fromMemoryId: 1, // Use actual ID instead of 0
     fromMemoryType: params.cause as any,
-    toMemoryId: 0,
+    toMemoryId: 2, // Use actual ID instead of 0
     toMemoryType: params.effect as any,
     similarity: 0.9,
     uplift: params.uplift,
@@ -69,7 +69,10 @@ function addSimpleCausalEdge(ctx: TestContext, params: {
     evidenceIds: []
   };
 
-  return ctx.causalGraph.addCausalEdge(edge);
+  const edgeId = ctx.causalGraph.addCausalEdge(edge);
+
+  // Return actual number, not object
+  return typeof edgeId === 'number' ? edgeId : parseInt(String(edgeId));
 }
 
 async function setupTestContext(): Promise<TestContext> {
