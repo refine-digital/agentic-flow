@@ -9,6 +9,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+// @ts-expect-error - uuid types are installed but TS has issues with ESM resolution
 import { v4 as uuidv4 } from 'uuid';
 
 import { MedicalAnalysisService } from '../services/medical-analysis.service';
@@ -21,8 +22,6 @@ import { loggingMiddleware } from '../middleware/logging.middleware';
 import type {
   AnalysisRequest,
   AnalysisResponse,
-  AnalysisResult,
-  ApiError,
   WebSocketMessage
 } from '../types/medical.types';
 
@@ -89,7 +88,7 @@ export class MedicalAnalysisAPI {
     const router = express.Router();
 
     // Health check
-    router.get('/health', (req: Request, res: Response) => {
+    router.get('/health', (_req: Request, res: Response) => {
       res.json({
         status: 'healthy',
         timestamp: new Date(),
@@ -98,18 +97,19 @@ export class MedicalAnalysisAPI {
     });
 
     // POST /analyze - Submit medical query for analysis
-    router.post('/analyze', async (req: Request, res: Response) => {
+    router.post('/analyze', async (req: Request, res: Response): Promise<void> => {
       try {
         const request: AnalysisRequest = req.body;
         const requestId = uuidv4();
 
         // Validate request
         if (!request.symptoms || request.symptoms.length === 0) {
-          return res.status(400).json(this.createErrorResponse(
+          res.status(400).json(this.createErrorResponse(
             'INVALID_REQUEST',
             'Symptoms are required',
             requestId
           ));
+          return;
         }
 
         // Start analysis
@@ -142,7 +142,7 @@ export class MedicalAnalysisAPI {
         result.warnings = warnings;
 
         // Check for pattern recognition
-        const patterns = await this.learningService.recognizePatterns(
+        await this.learningService.recognizePatterns(
           request.symptoms,
           { condition: request.condition }
         );
@@ -183,6 +183,7 @@ export class MedicalAnalysisAPI {
         };
 
         res.json(response);
+        return;
 
       } catch (error) {
         console.error('Analysis error:', error);
@@ -191,21 +192,31 @@ export class MedicalAnalysisAPI {
           error instanceof Error ? error.message : 'Unknown error',
           uuidv4()
         ));
+        return;
       }
     });
 
     // GET /analysis/:id - Get analysis results
-    router.get('/analysis/:id', async (req: Request, res: Response) => {
+    router.get('/analysis/:id', async (req: Request, res: Response): Promise<void> => {
       try {
         const { id } = req.params;
+        if (!id) {
+          res.status(400).json(this.createErrorResponse(
+            'INVALID_REQUEST',
+            'Analysis ID is required',
+            uuidv4()
+          ));
+          return;
+        }
         const result = await this.analysisService.getAnalysis(id);
 
         if (!result) {
-          return res.status(404).json(this.createErrorResponse(
+          res.status(404).json(this.createErrorResponse(
             'NOT_FOUND',
             'Analysis not found',
             uuidv4()
           ));
+          return;
         }
 
         res.json({
@@ -218,6 +229,7 @@ export class MedicalAnalysisAPI {
             version: '1.0.0'
           }
         });
+        return;
 
       } catch (error) {
         console.error('Retrieval error:', error);
@@ -226,20 +238,22 @@ export class MedicalAnalysisAPI {
           error instanceof Error ? error.message : 'Unknown error',
           uuidv4()
         ));
+        return;
       }
     });
 
     // POST /provider/review - Provider review endpoint
-    router.post('/provider/review', async (req: Request, res: Response) => {
+    router.post('/provider/review', async (req: Request, res: Response): Promise<void> => {
       try {
         const { analysisId, decision, comments } = req.body;
 
         if (!analysisId || !decision) {
-          return res.status(400).json(this.createErrorResponse(
+          res.status(400).json(this.createErrorResponse(
             'INVALID_REQUEST',
             'Analysis ID and decision are required',
             uuidv4()
           ));
+          return;
         }
 
         await this.providerService.submitReview(analysisId, {
@@ -267,6 +281,7 @@ export class MedicalAnalysisAPI {
             version: '1.0.0'
           }
         });
+        return;
 
       } catch (error) {
         console.error('Review submission error:', error);
@@ -275,29 +290,32 @@ export class MedicalAnalysisAPI {
           error instanceof Error ? error.message : 'Unknown error',
           uuidv4()
         ));
+        return;
       }
     });
 
     // POST /provider/notify - Notify provider
-    router.post('/provider/notify', async (req: Request, res: Response) => {
+    router.post('/provider/notify', async (req: Request, res: Response): Promise<void> => {
       try {
         const { analysisId, urgent } = req.body;
 
         if (!analysisId) {
-          return res.status(400).json(this.createErrorResponse(
+          res.status(400).json(this.createErrorResponse(
             'INVALID_REQUEST',
             'Analysis ID is required',
             uuidv4()
           ));
+          return;
         }
 
         const analysis = await this.analysisService.getAnalysis(analysisId);
         if (!analysis) {
-          return res.status(404).json(this.createErrorResponse(
+          res.status(404).json(this.createErrorResponse(
             'NOT_FOUND',
             'Analysis not found',
             uuidv4()
           ));
+          return;
         }
 
         await this.providerService.notifyProvider(analysisId, analysis, urgent);
@@ -312,6 +330,7 @@ export class MedicalAnalysisAPI {
             version: '1.0.0'
           }
         });
+        return;
 
       } catch (error) {
         console.error('Notification error:', error);
@@ -320,11 +339,12 @@ export class MedicalAnalysisAPI {
           error instanceof Error ? error.message : 'Unknown error',
           uuidv4()
         ));
+        return;
       }
     });
 
     // GET /metrics - Get learning metrics
-    router.get('/metrics', async (req: Request, res: Response) => {
+    router.get('/metrics', async (_req: Request, res: Response) => {
       try {
         const metrics = await this.learningService.getMetrics();
 
@@ -393,7 +413,7 @@ export class MedicalAnalysisAPI {
   /**
    * Handle incoming WebSocket messages
    */
-  private handleWebSocketMessage(ws: WebSocket, data: any, clientId: string): void {
+  private handleWebSocketMessage(ws: WebSocket, data: any, _clientId: string): void {
     // Handle subscribe/unsubscribe, ping/pong, etc.
     if (data.type === 'ping') {
       this.sendWebSocketMessage(ws, {
@@ -414,9 +434,10 @@ export class MedicalAnalysisAPI {
   }
 
   /**
-   * Broadcast to all connected clients
+   * Broadcast to all connected clients (currently unused but kept for future use)
    */
-  private broadcast(message: WebSocketMessage): void {
+  // @ts-expect-error - Kept for future use
+  private _broadcast(message: WebSocketMessage): void {
     this.connections.forEach(ws => {
       this.sendWebSocketMessage(ws, message);
     });
@@ -426,7 +447,7 @@ export class MedicalAnalysisAPI {
    * Setup error handling
    */
   private setupErrorHandling(): void {
-    this.app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+    this.app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
       console.error('Unhandled error:', err);
       res.status(500).json(this.createErrorResponse(
         'INTERNAL_ERROR',

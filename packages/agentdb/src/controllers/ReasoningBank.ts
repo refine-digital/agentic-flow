@@ -18,8 +18,8 @@
  * - New features: useGNN option, recordOutcome for learning
  */
 
-// Database type from db-fallback
-type Database = any;
+import type { IDatabaseConnection, DatabaseRows } from '../types/database.types.js';
+import { normalizeRowId } from '../types/database.types.js';
 import { EmbeddingService } from './EmbeddingService.js';
 import type { VectorBackend, SearchResult } from '../backends/VectorBackend.js';
 
@@ -86,7 +86,7 @@ export interface LearningBackend {
 }
 
 export class ReasoningBank {
-  private db: Database;
+  private db: IDatabaseConnection;
   private embedder: EmbeddingService;
   private cache: Map<string, any>;
 
@@ -108,7 +108,7 @@ export class ReasoningBank {
    *   new ReasoningBank(db, embedder, vectorBackend, learningBackend?)
    */
   constructor(
-    db: Database,
+    db: IDatabaseConnection,
     embedder: EmbeddingService,
     vectorBackend?: VectorBackend,
     learningBackend?: LearningBackend
@@ -183,7 +183,7 @@ export class ReasoningBank {
       pattern.metadata ? JSON.stringify(pattern.metadata) : null
     );
 
-    const patternId = result.lastInsertRowid as number;
+    const patternId = normalizeRowId(result.lastInsertRowid);
 
     // Store embedding based on mode
     if (this.vectorBackend) {
@@ -324,7 +324,7 @@ export class ReasoningBank {
       : '';
 
     // Retrieve all candidate patterns
-    const stmt = this.db.prepare(`
+    const stmt = this.db.prepare<DatabaseRows.ReasoningPattern & { embedding: Buffer }>(`
       SELECT
         rp.id,
         rp.ts,
@@ -341,7 +341,7 @@ export class ReasoningBank {
       ${whereClause}
     `);
 
-    const rows = stmt.all(...params) as any[];
+    const rows = stmt.all(...params);
 
     // Calculate similarities
     const candidates = rows.map(row => {
@@ -456,17 +456,17 @@ export class ReasoningBank {
     }
 
     // Total patterns
-    const totalRow = this.db.prepare(
+    const totalRow = this.db.prepare<DatabaseRows.CountResult>(
       'SELECT COUNT(*) as count FROM reasoning_patterns'
-    ).get() as any;
+    ).get();
 
     // Average success rate and uses
-    const avgRow = this.db.prepare(`
+    const avgRow = this.db.prepare<DatabaseRows.AverageResult>(`
       SELECT
         AVG(success_rate) as avg_success_rate,
         AVG(uses) as avg_uses
       FROM reasoning_patterns
-    `).get() as any;
+    `).get();
 
     // Top task types
     const topTaskTypes = this.db.prepare(`
@@ -494,15 +494,15 @@ export class ReasoningBank {
     `).get() as any;
 
     const stats: PatternStats = {
-      totalPatterns: totalRow.count,
-      avgSuccessRate: avgRow.avg_success_rate || 0,
-      avgUses: avgRow.avg_uses || 0,
+      totalPatterns: totalRow?.count ?? 0,
+      avgSuccessRate: avgRow?.avg_success_rate ?? 0,
+      avgUses: avgRow?.avg_uses ?? 0,
       topTaskTypes: topTaskTypes.map(row => ({
         taskType: row.task_type,
         count: row.count,
       })),
-      recentPatterns: recentRow.count,
-      highPerformingPatterns: highPerfRow.count,
+      recentPatterns: recentRow?.count ?? 0,
+      highPerformingPatterns: highPerfRow?.count ?? 0,
     };
 
     // Cache for 5 minutes

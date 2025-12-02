@@ -8,8 +8,8 @@
  * https://arxiv.org/abs/2305.16291
  */
 
-// Database type from db-fallback
-type Database = any;
+import type { IDatabaseConnection, DatabaseRows } from '../types/database.types.js';
+import { normalizeRowId } from '../types/database.types.js';
 import { EmbeddingService } from './EmbeddingService.js';
 import { VectorBackend } from '../backends/VectorBackend.js';
 import type { GraphDatabaseAdapter } from '../backends/graph/GraphDatabaseAdapter.js';
@@ -51,12 +51,12 @@ export interface SkillQuery {
 }
 
 export class SkillLibrary {
-  private db: Database;
+  private db: IDatabaseConnection;
   private embedder: EmbeddingService;
   private vectorBackend: VectorBackend | null;
   private graphBackend?: any; // GraphBackend or GraphDatabaseAdapter
 
-  constructor(db: Database, embedder: EmbeddingService, vectorBackend?: VectorBackend, graphBackend?: any) {
+  constructor(db: IDatabaseConnection, embedder: EmbeddingService, vectorBackend?: VectorBackend, graphBackend?: any) {
     this.db = db;
     this.embedder = embedder;
     this.vectorBackend = vectorBackend || null;
@@ -117,7 +117,7 @@ export class SkillLibrary {
       skill.metadata ? JSON.stringify(skill.metadata) : null
     );
 
-    const skillId = result.lastInsertRowid as number;
+    const skillId = normalizeRowId(result.lastInsertRowid);
 
     // Generate and store embedding in VectorBackend
     const text = this.buildSkillText(skill);
@@ -226,7 +226,7 @@ export class SkillLibrary {
       const skillsWithSimilarity: (Skill & { similarity: number })[] = [];
 
       // Prepare statement ONCE outside loop (better-sqlite3 best practice)
-      const getSkillStmt = this.db.prepare('SELECT * FROM skills WHERE id = ?');
+      const getSkillStmt = this.db.prepare<DatabaseRows.Skill>('SELECT * FROM skills WHERE id = ?');
 
       for (const result of searchResults) {
         // Extract skill ID from vector ID (format: "skill:123")
@@ -243,14 +243,14 @@ export class SkillLibrary {
         skillsWithSimilarity.push({
           id: row.id,
           name: row.name,
-          description: row.description,
+          description: row.description ?? undefined,
           signature: JSON.parse(row.signature),
-          code: row.code,
+          code: row.code ?? undefined,
           successRate: row.success_rate,
           uses: row.uses,
           avgReward: row.avg_reward,
           avgLatencyMs: row.avg_latency_ms,
-          createdFromEpisode: row.created_from_episode,
+          createdFromEpisode: row.created_from_episode ?? undefined,
           metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
           similarity: result.similarity
         });
@@ -284,7 +284,7 @@ export class SkillLibrary {
     const queryEmbedding = await this.embedder.embed(task);
 
     // Fetch all skills with embeddings
-    const stmt = this.db.prepare(`
+    const stmt = this.db.prepare<DatabaseRows.Skill & { embedding: Buffer }>(`
       SELECT s.*, e.embedding
       FROM skills s
       LEFT JOIN skill_embeddings e ON s.id = e.skill_id
@@ -303,14 +303,14 @@ export class SkillLibrary {
       skillsWithSimilarity.push({
         id: row.id,
         name: row.name,
-        description: row.description,
+        description: row.description ?? undefined,
         signature: JSON.parse(row.signature),
-        code: row.code,
+        code: row.code ?? undefined,
         successRate: row.success_rate,
         uses: row.uses,
         avgReward: row.avg_reward,
         avgLatencyMs: row.avg_latency_ms,
-        createdFromEpisode: row.created_from_episode,
+        createdFromEpisode: row.created_from_episode ?? undefined,
         metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
         similarity
       });
@@ -444,7 +444,17 @@ export class SkillLibrary {
       extractPatterns = true
     } = config;
 
-    const stmt = this.db.prepare(`
+    interface ConsolidationCandidate {
+      task: string;
+      attempt_count: number;
+      avg_reward: number;
+      success_rate: number;
+      avg_latency: number | null;
+      latest_episode_id: number;
+      episode_ids: string;
+    }
+
+    const stmt = this.db.prepare<ConsolidationCandidate>(`
       SELECT
         task,
         COUNT(*) as attempt_count,
@@ -470,7 +480,7 @@ export class SkillLibrary {
       avgReward: number;
     }> = [];
 
-    for (const candidate of candidates as any[]) {
+    for (const candidate of candidates) {
       const episodeIds = candidate.episode_ids.split(',').map(Number);
 
       // Extract patterns from successful episodes if requested
@@ -510,7 +520,7 @@ export class SkillLibrary {
           successRate: candidate.success_rate,
           uses: candidate.attempt_count,
           avgReward: candidate.avg_reward,
-          avgLatencyMs: candidate.avg_latency || 0,
+          avgLatencyMs: candidate.avg_latency ?? 0,
           createdFromEpisode: candidate.latest_episode_id,
           metadata: {
             sourceEpisodes: episodeIds,
@@ -530,7 +540,7 @@ export class SkillLibrary {
           (existing as any).id,
           candidate.success_rate > 0.5,
           candidate.avg_reward,
-          candidate.avg_latency || 0
+          candidate.avg_latency ?? 0
         );
         updated++;
       }

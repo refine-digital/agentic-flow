@@ -1,3 +1,4 @@
+import React from 'react';
 import { Zap, Brain, Rocket } from 'lucide-react';
 
 const Hero = () => {

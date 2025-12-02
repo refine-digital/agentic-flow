@@ -8,8 +8,8 @@
  * https://arxiv.org/abs/2303.11366
  */
 
-// Database type from db-fallback
-type Database = any;
+import type { IDatabaseConnection, DatabaseRows } from '../types/database.types.js';
+import { normalizeRowId } from '../types/database.types.js';
 import { EmbeddingService } from './EmbeddingService.js';
 import type { VectorBackend } from '../backends/VectorBackend.js';
 import type { LearningBackend } from '../backends/LearningBackend.js';
@@ -49,14 +49,14 @@ export interface ReflexionQuery {
 }
 
 export class ReflexionMemory {
-  private db: Database;
+  private db: IDatabaseConnection;
   private embedder: EmbeddingService;
   private vectorBackend?: VectorBackend;
   private learningBackend?: LearningBackend;
   private graphBackend?: GraphBackend;
 
   constructor(
-    db: Database,
+    db: IDatabaseConnection,
     embedder: EmbeddingService,
     vectorBackend?: VectorBackend,
     learningBackend?: LearningBackend,
@@ -171,7 +171,7 @@ export class ReflexionMemory {
       metadata
     );
 
-    const episodeId = result.lastInsertRowid as number;
+    const episodeId = normalizeRowId(result.lastInsertRowid);
 
     // Generate and store embedding
     const text = this.buildEpisodeText(episode);
@@ -325,12 +325,12 @@ export class ReflexionMemory {
       }
 
       const placeholders = episodeIds.map(() => '?').join(',');
-      const stmt = this.db.prepare(`
+      const stmt = this.db.prepare<DatabaseRows.Episode>(`
         SELECT * FROM episodes
         WHERE id IN (${placeholders})
       `);
 
-      const rows = stmt.all(...episodeIds) as any[];
+      const rows = stmt.all(...episodeIds);
       const episodeMap = new Map(rows.map(r => [r.id.toString(), r]));
 
       // Map results back with similarity scores and apply filters
@@ -351,13 +351,13 @@ export class ReflexionMemory {
           ts: row.ts,
           sessionId: row.session_id,
           task: row.task,
-          input: row.input,
-          output: row.output,
-          critique: row.critique,
+          input: row.input ?? undefined,
+          output: row.output ?? undefined,
+          critique: row.critique ?? undefined,
           reward: row.reward,
           success: row.success === 1,
-          latencyMs: row.latency_ms,
-          tokensUsed: row.tokens_used,
+          latencyMs: row.latency_ms ?? undefined,
+          tokensUsed: row.tokens_used ?? undefined,
           tags: row.tags ? JSON.parse(row.tags) : undefined,
           metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
           similarity: result.similarity
@@ -393,7 +393,7 @@ export class ReflexionMemory {
 
     const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
 
-    const stmt = this.db.prepare(`
+    const stmt = this.db.prepare<DatabaseRows.Episode & { embedding: Buffer }>(`
       SELECT
         e.*,
         ee.embedding
@@ -403,7 +403,7 @@ export class ReflexionMemory {
       ORDER BY e.reward DESC
     `);
 
-    const rows = stmt.all(...params) as any[];
+    const rows = stmt.all(...params);
 
     // Calculate similarities manually
     const episodes: EpisodeWithEmbedding[] = rows.map(row => {
@@ -415,13 +415,13 @@ export class ReflexionMemory {
         ts: row.ts,
         sessionId: row.session_id,
         task: row.task,
-        input: row.input,
-        output: row.output,
-        critique: row.critique,
+        input: row.input ?? undefined,
+        output: row.output ?? undefined,
+        critique: row.critique ?? undefined,
         reward: row.reward,
         success: row.success === 1,
-        latencyMs: row.latency_ms,
-        tokensUsed: row.tokens_used,
+        latencyMs: row.latency_ms ?? undefined,
+        tokensUsed: row.tokens_used ?? undefined,
         tags: row.tags ? JSON.parse(row.tags) : undefined,
         metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
         embedding,
@@ -448,7 +448,14 @@ export class ReflexionMemory {
       ? `AND ts > strftime('%s', 'now') - ${timeWindowDays * 86400}`
       : '';
 
-    const stmt = this.db.prepare(`
+    interface TaskStats {
+      total: number;
+      success_rate: number;
+      avg_reward: number;
+      avg_latency: number | null;
+    }
+
+    const stmt = this.db.prepare<TaskStats>(`
       SELECT
         COUNT(*) as total,
         AVG(CASE WHEN success = 1 THEN 1.0 ELSE 0.0 END) as success_rate,
@@ -458,7 +465,7 @@ export class ReflexionMemory {
       WHERE task = ? ${windowFilter}
     `);
 
-    const stats = stmt.get(task) as any;
+    const stats = stmt.get(task);
 
     // Calculate improvement trend (recent vs older)
     const trendStmt = this.db.prepare(`
@@ -479,10 +486,10 @@ export class ReflexionMemory {
       : 0;
 
     return {
-      totalAttempts: stats.total || 0,
-      successRate: stats.success_rate || 0,
-      avgReward: stats.avg_reward || 0,
-      avgLatency: stats.avg_latency || 0,
+      totalAttempts: stats?.total ?? 0,
+      successRate: stats?.success_rate ?? 0,
+      avgReward: stats?.avg_reward ?? 0,
+      avgLatency: stats?.avg_latency ?? 0,
       improvementTrend
     };
   }
@@ -538,27 +545,27 @@ export class ReflexionMemory {
    * Get recent episodes for a session
    */
   async getRecentEpisodes(sessionId: string, limit: number = 10): Promise<Episode[]> {
-    const stmt = this.db.prepare(`
+    const stmt = this.db.prepare<DatabaseRows.Episode>(`
       SELECT * FROM episodes
       WHERE session_id = ?
       ORDER BY ts DESC
       LIMIT ?
     `);
 
-    const rows = stmt.all(sessionId, limit) as any[];
+    const rows = stmt.all(sessionId, limit);
 
     return rows.map(row => ({
       id: row.id,
       ts: row.ts,
       sessionId: row.session_id,
       task: row.task,
-      input: row.input,
-      output: row.output,
-      critique: row.critique,
+      input: row.input ?? undefined,
+      output: row.output ?? undefined,
+      critique: row.critique ?? undefined,
       reward: row.reward,
       success: row.success === 1,
-      latencyMs: row.latency_ms,
-      tokensUsed: row.tokens_used,
+      latencyMs: row.latency_ms ?? undefined,
+      tokensUsed: row.tokens_used ?? undefined,
       tags: row.tags ? JSON.parse(row.tags) : undefined,
       metadata: row.metadata ? JSON.parse(row.metadata) : undefined
     }));

@@ -24,7 +24,7 @@ export class MedicalAPI {
     }
   }
 
-  async handleVerifyRequest(analysisId: string, analysis: MedicalAnalysis): Promise<{ success: boolean; data?: any; error?: string }> {
+  async handleVerifyRequest(_analysisId: string, analysis: MedicalAnalysis): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
       const result = await this.verificationService.verifyAnalysis({
         analysis: analysis.analysis,

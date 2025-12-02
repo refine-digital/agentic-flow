@@ -1,3 +1,4 @@
+import React from 'react';
 import { Database, Code, Network, Cpu } from 'lucide-react';
 
 const components = [
