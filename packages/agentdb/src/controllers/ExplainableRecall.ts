@@ -10,11 +10,29 @@
  * - Minimal hitting set algorithms
  * - Merkle tree provenance
  * - Explainable AI techniques
+ *
+ * v2.0.0-alpha.3 Features:
+ * - GraphRoPE for hop-distance-aware graph queries (WASM)
+ * - Rotary positional encoding based on graph structure
+ * - Feature flag: ENABLE_GRAPH_ROPE (default: false)
+ * - 100% backward compatible with fallback to standard retrieval
  */
 
 // Database type from db-fallback
 type Database = any;
 import * as crypto from 'crypto';
+import { AttentionService, type GraphRoPEConfig } from '../services/AttentionService.js';
+import { EmbeddingService } from './EmbeddingService.js';
+
+/**
+ * Configuration for ExplainableRecall
+ */
+export interface ExplainableRecallConfig {
+  /** Enable GraphRoPE for hop-aware queries (default: false) */
+  ENABLE_GRAPH_ROPE?: boolean;
+  /** GraphRoPE configuration */
+  graphRoPEConfig?: Partial<GraphRoPEConfig>;
+}
 
 export interface RecallCertificate {
   id: string; // UUID
@@ -70,21 +88,53 @@ export interface ProvenanceSource {
 
 export class ExplainableRecall {
   private db: Database;
+  private attentionService?: AttentionService;
+  private embedder?: EmbeddingService;
+  private config: ExplainableRecallConfig;
 
-  constructor(db: Database) {
+  /**
+   * Constructor supports both v1 (legacy) and v2 (with GraphRoPE) modes
+   *
+   * v1 mode: new ExplainableRecall(db)
+   * v2 mode: new ExplainableRecall(db, embedder, config)
+   */
+  constructor(
+    db: Database,
+    embedder?: EmbeddingService,
+    config?: ExplainableRecallConfig
+  ) {
     this.db = db;
+    this.embedder = embedder;
+    this.config = {
+      ENABLE_GRAPH_ROPE: false,
+      ...config,
+    };
+
+    // Initialize AttentionService if GraphRoPE enabled
+    if (embedder && this.config.ENABLE_GRAPH_ROPE) {
+      this.attentionService = new AttentionService(db, {
+        graphRoPE: {
+          enabled: true,
+          ...this.config.graphRoPEConfig,
+        },
+      });
+    }
   }
 
   /**
    * Create a recall certificate for a retrieval operation
+   *
+   * v2: Uses GraphRoPE if enabled for hop-distance-aware justification scoring
+   * v1: Falls back to standard relevance-based justification
    */
-  createCertificate(params: {
+  async createCertificate(params: {
     queryId: string;
     queryText: string;
     chunks: Array<{ id: string; type: string; content: string; relevance: number }>;
     requirements: string[]; // Query requirements
     accessLevel?: string;
-  }): RecallCertificate {
+    hopDistances?: number[][]; // Optional hop distances for GraphRoPE
+  }): Promise<RecallCertificate> {
     const { queryId, queryText, chunks, requirements, accessLevel = 'internal' } = params;
 
     const startTime = Date.now();

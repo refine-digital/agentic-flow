@@ -1,38 +1,32 @@
 {
   "Graph Node Create (single)": {
     "iterations": 100,
-    "totalDurationMs": "84.21",
-    "avgDurationMs": "0.8421",
-    "opsPerSec": 1187
-  },
-  "Graph Node Create (batch 100)": {
-    "iterations": 10,
-    "totalDurationMs": "5.70",
-    "avgDurationMs": "0.5703",
-    "opsPerSec": 1753
+    "totalDurationMs": "112.09",
+    "avgDurationMs": "1.1209",
+    "opsPerSec": 892
   },
   "Cypher Query (MATCH simple)": {
     "iterations": 100,
-    "totalDurationMs": "35.84",
-    "avgDurationMs": "0.3584",
-    "opsPerSec": 2790
+    "totalDurationMs": "47.39",
+    "avgDurationMs": "0.4739",
+    "opsPerSec": 2110
   },
   "Cypher Query (MATCH with WHERE)": {
     "iterations": 100,
-    "totalDurationMs": "35.47",
-    "avgDurationMs": "0.3547",
-    "opsPerSec": 2819
+    "totalDurationMs": "55.17",
+    "avgDurationMs": "0.5517",
+    "opsPerSec": 1812
   },
   "ReflexionMemory Store Episode": {
     "iterations": 50,
-    "totalDurationMs": "450.19",
-    "avgDurationMs": "9.0037",
-    "opsPerSec": 111
+    "totalDurationMs": "711.78",
+    "avgDurationMs": "14.2356",
+    "opsPerSec": 70
   },
   "ReflexionMemory Retrieve Episodes": {
     "iterations": 50,
-    "totalDurationMs": "75.97",
-    "avgDurationMs": "1.5194",
-    "opsPerSec": 658
+    "totalDurationMs": "82.54",
+    "avgDurationMs": "1.6508",
+    "opsPerSec": 605
   }
 }

@@ -9,6 +9,11 @@
  * - Reinforcement learning (9 algorithms)
  */
 
+// Main AgentDB class
+export { AgentDB } from './core/AgentDB.js';
+import { AgentDB as AgentDBClass } from './core/AgentDB.js';
+export default AgentDBClass;
+
 // Core controllers
 export { CausalMemoryGraph } from './controllers/CausalMemoryGraph.js';
 export { CausalRecall } from './controllers/CausalRecall.js';
@@ -26,6 +31,9 @@ export { EnhancedEmbeddingService } from './controllers/EnhancedEmbeddingService
 // WASM acceleration and HNSW indexing
 export { WASMVectorSearch } from './controllers/WASMVectorSearch.js';
 export { HNSWIndex } from './controllers/HNSWIndex.js';
+
+// Attention mechanisms
+export { AttentionService } from './controllers/AttentionService.js';
 
 // Database utilities
 export { createDatabase } from './db-fallback.js';

@@ -10,8 +10,10 @@
  * - MMR Diversity - Maximal marginal relevance ranking
  * - Tensor Compression - SVD dimension reduction
  * - Batch Operations - Optimized vector processing
+ * - WASM Attention - High-performance attention mechanisms (lazy loaded)
  *
  * Bundle Size: ~35 KB minified (~12 KB gzipped)
+ * WASM Module: ~157 KB (lazy loaded on demand)
  */
 
 // ============================================================================
@@ -56,6 +58,20 @@ export {
   type GNNConfig,
   type MMRConfig
 } from './AdvancedFeatures';
+
+// ============================================================================
+// WASM Attention (Browser-Compatible)
+// ============================================================================
+
+export {
+  AttentionBrowser,
+  createAttention,
+  createFastAttention,
+  createAccurateAttention,
+  type AttentionConfig,
+  type ConsolidationConfig,
+  type LoadingState
+} from './AttentionBrowser';
 
 // ============================================================================
 // Feature Detection

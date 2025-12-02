@@ -13,7 +13,9 @@
 
 export interface VectorConfig {
   /** Vector dimension (e.g., 384, 768, 1536) */
-  dimension: number;
+  dimension?: number;
+  /** Alias for dimension (backward compatibility) */
+  dimensions?: number;
 
   /** Distance metric: 'cosine', 'l2' (Euclidean), 'ip' (inner product) */
   metric: 'cosine' | 'l2' | 'ip';

@@ -22,7 +22,13 @@ export class RuVectorBackend implements VectorBackend {
   private initialized = false;
 
   constructor(config: VectorConfig) {
-    this.config = config;
+    // Handle both dimension and dimensions for backward compatibility
+    const dimension = config.dimension ?? config.dimensions;
+    if (!dimension) {
+      throw new Error('Vector dimension is required (use dimension or dimensions)');
+    }
+    // Store both forms for compatibility with different backends
+    this.config = { ...config, dimension, dimensions: dimension };
   }
 
   /**
@@ -40,22 +46,48 @@ export class RuVectorBackend implements VectorBackend {
       } catch {
         // Fallback to @ruvector/core for backward compatibility
         const core = await import('@ruvector/core');
-        VectorDB = core.VectorDB || core.default;
+        // ESM and CommonJS both export as VectorDB (capital 'DB')
+        VectorDB = core.VectorDB || core.default?.VectorDB;
       }
 
-      this.db = new VectorDB(this.config.dimension, {
+      if (!VectorDB) {
+        throw new Error('Could not find VectorDB export in @ruvector/core');
+      }
+
+      // Handle both 'dimension' and 'dimensions' for backward compatibility
+      const dimensions = this.config.dimension ?? this.config.dimensions;
+      if (!dimensions) {
+        throw new Error('Vector dimension is required (use dimension or dimensions)');
+      }
+
+      // RuVector VectorDB constructor signature
+      this.db = new VectorDB({
+        dimensions: dimensions,  // Note: config object, not positional arg
         metric: this.config.metric,
         maxElements: this.config.maxElements || 100000,
         efConstruction: this.config.efConstruction || 200,
-        M: this.config.M || 16
+        m: this.config.M || 16  // Note: lowercase 'm'
       });
 
       this.initialized = true;
     } catch (error) {
+      const errorMessage = (error as Error).message;
+
+      // Special handling for path validation errors (from ruvector package)
+      // When using :memory:, ruvector may reject it as a path traversal attempt
+      // This is expected and not critical - users should use file-based paths for ruvector persistence
+      if (errorMessage.includes('Path traversal') || errorMessage.includes('Invalid path')) {
+        throw new Error(
+          `RuVector does not support :memory: database paths.\n` +
+          `Use a file path instead, or RuVector will be skipped and fallback backend will be used.\n` +
+          `Original error: ${errorMessage}`
+        );
+      }
+
       throw new Error(
         `RuVector initialization failed. Please install: npm install ruvector\n` +
         `Or legacy packages: npm install @ruvector/core\n` +
-        `Error: ${(error as Error).message}`
+        `Error: ${errorMessage}`
       );
     }
   }
@@ -147,7 +179,7 @@ export class RuVectorBackend implements VectorBackend {
 
     return {
       count: this.db.count(),
-      dimension: this.config.dimension,
+      dimension: this.config.dimension || 384,
       metric: this.config.metric,
       backend: 'ruvector',
       memoryUsage: this.db.memoryUsage?.() || 0

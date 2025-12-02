@@ -52,12 +52,18 @@ export class HNSWLibBackend implements VectorBackend {
   private deletedIds: Set<string> = new Set();
 
   constructor(config: VectorConfig) {
+    // Handle both dimension and dimensions for backward compatibility
+    const dimension = config.dimension ?? config.dimensions;
+    if (!dimension) {
+      throw new Error('Vector dimension is required (use dimension or dimensions)');
+    }
     this.config = {
       maxElements: 100000,
       M: 16,
       efConstruction: 200,
       efSearch: 100,
       ...config,
+      dimension,  // Ensure dimension (singular) is always set
     };
   }
 
@@ -223,7 +229,7 @@ export class HNSWLibBackend implements VectorBackend {
 
     return {
       count: activeCount,
-      dimension: this.config.dimension,
+      dimension: this.config.dimension || 384,
       metric: this.config.metric,
       backend: 'hnswlib',
       memoryUsage: 0, // hnswlib doesn't expose memory usage

@@ -21,7 +21,8 @@ describe('AgentDB Browser Bundle', () => {
     SQL = await initSqlJs({
       locateFile: file => {
         // Use local node_modules path for testing
-        return join(__dirname, '../node_modules/sql.js/dist', file);
+        // tests/browser/ -> packages/agentdb/ requires ../../
+        return join(__dirname, '../../node_modules/sql.js/dist', file);
       }
     });
   });
