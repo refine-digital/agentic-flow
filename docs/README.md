@@ -7,12 +7,13 @@
 ### 🚀 Getting Started
 - [Quick Start Guide](guides/getting-started/README.md)
 - [Installation](guides/getting-started/installation.md)
-- [Configuration](CLAUDE.md) - Claude Code configuration
+- [Configuration](configuration/CLAUDE.md) - Claude Code configuration
 
 ### 🎯 Features
 Detailed documentation for each major feature:
 
 - **[AgentDB](features/agentdb/README.md)** - Vector database and learning systems
+- **[AgentDB v2](agentdb-v2/README.md)** - Next-generation vector database
 - **[ReasoningBank](features/reasoningbank/README.md)** - Adaptive learning and pattern recognition
 - **[QUIC Transport](features/quic/README.md)** - High-performance network communication
 - **[Federation](features/federation/README.md)** - Distributed agent coordination
@@ -21,7 +22,9 @@ Detailed documentation for each major feature:
 
 ### 📖 User Guides
 - **[MCP Integration](guides/mcp/README.md)** - Model Context Protocol setup and usage
-- **[Deployment](guides/deployment/README.md)** - Production deployment guides
+- **[Deployment](deployment/README.md)** - Production deployment guides
+- **[Implementation](implementation/README.md)** - Technical implementation guides
+- **[Package Management](package-management/README.md)** - NPM and package publishing
 - **[Advanced Topics](guides/advanced/README.md)** - Advanced features and optimization
 
 ### 🏗️ Architecture
@@ -41,6 +44,9 @@ Resources for contributors and integrators:
 - **[Integrations](development/integrations/README.md)** - Third-party integrations
 - **[Testing](development/testing/README.md)** - Testing guides and frameworks
 - **[Contributing](development/contributing/README.md)** - Contribution guidelines
+- **[Healthcare](healthcare/README.md)** - Medical system implementations
+- **[Economics](economics/README.md)** - Economic system design
+- **[Optimization](optimization/README.md)** - Performance optimization
 
 ### 📦 Releases
 - **[Current Releases](releases/current/README.md)** - Active release documentation
@@ -58,7 +64,8 @@ Resources for contributors and integrators:
 
 ### Key Documents
 - [INDEX.md](INDEX.md) - Comprehensive index of all documentation
-- [CLAUDE.md](CLAUDE.md) - Claude Code configuration and SPARC methodology
+- [CLAUDE.md](configuration/CLAUDE.md) - Claude Code configuration and SPARC methodology
+- [PROOF_OF_IMPLEMENTATION.md](PROOF_OF_IMPLEMENTATION.md) - Implementation proof
 
 ### Most Common Tasks
 1. **Setting up MCP**: [MCP Quickstart](guides/mcp/MCP-QUICKSTART.md)

@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+dist/
+*.tsbuildinfo
+
+# Benchmark data
+data/*.db
+data/*.db-journal
+data/*.db-shm
+data/*.db-wal
+
+# Keep baseline and result files
+!data/baseline-*.json
+!data/results-*.json
+!data/regression-report.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

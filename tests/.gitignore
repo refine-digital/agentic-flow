@@ -1,0 +1,22 @@
+# Test artifacts
+coverage/
+*.log
+.nyc_output/
+
+# Test databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary test files
+temp/
+tmp/
+.cache/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

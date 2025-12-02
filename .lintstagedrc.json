@@ -1,0 +1,17 @@
+{
+  "**/*.{ts,tsx}": [
+    "prettier --config config/.prettierrc.cjs --write"
+  ],
+  "**/*.{js,jsx,cjs,mjs}": [
+    "prettier --config config/.prettierrc.cjs --write"
+  ],
+  "**/*.json": [
+    "prettier --config config/.prettierrc.cjs --write"
+  ],
+  "**/*.{yml,yaml}": [
+    "prettier --config config/.prettierrc.cjs --write"
+  ],
+  "**/*.md": [
+    "prettier --config config/.prettierrc.cjs --write"
+  ]
+}
