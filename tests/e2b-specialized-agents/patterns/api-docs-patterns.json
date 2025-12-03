@@ -1,0 +1,312 @@
+{
+  "OpenAPI Generation": [
+    {
+      "id": "api-docs-1764741283282-0",
+      "type": "api-docs",
+      "scenario": "OpenAPI Generation",
+      "confidence": 0.8060267539665772,
+      "reused": 0,
+      "created": 1764741283282
+    },
+    {
+      "id": "api-docs-1764741283282-1",
+      "type": "api-docs",
+      "scenario": "OpenAPI Generation",
+      "confidence": 0.8862494316590543,
+      "reused": 0,
+      "created": 1764741283282
+    },
+    {
+      "id": "api-docs-1764741283282-2",
+      "type": "api-docs",
+      "scenario": "OpenAPI Generation",
+      "confidence": 0.9745073624913527,
+      "reused": 0,
+      "created": 1764741283282
+    },
+    {
+      "id": "api-docs-1764741283282-3",
+      "type": "api-docs",
+      "scenario": "OpenAPI Generation",
+      "confidence": 0.9734605266660701,
+      "reused": 0,
+      "created": 1764741283282
+    },
+    {
+      "id": "api-docs-1764741284784-0",
+      "type": "api-docs",
+      "scenario": "OpenAPI Generation",
+      "confidence": 0.8446953385310515,
+      "reused": 0,
+      "created": 1764741284784
+    },
+    {
+      "id": "api-docs-1764741284784-1",
+      "type": "api-docs",
+      "scenario": "OpenAPI Generation",
+      "confidence": 0.87843643327584,
+      "reused": 0,
+      "created": 1764741284784
+    },
+    {
+      "id": "api-docs-1764741284784-2",
+      "type": "api-docs",
+      "scenario": "OpenAPI Generation",
+      "confidence": 0.860369358547075,
+      "reused": 0,
+      "created": 1764741284784
+    },
+    {
+      "id": "api-docs-1764741284784-3",
+      "type": "api-docs",
+      "scenario": "OpenAPI Generation",
+      "confidence": 0.8196841125091209,
+      "reused": 0,
+      "created": 1764741284784
+    },
+    {
+      "id": "api-docs-1764741286286-0",
+      "type": "api-docs",
+      "scenario": "OpenAPI Generation",
+      "confidence": 0.9774310190550466,
+      "reused": 0,
+      "created": 1764741286286
+    },
+    {
+      "id": "api-docs-1764741286286-1",
+      "type": "api-docs",
+      "scenario": "OpenAPI Generation",
+      "confidence": 0.8626653700876853,
+      "reused": 0,
+      "created": 1764741286286
+    },
+    {
+      "id": "api-docs-1764741287787-0",
+      "type": "api-docs",
+      "scenario": "OpenAPI Generation",
+      "confidence": 0.8441043302793145,
+      "reused": 0,
+      "created": 1764741287787
+    },
+    {
+      "id": "api-docs-1764741287787-1",
+      "type": "api-docs",
+      "scenario": "OpenAPI Generation",
+      "confidence": 0.8394240754714583,
+      "reused": 0,
+      "created": 1764741287787
+    },
+    {
+      "id": "api-docs-1764741289289-0",
+      "type": "api-docs",
+      "scenario": "OpenAPI Generation",
+      "confidence": 0.9594301451782078,
+      "reused": 0,
+      "created": 1764741289289
+    },
+    {
+      "id": "api-docs-1764741289289-1",
+      "type": "api-docs",
+      "scenario": "OpenAPI Generation",
+      "confidence": 0.8603455151720076,
+      "reused": 0,
+      "created": 1764741289289
+    },
+    {
+      "id": "api-docs-1764741289289-2",
+      "type": "api-docs",
+      "scenario": "OpenAPI Generation",
+      "confidence": 0.8002427016281004,
+      "reused": 0,
+      "created": 1764741289289
+    }
+  ],
+  "Interactive Documentation": [
+    {
+      "id": "api-docs-1764741290790-0",
+      "type": "api-docs",
+      "scenario": "Interactive Documentation",
+      "confidence": 0.8533998370441394,
+      "reused": 0,
+      "created": 1764741290790
+    },
+    {
+      "id": "api-docs-1764741290790-1",
+      "type": "api-docs",
+      "scenario": "Interactive Documentation",
+      "confidence": 0.8764967864082804,
+      "reused": 0,
+      "created": 1764741290790
+    },
+    {
+      "id": "api-docs-1764741290790-2",
+      "type": "api-docs",
+      "scenario": "Interactive Documentation",
+      "confidence": 0.8342934604721564,
+      "reused": 0,
+      "created": 1764741290790
+    },
+    {
+      "id": "api-docs-1764741293292-0",
+      "type": "api-docs",
+      "scenario": "Interactive Documentation",
+      "confidence": 0.9424948014858406,
+      "reused": 0,
+      "created": 1764741293292
+    },
+    {
+      "id": "api-docs-1764741293292-1",
+      "type": "api-docs",
+      "scenario": "Interactive Documentation",
+      "confidence": 0.9473328806717906,
+      "reused": 0,
+      "created": 1764741293292
+    },
+    {
+      "id": "api-docs-1764741293292-2",
+      "type": "api-docs",
+      "scenario": "Interactive Documentation",
+      "confidence": 0.922668376862803,
+      "reused": 0,
+      "created": 1764741293292
+    },
+    {
+      "id": "api-docs-1764741293292-3",
+      "type": "api-docs",
+      "scenario": "Interactive Documentation",
+      "confidence": 0.825559163622734,
+      "reused": 0,
+      "created": 1764741293292
+    },
+    {
+      "id": "api-docs-1764741295795-0",
+      "type": "api-docs",
+      "scenario": "Interactive Documentation",
+      "confidence": 0.8919150367076681,
+      "reused": 0,
+      "created": 1764741295795
+    },
+    {
+      "id": "api-docs-1764741295795-1",
+      "type": "api-docs",
+      "scenario": "Interactive Documentation",
+      "confidence": 0.8739209868080255,
+      "reused": 0,
+      "created": 1764741295795
+    },
+    {
+      "id": "api-docs-1764741298298-0",
+      "type": "api-docs",
+      "scenario": "Interactive Documentation",
+      "confidence": 0.806759675918075,
+      "reused": 0,
+      "created": 1764741298298
+    },
+    {
+      "id": "api-docs-1764741298298-1",
+      "type": "api-docs",
+      "scenario": "Interactive Documentation",
+      "confidence": 0.8800541915901541,
+      "reused": 0,
+      "created": 1764741298298
+    },
+    {
+      "id": "api-docs-1764741298298-2",
+      "type": "api-docs",
+      "scenario": "Interactive Documentation",
+      "confidence": 0.8837063158457544,
+      "reused": 0,
+      "created": 1764741298298
+    },
+    {
+      "id": "api-docs-1764741298298-3",
+      "type": "api-docs",
+      "scenario": "Interactive Documentation",
+      "confidence": 0.8549195660579393,
+      "reused": 0,
+      "created": 1764741298298
+    },
+    {
+      "id": "api-docs-1764741300800-0",
+      "type": "api-docs",
+      "scenario": "Interactive Documentation",
+      "confidence": 0.896249886293327,
+      "reused": 0,
+      "created": 1764741300800
+    },
+    {
+      "id": "api-docs-1764741300800-1",
+      "type": "api-docs",
+      "scenario": "Interactive Documentation",
+      "confidence": 0.861075621889396,
+      "reused": 0,
+      "created": 1764741300800
+    },
+    {
+      "id": "api-docs-1764741300800-2",
+      "type": "api-docs",
+      "scenario": "Interactive Documentation",
+      "confidence": 0.9199422600306805,
+      "reused": 0,
+      "created": 1764741300800
+    }
+  ],
+  "Multi-Version API Docs": [
+    {
+      "id": "api-docs-1764741303302-0",
+      "type": "api-docs",
+      "scenario": "Multi-Version API Docs",
+      "confidence": 0.9715548645275993,
+      "reused": 0,
+      "created": 1764741303302
+    },
+    {
+      "id": "api-docs-1764741303302-1",
+      "type": "api-docs",
+      "scenario": "Multi-Version API Docs",
+      "confidence": 0.9695840906952944,
+      "reused": 0,
+      "created": 1764741303302
+    },
+    {
+      "id": "api-docs-1764741303302-2",
+      "type": "api-docs",
+      "scenario": "Multi-Version API Docs",
+      "confidence": 0.8441229226872444,
+      "reused": 0,
+      "created": 1764741303302
+    },
+    {
+      "id": "api-docs-1764741306303-0",
+      "type": "api-docs",
+      "scenario": "Multi-Version API Docs",
+      "confidence": 0.9574241873618103,
+      "reused": 0,
+      "created": 1764741306303
+    },
+    {
+      "id": "api-docs-1764741306303-1",
+      "type": "api-docs",
+      "scenario": "Multi-Version API Docs",
+      "confidence": 0.8035924385629822,
+      "reused": 0,
+      "created": 1764741306303
+    },
+    {
+      "id": "api-docs-1764741309306-0",
+      "type": "api-docs",
+      "scenario": "Multi-Version API Docs",
+      "confidence": 0.9207400764778102,
+      "reused": 0,
+      "created": 1764741309306
+    },
+    {
+      "id": "api-docs-1764741309306-1",
+      "type": "api-docs",
+      "scenario": "Multi-Version API Docs",
+      "confidence": 0.8995933406790959,
+      "reused": 0,
+      "created": 1764741309306
+    }
+  ]
+}

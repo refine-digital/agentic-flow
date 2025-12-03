@@ -1,0 +1,177 @@
+{
+  "patternLearningEffectiveness": {
+    "backend-dev": 0.6785757208715518,
+    "api-docs": 0.00009963389921956774,
+    "ml-developer": 0.518026418026418,
+    "base-template-generator": 0.8065844751822594
+  },
+  "optimizationImpact": {
+    "backend-dev": {
+      "gnnSearchImpact": 42.14900161789337,
+      "flashAttentionImpact": 3.430339640256853,
+      "patternReuseImpact": 0,
+      "combinedImpact": 0
+    },
+    "api-docs": {
+      "gnnSearchImpact": 38.794267033650456,
+      "flashAttentionImpact": 0,
+      "patternReuseImpact": 0,
+      "combinedImpact": 0
+    },
+    "ml-developer": {
+      "gnnSearchImpact": 37.4224942164356,
+      "flashAttentionImpact": 3.459622214511437,
+      "patternReuseImpact": 0,
+      "combinedImpact": 0
+    },
+    "base-template-generator": {
+      "gnnSearchImpact": 38.22681169887914,
+      "flashAttentionImpact": 3.3602730017847384,
+      "patternReuseImpact": 0,
+      "combinedImpact": 0
+    }
+  },
+  "learningCurves": {
+    "backend-dev": {
+      "iterations": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "executionTimes": [
+        2002,
+        1539,
+        1334,
+        1112,
+        1002
+      ],
+      "patternCounts": [
+        3,
+        5,
+        8,
+        10,
+        13
+      ],
+      "accuracyScores": [
+        0.939591851381615,
+        0.8713589131169852,
+        0.9436360570066925,
+        0.9241143502680899,
+        0.8727280284360487
+      ],
+      "regressionCoefficient": -242.7,
+      "projectedOptimalIteration": 8
+    },
+    "api-docs": {
+      "iterations": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "executionTimes": [
+        1502,
+        1502,
+        1501,
+        1501,
+        1501
+      ],
+      "patternCounts": [
+        4,
+        8,
+        10,
+        12,
+        15
+      ],
+      "accuracyScores": [
+        0.9499605492356095,
+        0.8763390273275606,
+        0.9318023974317995,
+        0.9095508834143038,
+        0.8651227301610159
+      ],
+      "regressionCoefficient": -0.3,
+      "projectedOptimalIteration": 2
+    },
+    "ml-developer": {
+      "iterations": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "executionTimes": [
+        4004,
+        3337,
+        2501,
+        2002
+      ],
+      "patternCounts": [
+        2,
+        6,
+        10,
+        12
+      ],
+      "accuracyScores": [
+        0.9106817581397123,
+        0.9676167037828362,
+        0.897274218357229,
+        0.9113017029536966
+      ],
+      "regressionCoefficient": -684.2,
+      "projectedOptimalIteration": 6
+    },
+    "base-template-generator": {
+      "iterations": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "executionTimes": [
+        2002,
+        1539,
+        1334,
+        1053,
+        910
+      ],
+      "patternCounts": [
+        3,
+        5,
+        9,
+        12,
+        15
+      ],
+      "accuracyScores": [
+        0.8771915565376591,
+        0.9068220819958853,
+        0.8759417754384001,
+        0.9190775400701496,
+        0.9644680116156629
+      ],
+      "regressionCoefficient": -267,
+      "projectedOptimalIteration": 8
+    }
+  },
+  "crossAgentInsights": {
+    "patternSharingOpportunities": [
+      "API endpoint patterns from backend-dev could benefit api-docs agent",
+      "Template structures from base-template-generator applicable to ml-developer scaffolding",
+      "Documentation patterns from api-docs useful for all agents"
+    ],
+    "complementaryOptimizations": [
+      "Flash Attention most effective for ml-developer (large datasets)",
+      "GNN Search highly effective for template-generator (pattern matching)",
+      "Pattern reuse shows best results in backend-dev (repetitive API patterns)"
+    ],
+    "universalBestPractices": [
+      "Enable all optimizations for first 3 iterations to build pattern library",
+      "GNN Search threshold of 0.85-0.90 optimal across all agents",
+      "Pattern library shows diminishing returns after 15-20 patterns per scenario"
+    ]
+  }
+}

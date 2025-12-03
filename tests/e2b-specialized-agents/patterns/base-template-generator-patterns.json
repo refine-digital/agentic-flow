@@ -1,0 +1,360 @@
+{
+  "React App Template": [
+    {
+      "id": "base-template-generator-1764741361767-0",
+      "type": "base-template-generator",
+      "scenario": "React App Template",
+      "confidence": 0.9386024013047203,
+      "reused": 0,
+      "created": 1764741361767
+    },
+    {
+      "id": "base-template-generator-1764741361767-1",
+      "type": "base-template-generator",
+      "scenario": "React App Template",
+      "confidence": 0.9136521703720335,
+      "reused": 0,
+      "created": 1764741361767
+    },
+    {
+      "id": "base-template-generator-1764741361767-2",
+      "type": "base-template-generator",
+      "scenario": "React App Template",
+      "confidence": 0.8064618798525627,
+      "reused": 0,
+      "created": 1764741361767
+    },
+    {
+      "id": "base-template-generator-1764741363770-0",
+      "type": "base-template-generator",
+      "scenario": "React App Template",
+      "confidence": 0.9169870619380354,
+      "reused": 0,
+      "created": 1764741363770
+    },
+    {
+      "id": "base-template-generator-1764741363770-1",
+      "type": "base-template-generator",
+      "scenario": "React App Template",
+      "confidence": 0.9246334555619163,
+      "reused": 0,
+      "created": 1764741363770
+    },
+    {
+      "id": "base-template-generator-1764741365310-0",
+      "type": "base-template-generator",
+      "scenario": "React App Template",
+      "confidence": 0.8445378691911293,
+      "reused": 0,
+      "created": 1764741365310
+    },
+    {
+      "id": "base-template-generator-1764741365310-1",
+      "type": "base-template-generator",
+      "scenario": "React App Template",
+      "confidence": 0.9497352648488365,
+      "reused": 0,
+      "created": 1764741365310
+    },
+    {
+      "id": "base-template-generator-1764741365310-2",
+      "type": "base-template-generator",
+      "scenario": "React App Template",
+      "confidence": 0.8286589690895859,
+      "reused": 0,
+      "created": 1764741365310
+    },
+    {
+      "id": "base-template-generator-1764741365310-3",
+      "type": "base-template-generator",
+      "scenario": "React App Template",
+      "confidence": 0.9047887008189945,
+      "reused": 0,
+      "created": 1764741365310
+    },
+    {
+      "id": "base-template-generator-1764741366644-0",
+      "type": "base-template-generator",
+      "scenario": "React App Template",
+      "confidence": 0.9731333424078867,
+      "reused": 0,
+      "created": 1764741366644
+    },
+    {
+      "id": "base-template-generator-1764741366644-1",
+      "type": "base-template-generator",
+      "scenario": "React App Template",
+      "confidence": 0.9523796994486718,
+      "reused": 0,
+      "created": 1764741366644
+    },
+    {
+      "id": "base-template-generator-1764741366644-2",
+      "type": "base-template-generator",
+      "scenario": "React App Template",
+      "confidence": 0.8456117031062236,
+      "reused": 0,
+      "created": 1764741366644
+    },
+    {
+      "id": "base-template-generator-1764741367698-0",
+      "type": "base-template-generator",
+      "scenario": "React App Template",
+      "confidence": 0.8668801217977421,
+      "reused": 0,
+      "created": 1764741367698
+    },
+    {
+      "id": "base-template-generator-1764741367698-1",
+      "type": "base-template-generator",
+      "scenario": "React App Template",
+      "confidence": 0.8040830565578222,
+      "reused": 0,
+      "created": 1764741367698
+    },
+    {
+      "id": "base-template-generator-1764741367698-2",
+      "type": "base-template-generator",
+      "scenario": "React App Template",
+      "confidence": 0.8072475500922904,
+      "reused": 0,
+      "created": 1764741367698
+    }
+  ],
+  "Microservices Boilerplate": [
+    {
+      "id": "base-template-generator-1764741368608-0",
+      "type": "base-template-generator",
+      "scenario": "Microservices Boilerplate",
+      "confidence": 0.8557657357820465,
+      "reused": 0,
+      "created": 1764741368608
+    },
+    {
+      "id": "base-template-generator-1764741368608-1",
+      "type": "base-template-generator",
+      "scenario": "Microservices Boilerplate",
+      "confidence": 0.954263739136736,
+      "reused": 0,
+      "created": 1764741368608
+    },
+    {
+      "id": "base-template-generator-1764741368608-2",
+      "type": "base-template-generator",
+      "scenario": "Microservices Boilerplate",
+      "confidence": 0.8156931438143842,
+      "reused": 0,
+      "created": 1764741368608
+    },
+    {
+      "id": "base-template-generator-1764741368608-3",
+      "type": "base-template-generator",
+      "scenario": "Microservices Boilerplate",
+      "confidence": 0.8472113966812127,
+      "reused": 0,
+      "created": 1764741368608
+    },
+    {
+      "id": "base-template-generator-1764741372111-0",
+      "type": "base-template-generator",
+      "scenario": "Microservices Boilerplate",
+      "confidence": 0.8197164449497942,
+      "reused": 0,
+      "created": 1764741372111
+    },
+    {
+      "id": "base-template-generator-1764741372111-1",
+      "type": "base-template-generator",
+      "scenario": "Microservices Boilerplate",
+      "confidence": 0.9342599987379817,
+      "reused": 0,
+      "created": 1764741372111
+    },
+    {
+      "id": "base-template-generator-1764741372111-2",
+      "type": "base-template-generator",
+      "scenario": "Microservices Boilerplate",
+      "confidence": 0.9427874701588037,
+      "reused": 0,
+      "created": 1764741372111
+    },
+    {
+      "id": "base-template-generator-1764741372111-3",
+      "type": "base-template-generator",
+      "scenario": "Microservices Boilerplate",
+      "confidence": 0.8724598995810555,
+      "reused": 0,
+      "created": 1764741372111
+    },
+    {
+      "id": "base-template-generator-1764741374612-0",
+      "type": "base-template-generator",
+      "scenario": "Microservices Boilerplate",
+      "confidence": 0.8037994231519698,
+      "reused": 0,
+      "created": 1764741374612
+    },
+    {
+      "id": "base-template-generator-1764741374612-1",
+      "type": "base-template-generator",
+      "scenario": "Microservices Boilerplate",
+      "confidence": 0.8698992197173834,
+      "reused": 0,
+      "created": 1764741374612
+    },
+    {
+      "id": "base-template-generator-1764741374612-2",
+      "type": "base-template-generator",
+      "scenario": "Microservices Boilerplate",
+      "confidence": 0.812270665647569,
+      "reused": 0,
+      "created": 1764741374612
+    },
+    {
+      "id": "base-template-generator-1764741374612-3",
+      "type": "base-template-generator",
+      "scenario": "Microservices Boilerplate",
+      "confidence": 0.9031373498436515,
+      "reused": 0,
+      "created": 1764741374612
+    },
+    {
+      "id": "base-template-generator-1764741376558-0",
+      "type": "base-template-generator",
+      "scenario": "Microservices Boilerplate",
+      "confidence": 0.8526950436381835,
+      "reused": 0,
+      "created": 1764741376558
+    },
+    {
+      "id": "base-template-generator-1764741376558-1",
+      "type": "base-template-generator",
+      "scenario": "Microservices Boilerplate",
+      "confidence": 0.8261497708230198,
+      "reused": 0,
+      "created": 1764741376558
+    },
+    {
+      "id": "base-template-generator-1764741376558-2",
+      "type": "base-template-generator",
+      "scenario": "Microservices Boilerplate",
+      "confidence": 0.967524005300672,
+      "reused": 0,
+      "created": 1764741376558
+    },
+    {
+      "id": "base-template-generator-1764741376558-3",
+      "type": "base-template-generator",
+      "scenario": "Microservices Boilerplate",
+      "confidence": 0.9355116806379509,
+      "reused": 0,
+      "created": 1764741376558
+    },
+    {
+      "id": "base-template-generator-1764741378149-0",
+      "type": "base-template-generator",
+      "scenario": "Microservices Boilerplate",
+      "confidence": 0.8181432917080185,
+      "reused": 0,
+      "created": 1764741378149
+    },
+    {
+      "id": "base-template-generator-1764741378149-1",
+      "type": "base-template-generator",
+      "scenario": "Microservices Boilerplate",
+      "confidence": 0.9783934488494805,
+      "reused": 0,
+      "created": 1764741378149
+    },
+    {
+      "id": "base-template-generator-1764741378149-2",
+      "type": "base-template-generator",
+      "scenario": "Microservices Boilerplate",
+      "confidence": 0.8932536563991771,
+      "reused": 0,
+      "created": 1764741378149
+    },
+    {
+      "id": "base-template-generator-1764741378149-3",
+      "type": "base-template-generator",
+      "scenario": "Microservices Boilerplate",
+      "confidence": 0.9423827282825821,
+      "reused": 0,
+      "created": 1764741378149
+    }
+  ],
+  "Enterprise System Template": [
+    {
+      "id": "base-template-generator-1764741379497-0",
+      "type": "base-template-generator",
+      "scenario": "Enterprise System Template",
+      "confidence": 0.9294734980755192,
+      "reused": 0,
+      "created": 1764741379497
+    },
+    {
+      "id": "base-template-generator-1764741379497-1",
+      "type": "base-template-generator",
+      "scenario": "Enterprise System Template",
+      "confidence": 0.9656895938335883,
+      "reused": 0,
+      "created": 1764741379497
+    },
+    {
+      "id": "base-template-generator-1764741379497-2",
+      "type": "base-template-generator",
+      "scenario": "Enterprise System Template",
+      "confidence": 0.8225364233542998,
+      "reused": 0,
+      "created": 1764741379497
+    },
+    {
+      "id": "base-template-generator-1764741379497-3",
+      "type": "base-template-generator",
+      "scenario": "Enterprise System Template",
+      "confidence": 0.891829809125341,
+      "reused": 0,
+      "created": 1764741379497
+    },
+    {
+      "id": "base-template-generator-1764741385002-0",
+      "type": "base-template-generator",
+      "scenario": "Enterprise System Template",
+      "confidence": 0.906762327309718,
+      "reused": 0,
+      "created": 1764741385002
+    },
+    {
+      "id": "base-template-generator-1764741385002-1",
+      "type": "base-template-generator",
+      "scenario": "Enterprise System Template",
+      "confidence": 0.9292126219970642,
+      "reused": 0,
+      "created": 1764741385002
+    },
+    {
+      "id": "base-template-generator-1764741385002-2",
+      "type": "base-template-generator",
+      "scenario": "Enterprise System Template",
+      "confidence": 0.9531048244900032,
+      "reused": 0,
+      "created": 1764741385002
+    },
+    {
+      "id": "base-template-generator-1764741388934-0",
+      "type": "base-template-generator",
+      "scenario": "Enterprise System Template",
+      "confidence": 0.8851520089346947,
+      "reused": 0,
+      "created": 1764741388934
+    },
+    {
+      "id": "base-template-generator-1764741388934-1",
+      "type": "base-template-generator",
+      "scenario": "Enterprise System Template",
+      "confidence": 0.9398957958248855,
+      "reused": 0,
+      "created": 1764741388934
+    }
+  ]
+}
