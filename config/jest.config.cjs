@@ -13,7 +13,7 @@ module.exports = {
   ],
   transform: {
     '^.+\\.ts$': ['ts-jest', {
-      tsconfig: '<rootDir>/tsconfig.json',
+      tsconfig: '<rootDir>/../agentic-flow/config/tsconfig.json',
     }],
   },
   collectCoverageFrom: [
@@ -37,6 +37,8 @@ module.exports = {
   },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/../agentic-flow/src/$1',
+    '^agentdb$': '<rootDir>/__mocks__/agentdb.ts',
+    '^@agentdb/alpha$': '<rootDir>/__mocks__/agentdb.ts',
   },
   moduleFileExtensions: ['ts', 'js', 'json'],
   verbose: true,

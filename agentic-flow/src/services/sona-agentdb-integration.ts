@@ -7,7 +7,7 @@
 
 import { EventEmitter } from 'events';
 import { SonaEngine } from '@ruvector/sona';
-import agentdb from '@agentdb/alpha';
+import agentdb from 'agentdb';
 
 export interface AgentDBSONAConfig {
   // SONA config
