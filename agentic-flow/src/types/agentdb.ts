@@ -124,6 +124,65 @@ export interface MemoryGetOptions {
 }
 
 /**
+ * Attention mechanism types
+ */
+export type AttentionType = 'multi-head' | 'flash' | 'linear' | 'hyperbolic' | 'moe' | 'graph-rope';
+
+/**
+ * Attention configuration
+ */
+export interface AttentionConfig {
+  /** Attention type */
+  type?: AttentionType;
+  /** Number of attention heads (default: 8) */
+  numHeads?: number;
+  /** Head dimension (default: 64) */
+  headDim?: number;
+  /** Embedding dimension (inferred from vector dimension) */
+  embedDim?: number;
+  /** Dropout rate (default: 0.1) */
+  dropout?: number;
+  /** Hyperbolic curvature for hyperbolic attention */
+  curvature?: number;
+  /** Number of experts for MoE attention */
+  numExperts?: number;
+  /** Top-k experts to activate (default: 2) */
+  topK?: number;
+}
+
+/**
+ * GNN configuration
+ */
+export interface GNNConfig {
+  /** Enable GNN query refinement (default: false) */
+  enabled?: boolean;
+  /** Input dimension (matches vector dimension) */
+  inputDim?: number;
+  /** Hidden layer dimension (default: 256) */
+  hiddenDim?: number;
+  /** Number of GNN layers (default: 3) */
+  numLayers?: number;
+  /** Number of attention heads per layer (default: 8) */
+  numHeads?: number;
+  /** Aggregation method */
+  aggregation?: 'mean' | 'sum' | 'max' | 'attention';
+}
+
+/**
+ * Graph context for GNN operations
+ */
+export interface GraphContext {
+  /** Node features (embeddings) */
+  nodes: Float32Array[];
+  /** Edge list [source, target] pairs */
+  edges: [number, number][];
+  /** Optional edge weights */
+  edgeWeights?: number[];
+  /** Optional node labels */
+  nodeLabels?: string[];
+}
+
+/**
  * AgentDB configuration
  */
 export interface AgentDBConfig {
@@ -138,14 +197,11 @@ export interface AgentDBConfig {
   /** Enable attention mechanisms (default: false) */
   enableAttention?: boolean;
   /** Attention configuration */
-  attentionConfig?: {
-    /** Attention type */
-    type?: 'multi-head' | 'flash' | 'linear' | 'hyperbolic' | 'moe' | 'graph-rope';
-    /** Number of attention heads */
-    numHeads?: number;
-    /** Head dimension */
-    headDim?: number;
-  };
+  attentionConfig?: AttentionConfig;
+  /** Enable GNN query refinement (default: false) */
+  enableGNN?: boolean;
+  /** GNN configuration */
+  gnnConfig?: GNNConfig;
   /** Enable auto-initialization (default: true) */
   autoInit?: boolean;
 }
@@ -232,4 +288,54 @@ export class IndexError extends AgentDBError {
     super(message, 'INDEX_ERROR', operation, details);
     this.name = 'IndexError';
   }
+}
+
+/**
+ * Attention result with performance metrics
+ */
+export interface AttentionResult {
+  /** Output tensor */
+  output: Float32Array;
+  /** Attention mechanism used */
+  mechanism: AttentionType;
+  /** Runtime environment (napi or wasm) */
+  runtime: 'napi' | 'wasm' | 'js';
+  /** Execution time in milliseconds */
+  executionTimeMs: number;
+  /** Optional attention weights */
+  attentionWeights?: Float32Array;
+  /** Memory usage in bytes */
+  memoryUsage?: number;
+}
+
+/**
+ * GNN refinement result
+ */
+export interface GNNRefinementResult {
+  /** Refined results */
+  results: VectorSearchResult[];
+  /** Original recall */
+  originalRecall: number;
+  /** Improved recall after GNN */
+  improvedRecall: number;
+  /** Recall improvement percentage */
+  improvementPercent: number;
+  /** GNN execution time */
+  executionTimeMs: number;
+}
+
+/**
+ * Vector search options with advanced features
+ */
+export interface AdvancedSearchOptions extends VectorSearchOptions {
+  /** Use attention-based reranking */
+  useAttention?: boolean;
+  /** Attention mechanism to use */
+  attentionMechanism?: AttentionType;
+  /** Use GNN query refinement */
+  useGNN?: boolean;
+  /** Graph context for GNN */
+  graphContext?: GraphContext;
+  /** Include performance metrics */
+  includeMetrics?: boolean;
 }
