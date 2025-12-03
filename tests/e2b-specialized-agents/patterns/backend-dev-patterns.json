@@ -1,0 +1,328 @@
+{
+  "REST API Creation": [
+    {
+      "id": "backend-dev-1764741253213-0",
+      "type": "backend-dev",
+      "scenario": "REST API Creation",
+      "confidence": 0.9595910563542123,
+      "reused": 0,
+      "created": 1764741253213
+    },
+    {
+      "id": "backend-dev-1764741253213-1",
+      "type": "backend-dev",
+      "scenario": "REST API Creation",
+      "confidence": 0.9214348078310484,
+      "reused": 0,
+      "created": 1764741253213
+    },
+    {
+      "id": "backend-dev-1764741253213-2",
+      "type": "backend-dev",
+      "scenario": "REST API Creation",
+      "confidence": 0.8480868801071378,
+      "reused": 0,
+      "created": 1764741253213
+    },
+    {
+      "id": "backend-dev-1764741255215-0",
+      "type": "backend-dev",
+      "scenario": "REST API Creation",
+      "confidence": 0.9066205925732291,
+      "reused": 0,
+      "created": 1764741255215
+    },
+    {
+      "id": "backend-dev-1764741255215-1",
+      "type": "backend-dev",
+      "scenario": "REST API Creation",
+      "confidence": 0.8934362997419457,
+      "reused": 0,
+      "created": 1764741255215
+    },
+    {
+      "id": "backend-dev-1764741256754-0",
+      "type": "backend-dev",
+      "scenario": "REST API Creation",
+      "confidence": 0.8814408198319841,
+      "reused": 0,
+      "created": 1764741256754
+    },
+    {
+      "id": "backend-dev-1764741256754-1",
+      "type": "backend-dev",
+      "scenario": "REST API Creation",
+      "confidence": 0.9422492123398998,
+      "reused": 0,
+      "created": 1764741256754
+    },
+    {
+      "id": "backend-dev-1764741256754-2",
+      "type": "backend-dev",
+      "scenario": "REST API Creation",
+      "confidence": 0.9372738368798306,
+      "reused": 0,
+      "created": 1764741256754
+    },
+    {
+      "id": "backend-dev-1764741258089-0",
+      "type": "backend-dev",
+      "scenario": "REST API Creation",
+      "confidence": 0.8465850667712563,
+      "reused": 0,
+      "created": 1764741258089
+    },
+    {
+      "id": "backend-dev-1764741258089-1",
+      "type": "backend-dev",
+      "scenario": "REST API Creation",
+      "confidence": 0.8484648156017793,
+      "reused": 0,
+      "created": 1764741258089
+    },
+    {
+      "id": "backend-dev-1764741259202-0",
+      "type": "backend-dev",
+      "scenario": "REST API Creation",
+      "confidence": 0.8383718013552486,
+      "reused": 0,
+      "created": 1764741259202
+    },
+    {
+      "id": "backend-dev-1764741259202-1",
+      "type": "backend-dev",
+      "scenario": "REST API Creation",
+      "confidence": 0.8930478085742637,
+      "reused": 0,
+      "created": 1764741259202
+    },
+    {
+      "id": "backend-dev-1764741259202-2",
+      "type": "backend-dev",
+      "scenario": "REST API Creation",
+      "confidence": 0.9602946325688336,
+      "reused": 0,
+      "created": 1764741259202
+    }
+  ],
+  "GraphQL Schema Design": [
+    {
+      "id": "backend-dev-1764741260203-0",
+      "type": "backend-dev",
+      "scenario": "GraphQL Schema Design",
+      "confidence": 0.8141119094204403,
+      "reused": 0,
+      "created": 1764741260203
+    },
+    {
+      "id": "backend-dev-1764741260203-1",
+      "type": "backend-dev",
+      "scenario": "GraphQL Schema Design",
+      "confidence": 0.9651986706449625,
+      "reused": 0,
+      "created": 1764741260203
+    },
+    {
+      "id": "backend-dev-1764741260203-2",
+      "type": "backend-dev",
+      "scenario": "GraphQL Schema Design",
+      "confidence": 0.8006844781243659,
+      "reused": 0,
+      "created": 1764741260203
+    },
+    {
+      "id": "backend-dev-1764741260203-3",
+      "type": "backend-dev",
+      "scenario": "GraphQL Schema Design",
+      "confidence": 0.96008086523686,
+      "reused": 0,
+      "created": 1764741260203
+    },
+    {
+      "id": "backend-dev-1764741263705-0",
+      "type": "backend-dev",
+      "scenario": "GraphQL Schema Design",
+      "confidence": 0.8145858382702149,
+      "reused": 0,
+      "created": 1764741263705
+    },
+    {
+      "id": "backend-dev-1764741263705-1",
+      "type": "backend-dev",
+      "scenario": "GraphQL Schema Design",
+      "confidence": 0.9189713067657488,
+      "reused": 0,
+      "created": 1764741263705
+    },
+    {
+      "id": "backend-dev-1764741263705-2",
+      "type": "backend-dev",
+      "scenario": "GraphQL Schema Design",
+      "confidence": 0.9377874480407898,
+      "reused": 0,
+      "created": 1764741263705
+    },
+    {
+      "id": "backend-dev-1764741266210-0",
+      "type": "backend-dev",
+      "scenario": "GraphQL Schema Design",
+      "confidence": 0.8972122191241346,
+      "reused": 0,
+      "created": 1764741266210
+    },
+    {
+      "id": "backend-dev-1764741266210-1",
+      "type": "backend-dev",
+      "scenario": "GraphQL Schema Design",
+      "confidence": 0.8955214794662415,
+      "reused": 0,
+      "created": 1764741266210
+    },
+    {
+      "id": "backend-dev-1764741266210-2",
+      "type": "backend-dev",
+      "scenario": "GraphQL Schema Design",
+      "confidence": 0.8364751725117299,
+      "reused": 0,
+      "created": 1764741266210
+    },
+    {
+      "id": "backend-dev-1764741268270-0",
+      "type": "backend-dev",
+      "scenario": "GraphQL Schema Design",
+      "confidence": 0.8322649723372537,
+      "reused": 0,
+      "created": 1764741268270
+    },
+    {
+      "id": "backend-dev-1764741268270-1",
+      "type": "backend-dev",
+      "scenario": "GraphQL Schema Design",
+      "confidence": 0.9470114740030136,
+      "reused": 0,
+      "created": 1764741268270
+    },
+    {
+      "id": "backend-dev-1764741268270-2",
+      "type": "backend-dev",
+      "scenario": "GraphQL Schema Design",
+      "confidence": 0.8921858179509559,
+      "reused": 0,
+      "created": 1764741268270
+    },
+    {
+      "id": "backend-dev-1764741268270-3",
+      "type": "backend-dev",
+      "scenario": "GraphQL Schema Design",
+      "confidence": 0.8947578489325925,
+      "reused": 0,
+      "created": 1764741268270
+    },
+    {
+      "id": "backend-dev-1764741270021-0",
+      "type": "backend-dev",
+      "scenario": "GraphQL Schema Design",
+      "confidence": 0.932485119813066,
+      "reused": 0,
+      "created": 1764741270021
+    },
+    {
+      "id": "backend-dev-1764741270021-1",
+      "type": "backend-dev",
+      "scenario": "GraphQL Schema Design",
+      "confidence": 0.9777971999460795,
+      "reused": 0,
+      "created": 1764741270021
+    }
+  ],
+  "Microservices Architecture": [
+    {
+      "id": "backend-dev-1764741271480-0",
+      "type": "backend-dev",
+      "scenario": "Microservices Architecture",
+      "confidence": 0.9253196912567682,
+      "reused": 0,
+      "created": 1764741271480
+    },
+    {
+      "id": "backend-dev-1764741271480-1",
+      "type": "backend-dev",
+      "scenario": "Microservices Architecture",
+      "confidence": 0.8947015834191073,
+      "reused": 0,
+      "created": 1764741271480
+    },
+    {
+      "id": "backend-dev-1764741271480-2",
+      "type": "backend-dev",
+      "scenario": "Microservices Architecture",
+      "confidence": 0.8919214639782856,
+      "reused": 0,
+      "created": 1764741271480
+    },
+    {
+      "id": "backend-dev-1764741276485-0",
+      "type": "backend-dev",
+      "scenario": "Microservices Architecture",
+      "confidence": 0.8423807119493195,
+      "reused": 0,
+      "created": 1764741276485
+    },
+    {
+      "id": "backend-dev-1764741276485-1",
+      "type": "backend-dev",
+      "scenario": "Microservices Architecture",
+      "confidence": 0.8658680284230688,
+      "reused": 0,
+      "created": 1764741276485
+    },
+    {
+      "id": "backend-dev-1764741276485-2",
+      "type": "backend-dev",
+      "scenario": "Microservices Architecture",
+      "confidence": 0.8857038971064289,
+      "reused": 0,
+      "created": 1764741276485
+    },
+    {
+      "id": "backend-dev-1764741276485-3",
+      "type": "backend-dev",
+      "scenario": "Microservices Architecture",
+      "confidence": 0.9417293390327629,
+      "reused": 0,
+      "created": 1764741276485
+    },
+    {
+      "id": "backend-dev-1764741280335-0",
+      "type": "backend-dev",
+      "scenario": "Microservices Architecture",
+      "confidence": 0.9681602417571221,
+      "reused": 0,
+      "created": 1764741280335
+    },
+    {
+      "id": "backend-dev-1764741280335-1",
+      "type": "backend-dev",
+      "scenario": "Microservices Architecture",
+      "confidence": 0.966937426508448,
+      "reused": 0,
+      "created": 1764741280335
+    },
+    {
+      "id": "backend-dev-1764741280335-2",
+      "type": "backend-dev",
+      "scenario": "Microservices Architecture",
+      "confidence": 0.9095084486328326,
+      "reused": 0,
+      "created": 1764741280335
+    },
+    {
+      "id": "backend-dev-1764741280335-3",
+      "type": "backend-dev",
+      "scenario": "Microservices Architecture",
+      "confidence": 0.968499322879662,
+      "reused": 0,
+      "created": 1764741280335
+    }
+  ]
+}

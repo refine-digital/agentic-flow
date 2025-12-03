@@ -1,0 +1,275 @@
+[
+  {
+    "agentType": "backend-dev",
+    "scenario": "REST API Creation",
+    "iteration": 1,
+    "metrics": {
+      "executionTime": 2002,
+      "patternsLearned": 3,
+      "gnnSearchTime": 56.41187219600834,
+      "flashAttentionGain": 4.243914101020078,
+      "memoryUsage": -11.294029235839844,
+      "accuracy": 0.939591851381615
+    },
+    "patterns": {
+      "totalPatterns": 3,
+      "successRate": 0.9097042480974662,
+      "averageReuse": 0,
+      "categories": {
+        "backend-dev": 3
+      }
+    }
+  },
+  {
+    "agentType": "backend-dev",
+    "scenario": "REST API Creation",
+    "iteration": 2,
+    "metrics": {
+      "executionTime": 1539,
+      "patternsLearned": 2,
+      "gnnSearchTime": 55.75439135093726,
+      "flashAttentionGain": 3.3203597631201727,
+      "memoryUsage": 0.00551605224609375,
+      "accuracy": 0.8713589131169852
+    },
+    "patterns": {
+      "totalPatterns": 5,
+      "successRate": 0.9058339273215147,
+      "averageReuse": 0,
+      "categories": {
+        "backend-dev": 5
+      }
+    }
+  },
+  {
+    "agentType": "backend-dev",
+    "scenario": "REST API Creation",
+    "iteration": 3,
+    "metrics": {
+      "executionTime": 1334,
+      "patternsLearned": 3,
+      "gnnSearchTime": 31.15145784848419,
+      "flashAttentionGain": 3.0723502716048907,
+      "memoryUsage": 0.0052032470703125,
+      "accuracy": 0.9436360570066925
+    },
+    "patterns": {
+      "totalPatterns": 8,
+      "successRate": 0.911266688207411,
+      "averageReuse": 0,
+      "categories": {
+        "backend-dev": 8
+      }
+    }
+  },
+  {
+    "agentType": "backend-dev",
+    "scenario": "REST API Creation",
+    "iteration": 4,
+    "metrics": {
+      "executionTime": 1112,
+      "patternsLearned": 2,
+      "gnnSearchTime": 55.542317206047386,
+      "flashAttentionGain": 2.8712208284150766,
+      "memoryUsage": 0.004669189453125,
+      "accuracy": 0.9241143502680899
+    },
+    "patterns": {
+      "totalPatterns": 10,
+      "successRate": 0.8985183388032324,
+      "averageReuse": 0,
+      "categories": {
+        "backend-dev": 10
+      }
+    }
+  },
+  {
+    "agentType": "backend-dev",
+    "scenario": "REST API Creation",
+    "iteration": 5,
+    "metrics": {
+      "executionTime": 1002,
+      "patternsLearned": 3,
+      "gnnSearchTime": 57.22353916671764,
+      "flashAttentionGain": 2.789364407644202,
+      "memoryUsage": 0.03060150146484375,
+      "accuracy": 0.8727280284360487
+    },
+    "patterns": {
+      "totalPatterns": 13,
+      "successRate": 0.8982228946562054,
+      "averageReuse": 0,
+      "categories": {
+        "backend-dev": 13
+      }
+    }
+  },
+  {
+    "agentType": "backend-dev",
+    "scenario": "GraphQL Schema Design",
+    "iteration": 1,
+    "metrics": {
+      "executionTime": 3502,
+      "patternsLearned": 4,
+      "gnnSearchTime": 26.65183023474014,
+      "flashAttentionGain": 3.014411245375916,
+      "memoryUsage": 0.0064849853515625,
+      "accuracy": 0.8704919736588749
+    },
+    "patterns": {
+      "totalPatterns": 4,
+      "successRate": 0.8850189808566572,
+      "averageReuse": 0,
+      "categories": {
+        "backend-dev": 4
+      }
+    }
+  },
+  {
+    "agentType": "backend-dev",
+    "scenario": "GraphQL Schema Design",
+    "iteration": 2,
+    "metrics": {
+      "executionTime": 2505,
+      "patternsLearned": 3,
+      "gnnSearchTime": 52.78945967176626,
+      "flashAttentionGain": 2.9762904162824424,
+      "memoryUsage": 0.00548553466796875,
+      "accuracy": 0.8501512825431748
+    },
+    "patterns": {
+      "totalPatterns": 7,
+      "successRate": 0.8873457880719117,
+      "averageReuse": 0,
+      "categories": {
+        "backend-dev": 7
+      }
+    }
+  },
+  {
+    "agentType": "backend-dev",
+    "scenario": "GraphQL Schema Design",
+    "iteration": 3,
+    "metrics": {
+      "executionTime": 2060,
+      "patternsLearned": 3,
+      "gnnSearchTime": 24.533081878910146,
+      "flashAttentionGain": 4.168255477863851,
+      "memoryUsage": 0.00469207763671875,
+      "accuracy": 0.8927798309628331
+    },
+    "patterns": {
+      "totalPatterns": 10,
+      "successRate": 0.8840629387605488,
+      "averageReuse": 0,
+      "categories": {
+        "backend-dev": 10
+      }
+    }
+  },
+  {
+    "agentType": "backend-dev",
+    "scenario": "GraphQL Schema Design",
+    "iteration": 4,
+    "metrics": {
+      "executionTime": 1751,
+      "patternsLearned": 4,
+      "gnnSearchTime": 47.24339506705557,
+      "flashAttentionGain": 2.76911754125773,
+      "memoryUsage": -3.1259613037109375,
+      "accuracy": 0.8972682101113281
+    },
+    "patterns": {
+      "totalPatterns": 14,
+      "successRate": 0.8862035357735216,
+      "averageReuse": 0,
+      "categories": {
+        "backend-dev": 14
+      }
+    }
+  },
+  {
+    "agentType": "backend-dev",
+    "scenario": "GraphQL Schema Design",
+    "iteration": 5,
+    "metrics": {
+      "executionTime": 1459,
+      "patternsLearned": 2,
+      "gnnSearchTime": 40.13814371917168,
+      "flashAttentionGain": 4.451183345899093,
+      "memoryUsage": -0.004974365234375,
+      "accuracy": 0.9044726925633262
+    },
+    "patterns": {
+      "totalPatterns": 16,
+      "successRate": 0.894820738786778,
+      "averageReuse": 0,
+      "categories": {
+        "backend-dev": 16
+      }
+    }
+  },
+  {
+    "agentType": "backend-dev",
+    "scenario": "Microservices Architecture",
+    "iteration": 1,
+    "metrics": {
+      "executionTime": 5005,
+      "patternsLearned": 3,
+      "gnnSearchTime": 22.46524879775893,
+      "flashAttentionGain": 4.059447180934454,
+      "memoryUsage": 0.0080413818359375,
+      "accuracy": 0.9516396121356101
+    },
+    "patterns": {
+      "totalPatterns": 3,
+      "successRate": 0.9039809128847204,
+      "averageReuse": 0,
+      "categories": {
+        "backend-dev": 3
+      }
+    }
+  },
+  {
+    "agentType": "backend-dev",
+    "scenario": "Microservices Architecture",
+    "iteration": 2,
+    "metrics": {
+      "executionTime": 3850,
+      "patternsLearned": 4,
+      "gnnSearchTime": 27.033231569321494,
+      "flashAttentionGain": 3.6663604030982304,
+      "memoryUsage": 0.00504302978515625,
+      "accuracy": 0.9144358333029398
+    },
+    "patterns": {
+      "totalPatterns": 7,
+      "successRate": 0.8925178164522487,
+      "averageReuse": 0,
+      "categories": {
+        "backend-dev": 7
+      }
+    }
+  },
+  {
+    "agentType": "backend-dev",
+    "scenario": "Microservices Architecture",
+    "iteration": 3,
+    "metrics": {
+      "executionTime": 2944,
+      "patternsLearned": 4,
+      "gnnSearchTime": 50.999052325694706,
+      "flashAttentionGain": 3.1921403408229474,
+      "memoryUsage": 0.00501251220703125,
+      "accuracy": 0.9485282752386116
+    },
+    "patterns": {
+      "totalPatterns": 11,
+      "successRate": 0.9146118322676188,
+      "averageReuse": 0,
+      "categories": {
+        "backend-dev": 11
+      }
+    }
+  }
+]

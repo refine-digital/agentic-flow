@@ -1,0 +1,171 @@
+{
+  "timestamp": "2025-12-03T05:56:32.173Z",
+  "summary": {
+    "totalTests": 50,
+    "totalPatterns": 156,
+    "averageImprovement": "36.80%",
+    "topPerformer": "base-template-generator (52.42% improvement)",
+    "insights": [
+      "Total patterns learned across all agents: 424",
+      "Flash Attention providing 2.53x average speedup",
+      "Average memory usage: -0.28MB per task"
+    ]
+  },
+  "agentResults": {
+    "backend-dev": {
+      "totalScenarios": 3,
+      "totalPatterns": 40,
+      "scenarios": {
+        "REST API Creation": {
+          "iterations": 5,
+          "averageTime": 1397.8,
+          "improvement": "49.95%",
+          "patternsLearned": 13,
+          "learningCurve": 0.1574524412499239,
+          "flashAttentionAvg": 3.259441874360884
+        },
+        "GraphQL Schema Design": {
+          "iterations": 5,
+          "averageTime": 2255.4,
+          "improvement": "58.34%",
+          "patternsLearned": 16,
+          "learningCurve": 0.19477525531461348,
+          "flashAttentionAvg": 3.4758516053358064
+        },
+        "Microservices Architecture": {
+          "iterations": 3,
+          "averageTime": 3933,
+          "improvement": "41.18%",
+          "patternsLearned": 11,
+          "learningCurve": 0.23304695304695305,
+          "flashAttentionAvg": 3.6393159749518773
+        }
+      },
+      "overallImprovement": "49.82%"
+    },
+    "api-docs": {
+      "totalScenarios": 3,
+      "totalPatterns": 38,
+      "scenarios": {
+        "OpenAPI Generation": {
+          "iterations": 5,
+          "averageTime": 1501.4,
+          "improvement": "0.07%",
+          "patternsLearned": 15,
+          "learningCurve": 0.00016644474034620507,
+          "flashAttentionAvg": 0
+        },
+        "Interactive Documentation": {
+          "iterations": 5,
+          "averageTime": 2502.2,
+          "improvement": "0.00%",
+          "patternsLearned": 16,
+          "learningCurve": -3.9920121433815407e-8,
+          "flashAttentionAvg": 0
+        },
+        "Multi-Version API Docs": {
+          "iterations": 3,
+          "averageTime": 3002.6666666666665,
+          "improvement": "-0.10%",
+          "patternsLearned": 7,
+          "learningCurve": -0.0004997224257470843,
+          "flashAttentionAvg": 0
+        }
+      },
+      "overallImprovement": "-0.01%"
+    },
+    "ml-developer": {
+      "totalScenarios": 3,
+      "totalPatterns": 34,
+      "scenarios": {
+        "Neural Network Training": {
+          "iterations": 4,
+          "averageTime": 2961,
+          "improvement": "50.00%",
+          "patternsLearned": 12,
+          "learningCurve": 0.2055426772137331,
+          "flashAttentionAvg": 3.5649629859383087
+        },
+        "Hyperparameter Optimization": {
+          "iterations": 4,
+          "averageTime": 4482,
+          "improvement": "47.39%",
+          "patternsLearned": 13,
+          "learningCurve": 0.1916402321246612,
+          "flashAttentionAvg": 3.3925576539604934
+        },
+        "Large Dataset Processing": {
+          "iterations": 3,
+          "averageTime": 6560,
+          "improvement": "37.56%",
+          "patternsLearned": 9,
+          "learningCurve": 0.20871634360842994,
+          "flashAttentionAvg": 3.408587266676868
+        }
+      },
+      "overallImprovement": "44.98%"
+    },
+    "base-template-generator": {
+      "totalScenarios": 3,
+      "totalPatterns": 44,
+      "scenarios": {
+        "React App Template": {
+          "iterations": 5,
+          "averageTime": 1367.6,
+          "improvement": "54.55%",
+          "patternsLearned": 15,
+          "learningCurve": 0.17772981422077927,
+          "flashAttentionAvg": 4.1142790908965265
+        },
+        "Microservices Boilerplate": {
+          "iterations": 5,
+          "averageTime": 2177.6,
+          "improvement": "61.55%",
+          "patternsLearned": 20,
+          "learningCurve": 0.2109349813400242,
+          "flashAttentionAvg": 2.9543052504829457
+        },
+        "Enterprise System Template": {
+          "iterations": 3,
+          "averageTime": 4225,
+          "improvement": "41.18%",
+          "patternsLearned": 9,
+          "learningCurve": 0.23112037239797723,
+          "flashAttentionAvg": 2.780209105434745
+        }
+      },
+      "overallImprovement": "52.42%"
+    }
+  },
+  "comparisons": {
+    "backend-dev": {
+      "averageExecutionTime": 2312.6923076923076,
+      "averagePatterns": 8.538461538461538,
+      "averageMemoryMB": -1.1034011840820312,
+      "efficiency": 3.6920006652253448
+    },
+    "api-docs": {
+      "averageExecutionTime": 2232.769230769231,
+      "averagePatterns": 8.615384615384615,
+      "averageMemoryMB": 0.004693251389723558,
+      "efficiency": 3.858609522497071
+    },
+    "ml-developer": {
+      "averageExecutionTime": 4495.636363636364,
+      "averagePatterns": 7,
+      "averageMemoryMB": 0.004834261807528409,
+      "efficiency": 1.5570654371916202
+    },
+    "base-template-generator": {
+      "averageExecutionTime": 2338.5384615384614,
+      "averagePatterns": 9.538461538461538,
+      "averageMemoryMB": 0.004765437199519231,
+      "efficiency": 4.078813196934312
+    }
+  },
+  "recommendations": [
+    "backend-dev: Flash Attention showing excellent results (3.43x). Consider expanding to more scenarios.",
+    "ml-developer: Flash Attention showing excellent results (3.46x). Consider expanding to more scenarios.",
+    "base-template-generator: Flash Attention showing excellent results (3.36x). Consider expanding to more scenarios."
+  ]
+}

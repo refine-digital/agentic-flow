@@ -1,0 +1,275 @@
+[
+  {
+    "agentType": "api-docs",
+    "scenario": "OpenAPI Generation",
+    "iteration": 1,
+    "metrics": {
+      "executionTime": 1502,
+      "patternsLearned": 4,
+      "gnnSearchTime": 45.53197701633606,
+      "flashAttentionGain": 0,
+      "memoryUsage": 0.007415771484375,
+      "accuracy": 0.9499605492356095
+    },
+    "patterns": {
+      "totalPatterns": 4,
+      "successRate": 0.9100610186957636,
+      "averageReuse": 0,
+      "categories": {
+        "api-docs": 4
+      }
+    }
+  },
+  {
+    "agentType": "api-docs",
+    "scenario": "OpenAPI Generation",
+    "iteration": 2,
+    "metrics": {
+      "executionTime": 1502,
+      "patternsLearned": 4,
+      "gnnSearchTime": 31.061887041551664,
+      "flashAttentionGain": 0,
+      "memoryUsage": 0.00487518310546875,
+      "accuracy": 0.8763390273275606
+    },
+    "patterns": {
+      "totalPatterns": 8,
+      "successRate": 0.8804286647057677,
+      "averageReuse": 0,
+      "categories": {
+        "api-docs": 8
+      }
+    }
+  },
+  {
+    "agentType": "api-docs",
+    "scenario": "OpenAPI Generation",
+    "iteration": 3,
+    "metrics": {
+      "executionTime": 1501,
+      "patternsLearned": 2,
+      "gnnSearchTime": 34.23188909592254,
+      "flashAttentionGain": 0,
+      "memoryUsage": 0.00411224365234375,
+      "accuracy": 0.9318023974317995
+    },
+    "patterns": {
+      "totalPatterns": 10,
+      "successRate": 0.8883525706788873,
+      "averageReuse": 0,
+      "categories": {
+        "api-docs": 10
+      }
+    }
+  },
+  {
+    "agentType": "api-docs",
+    "scenario": "OpenAPI Generation",
+    "iteration": 4,
+    "metrics": {
+      "executionTime": 1501,
+      "patternsLearned": 2,
+      "gnnSearchTime": 55.55563998019782,
+      "flashAttentionGain": 0,
+      "memoryUsage": 0.00424957275390625,
+      "accuracy": 0.9095508834143038
+    },
+    "patterns": {
+      "totalPatterns": 12,
+      "successRate": 0.8805878427116371,
+      "averageReuse": 0,
+      "categories": {
+        "api-docs": 12
+      }
+    }
+  },
+  {
+    "agentType": "api-docs",
+    "scenario": "OpenAPI Generation",
+    "iteration": 5,
+    "metrics": {
+      "executionTime": 1501,
+      "patternsLearned": 3,
+      "gnnSearchTime": 49.458796687191835,
+      "flashAttentionGain": 0,
+      "memoryUsage": 0.004425048828125,
+      "accuracy": 0.8651227301610159
+    },
+    "patterns": {
+      "totalPatterns": 15,
+      "successRate": 0.8791381649678641,
+      "averageReuse": 0,
+      "categories": {
+        "api-docs": 15
+      }
+    }
+  },
+  {
+    "agentType": "api-docs",
+    "scenario": "Interactive Documentation",
+    "iteration": 1,
+    "metrics": {
+      "executionTime": 2502,
+      "patternsLearned": 3,
+      "gnnSearchTime": 11.835067046162141,
+      "flashAttentionGain": 0,
+      "memoryUsage": 0.0045928955078125,
+      "accuracy": 0.9480327446669911
+    },
+    "patterns": {
+      "totalPatterns": 3,
+      "successRate": 0.8547300279748588,
+      "averageReuse": 0,
+      "categories": {
+        "api-docs": 3
+      }
+    }
+  },
+  {
+    "agentType": "api-docs",
+    "scenario": "Interactive Documentation",
+    "iteration": 2,
+    "metrics": {
+      "executionTime": 2502,
+      "patternsLearned": 4,
+      "gnnSearchTime": 17.137174186022243,
+      "flashAttentionGain": 0,
+      "memoryUsage": 0.00473785400390625,
+      "accuracy": 0.8606288806635973
+    },
+    "patterns": {
+      "totalPatterns": 7,
+      "successRate": 0.8860350437953921,
+      "averageReuse": 0,
+      "categories": {
+        "api-docs": 7
+      }
+    }
+  },
+  {
+    "agentType": "api-docs",
+    "scenario": "Interactive Documentation",
+    "iteration": 3,
+    "metrics": {
+      "executionTime": 2502,
+      "patternsLearned": 2,
+      "gnnSearchTime": 55.4067579134592,
+      "flashAttentionGain": 0,
+      "memoryUsage": 0.00424957275390625,
+      "accuracy": 0.8788651585979256
+    },
+    "patterns": {
+      "totalPatterns": 9,
+      "successRate": 0.885342370009271,
+      "averageReuse": 0,
+      "categories": {
+        "api-docs": 9
+      }
+    }
+  },
+  {
+    "agentType": "api-docs",
+    "scenario": "Interactive Documentation",
+    "iteration": 4,
+    "metrics": {
+      "executionTime": 2503,
+      "patternsLearned": 4,
+      "gnnSearchTime": 31.99325645768685,
+      "flashAttentionGain": 0,
+      "memoryUsage": 0.00473785400390625,
+      "accuracy": 0.8709637463286448
+    },
+    "patterns": {
+      "totalPatterns": 13,
+      "successRate": 0.8764246984227202,
+      "averageReuse": 0,
+      "categories": {
+        "api-docs": 13
+      }
+    }
+  },
+  {
+    "agentType": "api-docs",
+    "scenario": "Interactive Documentation",
+    "iteration": 5,
+    "metrics": {
+      "executionTime": 2502,
+      "patternsLearned": 3,
+      "gnnSearchTime": 53.49001487804024,
+      "flashAttentionGain": 0,
+      "memoryUsage": 0.0045623779296875,
+      "accuracy": 0.8904006290327509
+    },
+    "patterns": {
+      "totalPatterns": 16,
+      "successRate": 0.879424302981798,
+      "averageReuse": 0,
+      "categories": {
+        "api-docs": 16
+      }
+    }
+  },
+  {
+    "agentType": "api-docs",
+    "scenario": "Multi-Version API Docs",
+    "iteration": 1,
+    "metrics": {
+      "executionTime": 3001,
+      "patternsLearned": 3,
+      "gnnSearchTime": 43.191450436905725,
+      "flashAttentionGain": 0,
+      "memoryUsage": 0.00457763671875,
+      "accuracy": 0.9188329271909446
+    },
+    "patterns": {
+      "totalPatterns": 3,
+      "successRate": 0.928420625970046,
+      "averageReuse": 0,
+      "categories": {
+        "api-docs": 3
+      }
+    }
+  },
+  {
+    "agentType": "api-docs",
+    "scenario": "Multi-Version API Docs",
+    "iteration": 2,
+    "metrics": {
+      "executionTime": 3003,
+      "patternsLearned": 2,
+      "gnnSearchTime": 16.1324340163024,
+      "flashAttentionGain": 0,
+      "memoryUsage": 0.0043487548828125,
+      "accuracy": 0.8505926016570512
+    },
+    "patterns": {
+      "totalPatterns": 5,
+      "successRate": 0.9092557007669863,
+      "averageReuse": 0,
+      "categories": {
+        "api-docs": 5
+      }
+    }
+  },
+  {
+    "agentType": "api-docs",
+    "scenario": "Multi-Version API Docs",
+    "iteration": 3,
+    "metrics": {
+      "executionTime": 3004,
+      "patternsLearned": 2,
+      "gnnSearchTime": 59.299126681677265,
+      "flashAttentionGain": 0,
+      "memoryUsage": 0.00412750244140625,
+      "accuracy": 0.8927475093217201
+    },
+    "patterns": {
+      "totalPatterns": 7,
+      "successRate": 0.9095159887131196,
+      "averageReuse": 0,
+      "categories": {
+        "api-docs": 7
+      }
+    }
+  }
+]
