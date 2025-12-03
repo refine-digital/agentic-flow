@@ -11,6 +11,7 @@
 
 import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import { AgentBooster as AgentBoosterEngine } from 'agent-booster';
 
 interface AgentBoosterConfig {
   enabled: boolean;
@@ -44,6 +45,7 @@ interface EditResult {
  */
 export class AgentBoosterMigration {
   private config: AgentBoosterConfig;
+  private boosterEngine: AgentBoosterEngine;
   private stats: {
     totalEdits: number;
     boosterEdits: number;
@@ -69,6 +71,12 @@ export class AgentBoosterMigration {
       },
       ...config
     };
+
+    // Initialize real Agent Booster engine
+    this.boosterEngine = new AgentBoosterEngine({
+      confidenceThreshold: 0.5,
+      maxChunks: 100
+    });
 
     this.stats = {
       totalEdits: 0,
@@ -124,16 +132,18 @@ export class AgentBoosterMigration {
    */
   private async editWithAgentBooster(edit: CodeEdit, startTime: number): Promise<EditResult> {
     try {
-      // Simulate Agent Booster WASM engine (352x speedup)
-      // In production, this would call the actual Agent Booster API
       const bytesProcessed = Buffer.byteLength(edit.newContent, 'utf8');
 
-      // Agent Booster: 1ms average latency
-      await this.sleep(1);
+      // Call REAL Agent Booster WASM engine
+      const result = await this.boosterEngine.apply({
+        code: edit.oldContent,
+        edit: edit.newContent,
+        language: edit.language
+      });
 
-      // Write the edit
-      if (edit.filePath) {
-        writeFileSync(edit.filePath, edit.newContent, 'utf8');
+      // Write the edit if successful
+      if (result.success && edit.filePath) {
+        writeFileSync(edit.filePath, result.output, 'utf8');
       }
 
       const executionTimeMs = Date.now() - startTime;
@@ -146,7 +156,7 @@ export class AgentBoosterMigration {
       this.stats.costSavings += this.calculateCostSavings(traditionalTime, executionTimeMs);
 
       return {
-        success: true,
+        success: result.success,
         executionTimeMs,
         speedupFactor,
         method: 'agent-booster',

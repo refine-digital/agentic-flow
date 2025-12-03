@@ -48,14 +48,39 @@ Resources for contributors and integrators:
 - **[Economics](economics/README.md)** - Economic system design
 - **[Optimization](optimization/README.md)** - Performance optimization
 
-### 📦 Releases
+### 📦 Releases & Publications
+- **[Publications](releases/publications/README.md)** - Alpha/production release summaries
 - **[Current Releases](releases/current/README.md)** - Active release documentation
 - **[Release Archive](releases/archive/README.md)** - Historical releases
 - **[Release Planning](releases/planning/README.md)** - Upcoming features
 
-### ✅ Validation & Benchmarks
+### 🤖 Agent Documentation
+- **[Agent Enhancements](agents/enhancements/README.md)** - Agent system improvements
+- **[Self-Learning](agents/self-learning/README.md)** - Self-learning capabilities
+- **[Agent Templates](agents/templates/README.md)** - Agent templates and patterns
+
+### 🔗 Integration Guides
+- **[AgentDB Integration](integration/agentdb/README.md)** - AgentDB integration documentation
+- **[E2B Integration](integration/e2b/README.md)** - E2B sandbox integration
+- **[Jujutsu Integration](integration/jujutsu/README.md)** - Jujutsu VCS integration
+- **[SONA Integration](integration/sona/README.md)** - Self-Optimizing Neural Architecture
+
+### ⚡ Optimization & Performance
+- **[Performance Benchmarks](optimization/benchmarks/README.md)** - Benchmark results and reports
+- **[Optimization Reports](optimization/performance/README.md)** - Performance optimization
+
+### ✅ Validation & Testing
 - **[Validation Reports](validation/reports/README.md)** - Quality assurance reports
 - **[Benchmarks](validation/benchmarks/README.md)** - Performance benchmarks
+- **[Test Reports](validation/README.md)** - Testing and validation summaries
+
+### 🎯 Code Quality & TDD
+- **[Code Quality](code-quality/README.md)** - Code quality standards and setup
+- **[TDD Documentation](code-quality/tdd/README.md)** - Test-Driven Development guides
+- **[Code Reviews](code-quality/reviews/README.md)** - Review reports and checklists
+
+### 🔒 Security
+- **[Security Audits](security/audits/README.md)** - Security audit reports
 
 ### 📋 Archive
 - **[Archived Documentation](archived/README.md)** - Historical and deprecated docs
