@@ -1,0 +1,58 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+build/
+*.min.js
+*.min.css
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Type declarations
+**/*.d.ts
+
+# WASM and compiled binaries
+wasm/
+pkg/
+*.wasm
+
+# Logs
+*.log
+logs/
+
+# Package files
+*.tgz
+agentic-flow-*.tgz
+
+# Generated files
+.cache/
+.temp/
+.tmp/
+
+# Certificates
+certs/
+
+# Environment files
+.env
+.env.*
+
+# Git
+.git/
+.gitignore
+
+# Project specific
+open-lovable/
+.swarm/
+.claude-flow/
+
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Documentation builds
+docs/build/

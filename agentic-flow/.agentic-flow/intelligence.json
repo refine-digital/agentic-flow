@@ -1,0 +1,617 @@
+{
+  "patterns": {
+    "command:": {
+      "success": 0.9999999999999996
+    }
+  },
+  "sequences": {},
+  "memories": [],
+  "dirPatterns": {},
+  "errorPatterns": [],
+  "metrics": {
+    "totalRoutes": 706,
+    "successfulRoutes": 706,
+    "routingHistory": [
+      {
+        "timestamp": "2025-12-31T17:44:04.734Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:44:18.097Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:45:33.495Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:46:02.458Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:46:29.873Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:47:03.156Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:47:15.256Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:47:47.578Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:48:08.914Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:48:28.203Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:49:04.599Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:50:04.345Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:50:15.721Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:50:50.409Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:51:08.793Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:51:25.458Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:51:38.820Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:52:02.377Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:52:41.519Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:53:05.103Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:53:32.332Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:53:55.105Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:54:06.189Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:55:47.331Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:56:21.682Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:56:39.626Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:57:05.341Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:57:31.947Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:59:48.275Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:00:15.524Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:00:48.343Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:01:04.342Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:01:17.135Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:01:27.017Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:02:03.100Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:02:23.962Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:03:49.045Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:18:28.489Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:18:39.920Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:18:52.340Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:19:04.537Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:19:23.210Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:19:47.302Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:26:52.768Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:27:12.473Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:27:32.443Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:27:50.490Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:28:03.758Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:34:02.939Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:34:47.373Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:36:42.848Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:36:55.520Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:37:07.277Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:37:18.950Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:37:32.462Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:37:54.334Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:38:12.689Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:39:03.022Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:39:57.572Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T18:41:31.864Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:11:12.196Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:12:12.885Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:13:48.727Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:18:25.327Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:19:00.333Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:22:26.560Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:22:51.712Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:23:38.436Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:23:59.357Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:24:21.611Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:24:56.112Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:25:31.070Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:25:50.915Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:41:30.853Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:42:50.358Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:45:02.146Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:45:12.475Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:45:41.287Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:46:56.965Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:47:29.998Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:47:39.494Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:53:50.800Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:54:01.464Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:55:33.229Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:56:32.337Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T20:58:33.427Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T21:00:31.363Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T21:04:40.696Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T21:06:46.776Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T21:08:07.836Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T21:10:51.258Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T21:11:40.418Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T21:11:56.361Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T21:12:09.574Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T21:12:19.410Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T21:12:35.756Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T21:12:48.095Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T22:25:25.859Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T22:49:44.427Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T22:50:12.173Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      }
+    ]
+  }
+}

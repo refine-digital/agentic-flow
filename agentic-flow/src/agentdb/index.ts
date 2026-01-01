@@ -17,14 +17,14 @@
  * ```
  */
 
-// Import from individual controller paths (agentdb v1.3.9 exports pattern)
-export { ReflexionMemory } from 'agentdb/controllers/ReflexionMemory';
-export { SkillLibrary } from 'agentdb/controllers/SkillLibrary';
-export { EmbeddingService } from 'agentdb/controllers/EmbeddingService';
-export { CausalMemoryGraph } from 'agentdb/controllers/CausalMemoryGraph';
-export { CausalRecall } from 'agentdb/controllers/CausalRecall';
-export { NightlyLearner } from 'agentdb/controllers/NightlyLearner';
-export { ExplainableRecall } from 'agentdb/controllers/ExplainableRecall';
+// Import from agentdb package - using direct package imports for bundler moduleResolution
+export { ReflexionMemory } from 'agentdb';
+export { SkillLibrary } from 'agentdb';
+export { EmbeddingService } from 'agentdb';
+export { CausalMemoryGraph } from 'agentdb';
+export { CausalRecall } from 'agentdb';
+export { NightlyLearner } from 'agentdb';
+export { ExplainableRecall } from 'agentdb';
 
 // Note: These are custom types not exported from agentdb v1.3.9
 // Users should import from agentdb directly if needed

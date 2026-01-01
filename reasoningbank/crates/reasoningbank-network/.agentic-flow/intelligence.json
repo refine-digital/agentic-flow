@@ -1,0 +1,59 @@
+{
+  "patterns": {
+    "command:": {
+      "success": 0.5217031000000001
+    }
+  },
+  "sequences": {},
+  "memories": [],
+  "dirPatterns": {},
+  "errorPatterns": [],
+  "metrics": {
+    "totalRoutes": 14,
+    "successfulRoutes": 14,
+    "routingHistory": [
+      {
+        "timestamp": "2025-12-31T17:16:02.479Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:16:17.767Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:16:33.292Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:16:54.593Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:20:53.344Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:24:05.625Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      },
+      {
+        "timestamp": "2025-12-31T17:25:36.384Z",
+        "task": "edit:",
+        "agent": "unknown",
+        "success": true
+      }
+    ]
+  }
+}

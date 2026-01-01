@@ -12,7 +12,7 @@ import { MedicalAnalysisService } from '../services/medical-analysis.service';
 import { AntiHallucinationService } from '../services/anti-hallucination.service';
 import { AgentDBLearningService } from '../services/agentdb-learning.service';
 import { ProviderService } from '../services/provider.service';
-import type { AnalysisRequest, AnalysisOptions } from '../types/medical.types';
+import type { AnalysisRequest } from '../types/medical.types';
 
 const program = new Command();
 const analysisService = new MedicalAnalysisService();

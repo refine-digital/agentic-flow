@@ -1,0 +1,53 @@
+# E2B Swarm Local Test Dockerfile
+# Tests E2B swarm orchestrator and SDK modules locally before deployment
+
+FROM node:22-slim
+
+LABEL maintainer="agentic-flow"
+LABEL description="E2B Swarm validation and optimization tests"
+LABEL version="2.0.1-alpha.29"
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    python3 \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig*.json ./
+
+# Install dependencies
+RUN npm ci --legacy-peer-deps 2>/dev/null || npm install --legacy-peer-deps
+
+# Copy source
+COPY src/ ./src/
+COPY tests/ ./tests/
+COPY dist/ ./dist/
+
+# Copy .env if present (for E2B keys)
+COPY .env* ./
+
+# Set environment
+ENV NODE_ENV=test
+ENV AGENTIC_FLOW_INTELLIGENCE=true
+
+# Run SDK and E2B swarm tests
+CMD ["sh", "-c", "\
+    echo '=== E2B Swarm Docker Test ===' && \
+    echo '' && \
+    echo '1. Running SDK Security Tests...' && \
+    node tests/sdk-security-test.mjs && \
+    echo '' && \
+    echo '2. Running SDK Module Tests...' && \
+    node tests/sdk-modules-test.mjs && \
+    echo '' && \
+    echo '3. Running E2B Swarm Tests...' && \
+    node tests/e2b-swarm-test.mjs && \
+    echo '' && \
+    echo '=== All Docker Tests Complete ===' \
+"]

@@ -2299,14 +2299,63 @@ async function main() {
     // Empty interval just to keep event loop alive
   }, 1000 * 60 * 60); // Every hour (basically forever)
 
-  // Handle graceful shutdown
-  const shutdown = () => {
+  // Periodic auto-save: Save database every 5 minutes to prevent data loss
+  const autoSaveInterval = setInterval(() => {
+    try {
+      if (db && typeof db.save === 'function') {
+        db.save();
+        console.error('💾 Auto-saved database to', dbPath);
+      }
+    } catch (error) {
+      console.error('❌ Auto-save failed:', (error as Error).message);
+    }
+  }, 5 * 60 * 1000); // 5 minutes
+
+  // Handle graceful shutdown with database persistence
+  const shutdown = async () => {
+    console.error('🔄 Shutting down AgentDB MCP Server...');
+
+    // Clear intervals
     clearInterval(keepAlive);
+    clearInterval(autoSaveInterval);
+
+    // Save database before exit
+    try {
+      if (db && typeof db.save === 'function') {
+        console.error('💾 Saving database to', dbPath);
+        await db.save();
+        console.error('✅ Database saved successfully');
+      }
+    } catch (error) {
+      console.error('❌ Error saving database:', (error as Error).message);
+    }
+
+    // Close database connection
+    try {
+      if (db && typeof db.close === 'function') {
+        db.close();
+        console.error('✅ Database connection closed');
+      }
+    } catch (error) {
+      console.error('❌ Error closing database:', (error as Error).message);
+    }
+
     process.exit(0);
   };
 
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
+
+  // Handle unexpected exits
+  process.on('uncaughtException', (error) => {
+    console.error('❌ Uncaught exception:', error);
+    shutdown();
+  });
+
+  process.on('unhandledRejection', (error) => {
+    console.error('❌ Unhandled rejection:', error);
+    shutdown();
+  });
 
   // Return a never-resolving promise
   return new Promise(() => {

@@ -1,0 +1,168 @@
+name: Code Quality Checks
+
+on:
+  push:
+    branches: [main, develop, feature/*, fix/*]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Lint and Format Check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Check Prettier formatting
+        run: npm run format:check
+
+      - name: Upload ESLint results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eslint-results-${{ matrix.node-version }}
+          path: eslint-report.json
+          retention-days: 7
+
+  typecheck:
+    name: TypeScript Type Checking
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TypeScript compiler check
+        run: npm run typecheck
+
+      - name: Run strict mode check
+        run: npm run typecheck:strict
+
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --audit-level=moderate
+
+      - name: Run npm outdated check
+        run: npm outdated || true
+        continue-on-error: true
+
+  complexity:
+    name: Code Complexity Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run complexity check
+        run: npm run complexity
+
+      - name: Upload complexity report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: complexity-report
+          path: complexity-report.json
+          retention-days: 30
+
+  test:
+    name: Run Tests with Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-agentic-flow
+
+      - name: Check coverage threshold
+        run: npm run coverage:check
+
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, security, complexity, test]
+
+    steps:
+      - name: Quality gate passed
+        run: echo "All quality checks passed successfully!"
+
+      - name: Post quality summary
+        run: |
+          echo "## Code Quality Summary" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Linting passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Type checking passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Security audit passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Complexity check passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Tests passed with coverage" >> $GITHUB_STEP_SUMMARY

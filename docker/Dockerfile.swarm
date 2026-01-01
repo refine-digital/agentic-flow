@@ -1,0 +1,53 @@
+# =============================================================================
+# Swarm Coordinator - Multi-Agent Orchestration
+# Hierarchical, mesh, and adaptive swarm topologies
+# =============================================================================
+
+FROM node:20-alpine AS base
+
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    bash \
+    curl \
+    git
+
+WORKDIR /app
+
+# =============================================================================
+# Production Stage
+# =============================================================================
+FROM base AS production
+
+RUN apk add --no-cache \
+    bash \
+    curl \
+    dumb-init
+
+WORKDIR /app
+
+# Copy application
+COPY agentic-flow ./agentic-flow
+COPY package*.json ./
+RUN npm install --omit=dev
+
+# Create coordination directories
+RUN mkdir -p /app/data/swarm /app/data/memory && \
+    chmod -R 777 /app/data
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:${SWARM_PORT:-9000}/health || exit 1
+
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+CMD ["npx", "claude-flow@alpha", "swarm", "start"]
+
+# Labels
+LABEL maintainer="ruv <contact@ruv.io>"
+LABEL org.opencontainers.image.title="Swarm Coordinator"
+LABEL org.opencontainers.image.description="Multi-agent orchestration with adaptive topologies"
+LABEL org.opencontainers.image.source="https://github.com/ruvnet/agentic-flow"
+
+EXPOSE 9000
+VOLUME ["/app/data/swarm", "/app/data/memory"]

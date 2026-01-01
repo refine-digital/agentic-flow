@@ -1,0 +1,20 @@
+{
+  "name": "e2b-specialized-agents-tests",
+  "version": "1.0.0",
+  "description": "E2B sandbox testing for specialized development agents",
+  "private": true,
+  "scripts": {
+    "test": "ts-node specialized-agents-test-suite.ts",
+    "test:backend": "ts-node specialized-agents-test-suite.ts --agent backend-dev",
+    "test:api-docs": "ts-node specialized-agents-test-suite.ts --agent api-docs",
+    "test:ml": "ts-node specialized-agents-test-suite.ts --agent ml-developer",
+    "test:template": "ts-node specialized-agents-test-suite.ts --agent base-template-generator",
+    "analyze": "ts-node analyze-results.ts",
+    "visualize": "ts-node generate-visualizations.ts"
+  },
+  "dependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}

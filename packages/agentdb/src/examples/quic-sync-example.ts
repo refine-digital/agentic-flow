@@ -19,8 +19,8 @@ async function exampleQUICSync() {
   console.log('🚀 QUIC Synchronization Example\n');
 
   // Initialize two database instances (simulating local and remote)
-  const localDB = createDatabase('./local-agent.db');
-  const remoteDB = createDatabase('./remote-agent.db');
+  const localDB = await createDatabase('./local-agent.db');
+  const remoteDB = await createDatabase('./remote-agent.db');
 
   // Initialize embedding services
   const localEmbedder = new EmbeddingService({

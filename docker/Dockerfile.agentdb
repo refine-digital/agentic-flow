@@ -1,0 +1,64 @@
+# =============================================================================
+# AgentDB - Vector Database Docker Image
+# 150x faster vector database with ReasoningBank learning
+# =============================================================================
+
+FROM node:20-alpine AS base
+
+# Install system dependencies
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    sqlite \
+    sqlite-dev \
+    bash \
+    curl
+
+WORKDIR /app
+
+# =============================================================================
+# Dependencies Stage
+# =============================================================================
+FROM base AS dependencies
+
+COPY packages/agentdb/package*.json ./
+RUN npm install --omit=dev
+
+# =============================================================================
+# Production Stage
+# =============================================================================
+FROM node:20-alpine AS production
+
+RUN apk add --no-cache \
+    bash \
+    curl \
+    sqlite \
+    dumb-init
+
+WORKDIR /app
+
+# Copy dependencies and source
+COPY --from=dependencies /app/node_modules ./node_modules
+COPY packages/agentdb ./
+
+# Create data directories
+RUN mkdir -p /app/data /app/data/agentdb && \
+    chmod -R 777 /app/data
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+    CMD test -f /app/data/agentdb/health.check || exit 1
+
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+CMD ["node", "src/index.js"]
+
+# Labels
+LABEL maintainer="ruv <contact@ruv.io>"
+LABEL org.opencontainers.image.title="AgentDB"
+LABEL org.opencontainers.image.description="150x faster vector database with ReasoningBank learning"
+LABEL org.opencontainers.image.version="2.0.0-alpha"
+LABEL org.opencontainers.image.source="https://github.com/ruvnet/agentic-flow"
+
+EXPOSE 5432
+VOLUME ["/app/data"]

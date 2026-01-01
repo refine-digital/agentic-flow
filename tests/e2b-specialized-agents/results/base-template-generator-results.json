@@ -1,0 +1,275 @@
+[
+  {
+    "agentType": "base-template-generator",
+    "scenario": "React App Template",
+    "iteration": 1,
+    "metrics": {
+      "executionTime": 2002,
+      "patternsLearned": 3,
+      "gnnSearchTime": 13.471012088628445,
+      "flashAttentionGain": 3.9370604422681943,
+      "memoryUsage": 0.0047454833984375,
+      "accuracy": 0.8771915565376591
+    },
+    "patterns": {
+      "totalPatterns": 3,
+      "successRate": 0.8862388171764387,
+      "averageReuse": 0,
+      "categories": {
+        "base-template-generator": 3
+      }
+    }
+  },
+  {
+    "agentType": "base-template-generator",
+    "scenario": "React App Template",
+    "iteration": 2,
+    "metrics": {
+      "executionTime": 1539,
+      "patternsLearned": 2,
+      "gnnSearchTime": 51.952162375044686,
+      "flashAttentionGain": 4.151509821114427,
+      "memoryUsage": 0.00447845458984375,
+      "accuracy": 0.9068220819958853
+    },
+    "patterns": {
+      "totalPatterns": 5,
+      "successRate": 0.9000673938058537,
+      "averageReuse": 0,
+      "categories": {
+        "base-template-generator": 5
+      }
+    }
+  },
+  {
+    "agentType": "base-template-generator",
+    "scenario": "React App Template",
+    "iteration": 3,
+    "metrics": {
+      "executionTime": 1334,
+      "patternsLearned": 4,
+      "gnnSearchTime": 49.01971615253461,
+      "flashAttentionGain": 4.3519421405641925,
+      "memoryUsage": 0.00485992431640625,
+      "accuracy": 0.8759417754384001
+    },
+    "patterns": {
+      "totalPatterns": 9,
+      "successRate": 0.8920064192197573,
+      "averageReuse": 0,
+      "categories": {
+        "base-template-generator": 9
+      }
+    }
+  },
+  {
+    "agentType": "base-template-generator",
+    "scenario": "React App Template",
+    "iteration": 4,
+    "metrics": {
+      "executionTime": 1053,
+      "patternsLearned": 3,
+      "gnnSearchTime": 20.412529647916024,
+      "flashAttentionGain": 4.294204689272148,
+      "memoryUsage": 0.0046844482421875,
+      "accuracy": 0.9190775400701496
+    },
+    "patterns": {
+      "totalPatterns": 12,
+      "successRate": 0.8999318764950498,
+      "averageReuse": 0,
+      "categories": {
+        "base-template-generator": 12
+      }
+    }
+  },
+  {
+    "agentType": "base-template-generator",
+    "scenario": "React App Template",
+    "iteration": 5,
+    "metrics": {
+      "executionTime": 910,
+      "patternsLearned": 3,
+      "gnnSearchTime": 28.356952408748906,
+      "flashAttentionGain": 3.8366783612636723,
+      "memoryUsage": 0.004547119140625,
+      "accuracy": 0.9644680116156629
+    },
+    "patterns": {
+      "totalPatterns": 15,
+      "successRate": 0.8851595497592301,
+      "averageReuse": 0,
+      "categories": {
+        "base-template-generator": 15
+      }
+    }
+  },
+  {
+    "agentType": "base-template-generator",
+    "scenario": "Microservices Boilerplate",
+    "iteration": 1,
+    "metrics": {
+      "executionTime": 3503,
+      "patternsLearned": 4,
+      "gnnSearchTime": 59.3813217305964,
+      "flashAttentionGain": 2.8928874085467524,
+      "memoryUsage": 0.00495147705078125,
+      "accuracy": 0.8964974767493767
+    },
+    "patterns": {
+      "totalPatterns": 4,
+      "successRate": 0.8682335038535949,
+      "averageReuse": 0,
+      "categories": {
+        "base-template-generator": 4
+      }
+    }
+  },
+  {
+    "agentType": "base-template-generator",
+    "scenario": "Microservices Boilerplate",
+    "iteration": 2,
+    "metrics": {
+      "executionTime": 2501,
+      "patternsLearned": 4,
+      "gnnSearchTime": 39.29739183930808,
+      "flashAttentionGain": 2.760241944803483,
+      "memoryUsage": 0.00485992431640625,
+      "accuracy": 0.9093319199916674
+    },
+    "patterns": {
+      "totalPatterns": 8,
+      "successRate": 0.8802697286052519,
+      "averageReuse": 0,
+      "categories": {
+        "base-template-generator": 8
+      }
+    }
+  },
+  {
+    "agentType": "base-template-generator",
+    "scenario": "Microservices Boilerplate",
+    "iteration": 3,
+    "metrics": {
+      "executionTime": 1946,
+      "patternsLearned": 4,
+      "gnnSearchTime": 22.807734870664646,
+      "flashAttentionGain": 2.8638906642577044,
+      "memoryUsage": 0.00499725341796875,
+      "accuracy": 0.9537413268470314
+    },
+    "patterns": {
+      "totalPatterns": 12,
+      "successRate": 0.8692720406002158,
+      "averageReuse": 0,
+      "categories": {
+        "base-template-generator": 12
+      }
+    }
+  },
+  {
+    "agentType": "base-template-generator",
+    "scenario": "Microservices Boilerplate",
+    "iteration": 4,
+    "metrics": {
+      "executionTime": 1591,
+      "patternsLearned": 4,
+      "gnnSearchTime": 35.48889996245164,
+      "flashAttentionGain": 3.5440120347278614,
+      "memoryUsage": 0.00485992431640625,
+      "accuracy": 0.9491888473954938
+    },
+    "patterns": {
+      "totalPatterns": 16,
+      "successRate": 0.875821561725151,
+      "averageReuse": 0,
+      "categories": {
+        "base-template-generator": 16
+      }
+    }
+  },
+  {
+    "agentType": "base-template-generator",
+    "scenario": "Microservices Boilerplate",
+    "iteration": 5,
+    "metrics": {
+      "executionTime": 1347,
+      "patternsLearned": 4,
+      "gnnSearchTime": 29.383981454203315,
+      "flashAttentionGain": 2.7104942000789265,
+      "memoryUsage": 0.00499725341796875,
+      "accuracy": 0.9018511850725658
+    },
+    "patterns": {
+      "totalPatterns": 20,
+      "successRate": 0.8822659056420837,
+      "averageReuse": 0,
+      "categories": {
+        "base-template-generator": 20
+      }
+    }
+  },
+  {
+    "agentType": "base-template-generator",
+    "scenario": "Enterprise System Template",
+    "iteration": 1,
+    "metrics": {
+      "executionTime": 5505,
+      "patternsLearned": 4,
+      "gnnSearchTime": 44.995014029724366,
+      "flashAttentionGain": 2.502421347417943,
+      "memoryUsage": 0.00493621826171875,
+      "accuracy": 0.9101616068264564
+    },
+    "patterns": {
+      "totalPatterns": 4,
+      "successRate": 0.9023823310971871,
+      "averageReuse": 0,
+      "categories": {
+        "base-template-generator": 4
+      }
+    }
+  },
+  {
+    "agentType": "base-template-generator",
+    "scenario": "Enterprise System Template",
+    "iteration": 2,
+    "metrics": {
+      "executionTime": 3932,
+      "patternsLearned": 3,
+      "gnnSearchTime": 57.32748234122484,
+      "flashAttentionGain": 2.5567070146035524,
+      "memoryUsage": 0.00478363037109375,
+      "accuracy": 0.9586664086018498
+    },
+    "patterns": {
+      "totalPatterns": 7,
+      "successRate": 0.9140870140265048,
+      "averageReuse": 0,
+      "categories": {
+        "base-template-generator": 7
+      }
+    }
+  },
+  {
+    "agentType": "base-template-generator",
+    "scenario": "Enterprise System Template",
+    "iteration": 3,
+    "metrics": {
+      "executionTime": 3238,
+      "patternsLearned": 2,
+      "gnnSearchTime": 45.054353184382926,
+      "flashAttentionGain": 3.28149895428274,
+      "memoryUsage": 0.00424957275390625,
+      "accuracy": 0.8831845470416938
+    },
+    "patterns": {
+      "totalPatterns": 9,
+      "successRate": 0.9137396558827905,
+      "averageReuse": 0,
+      "categories": {
+        "base-template-generator": 9
+      }
+    }
+  }
+]

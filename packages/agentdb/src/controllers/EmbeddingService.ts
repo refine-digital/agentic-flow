@@ -47,7 +47,13 @@ export class EmbeddingService {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.warn(`⚠️  Transformers.js initialization failed: ${errorMessage}`);
         console.warn('   Falling back to mock embeddings for testing');
-        console.warn('   Set HUGGINGFACE_API_KEY environment variable for real embeddings');
+        console.warn('   This is normal if:');
+        console.warn('     • Running offline/without internet access');
+        console.warn('     • Model not yet downloaded (~90MB on first use)');
+        console.warn('     • Network connectivity issues');
+        console.warn('   To use real embeddings:');
+        console.warn('     • Ensure internet connectivity for first-time model download');
+        console.warn('     • Or pre-download: npx agentdb install-embeddings');
         this.pipeline = null;
       }
     }

@@ -1,4 +1,5 @@
-import { Github, Book, Package, Twitter, ExternalLink } from 'lucide-react';
+import React from 'react';
+import { Github, Book, Package, ExternalLink } from 'lucide-react';
 
 const links = {
   documentation: [

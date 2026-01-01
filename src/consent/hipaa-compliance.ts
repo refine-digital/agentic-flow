@@ -68,8 +68,8 @@ export class HIPAAComplianceService {
     userId: string,
     userType: 'provider' | 'admin' | 'patient',
     patientId: string,
-    action: string,
-    resource: string
+    _action: string,
+    _resource: string
   ): Promise<{ authorized: boolean; reason?: string }> {
     const compliance = this.complianceRecords.get(patientId);
 
@@ -212,7 +212,6 @@ export class HIPAAComplianceService {
     }
 
     // Update compliance status
-    compliance.compliant = issues.length === 0;
     compliance.lastAudit = new Date();
     compliance.complianceStatus = issues.length === 0 ? 'compliant' : 'non_compliant';
 

@@ -98,8 +98,13 @@ export class RuVectorBackend implements VectorBackend {
   insert(id: string, embedding: Float32Array, metadata?: Record<string, any>): void {
     this.ensureInitialized();
 
-    // RuVector expects regular arrays
-    this.db.insert(id, Array.from(embedding));
+    // RuVector v0.1.30+ uses object API with 'vector' field
+    // Native VectorDB requires Float32Array, not regular array
+    this.db.insert({
+      id: id,
+      vector: embedding instanceof Float32Array ? embedding : new Float32Array(embedding),
+      metadata: metadata
+    });
 
     if (metadata) {
       this.metadata.set(id, metadata);
@@ -128,8 +133,15 @@ export class RuVectorBackend implements VectorBackend {
       this.db.setEfSearch(options.efSearch);
     }
 
-    // Perform vector search
-    const results = this.db.search(Array.from(query), k);
+    // RuVector v0.1.30+ supports both object API and legacy positional args
+    // Use object API for consistency with insert
+    // Native VectorDB requires Float32Array, not regular array
+    const results = this.db.search({
+      vector: query instanceof Float32Array ? query : new Float32Array(query),
+      k: k,
+      threshold: options?.threshold,
+      filter: options?.filter
+    });
 
     // Convert results and apply filtering
     return results

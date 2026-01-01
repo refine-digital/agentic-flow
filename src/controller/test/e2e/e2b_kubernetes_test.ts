@@ -5,6 +5,7 @@
  * with Kubernetes simulation
  */
 
+// @ts-ignore - Optional e2b dependency
 import { Sandbox } from '@e2b/code-interpreter';
 
 interface TestResult {
@@ -87,7 +88,7 @@ async function testCRDGeneration(sandbox: Sandbox): Promise<TestResult> {
     }
 
     logs.push('Verifying CRD files...');
-    const verifyResult = await sandbox.commands.run(
+    const _verifyResult = await sandbox.commands.run(
       'ls -la /workspace/controller/config/crd/bases/'
     );
 

@@ -1,0 +1,21 @@
+diff --git a/node_modules/ruvector/dist/index.js b/node_modules/ruvector/dist/index.js
+index 74a705e..480e817 100644
+--- a/node_modules/ruvector/dist/index.js
++++ b/node_modules/ruvector/dist/index.js
+@@ -39,10 +39,14 @@ try {
+     // Try to load native module first
+     implementation = require('@ruvector/core');
+     implementationType = 'native';
+-    // Verify it's actually working
+-    if (typeof implementation.VectorDB !== 'function') {
++    // Verify it's actually working - check both VectorDB and VectorDb (case variance)
++    if (typeof implementation.VectorDB !== 'function' && typeof implementation.VectorDb !== 'function') {
+         throw new Error('Native module loaded but VectorDB not found');
+     }
++    // Normalize: if VectorDb exists but VectorDB doesn't, alias it
++    if (!implementation.VectorDB && implementation.VectorDb) {
++        implementation.VectorDB = implementation.VectorDb;
++    }
+ }
+ catch (e) {
+     // No WASM fallback available yet

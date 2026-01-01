@@ -1,0 +1,354 @@
+{
+  "timestamp": "2025-12-03T01:57:19.920Z",
+  "config": {
+    "iterations": 3,
+    "benchmarkMode": false
+  },
+  "tests": {
+    "mesh": {
+      "name": "Mesh Topology",
+      "iterations": 3,
+      "results": [
+        {
+          "topology": "mesh",
+          "timestamp": "2025-12-03T02:00:00.805Z",
+          "config": {
+            "maxAgents": 10,
+            "batchSize": 5
+          },
+          "tests": {
+            "spawn": {
+              "successful": 4,
+              "total": 5,
+              "timeMs": 64635
+            },
+            "tasks": {
+              "successful": 5,
+              "total": 5,
+              "timeMs": 67737
+            },
+            "coordination": {
+              "successful": 6,
+              "total": 6,
+              "timeMs": 28511
+            }
+          },
+          "metrics": {
+            "totalTimeMs": 160883,
+            "totalOperations": 15,
+            "avgTimeMs": 10726,
+            "successRate": 93.75
+          }
+        },
+        {
+          "topology": "mesh",
+          "timestamp": "2025-12-03T02:02:47.035Z",
+          "config": {
+            "maxAgents": 10,
+            "batchSize": 5
+          },
+          "tests": {
+            "spawn": {
+              "successful": 4,
+              "total": 5,
+              "timeMs": 69086
+            },
+            "tasks": {
+              "successful": 5,
+              "total": 5,
+              "timeMs": 66294
+            },
+            "coordination": {
+              "successful": 6,
+              "total": 6,
+              "timeMs": 29847
+            }
+          },
+          "metrics": {
+            "totalTimeMs": 165229,
+            "totalOperations": 15,
+            "avgTimeMs": 11015,
+            "successRate": 93.75
+          }
+        },
+        {
+          "topology": "mesh",
+          "timestamp": "2025-12-03T02:05:20.400Z",
+          "config": {
+            "maxAgents": 10,
+            "batchSize": 5
+          },
+          "tests": {
+            "spawn": {
+              "successful": 4,
+              "total": 5,
+              "timeMs": 65600
+            },
+            "tasks": {
+              "successful": 5,
+              "total": 5,
+              "timeMs": 60700
+            },
+            "coordination": {
+              "successful": 6,
+              "total": 6,
+              "timeMs": 26064
+            }
+          },
+          "metrics": {
+            "totalTimeMs": 152365,
+            "totalOperations": 15,
+            "avgTimeMs": 10158,
+            "successRate": 93.75
+          }
+        }
+      ],
+      "times": [
+        160884,
+        165229,
+        152365
+      ],
+      "statistics": {
+        "avgTimeMs": 159493,
+        "minTimeMs": 152365,
+        "maxTimeMs": 165229,
+        "successRate": 100,
+        "validResults": 3
+      }
+    },
+    "hierarchical": {
+      "name": "Hierarchical Topology",
+      "iterations": 3,
+      "results": [
+        {
+          "topology": "hierarchical",
+          "timestamp": "2025-12-03T02:08:55.683Z",
+          "config": {
+            "maxAgents": 8,
+            "batchSize": 4
+          },
+          "levels": {
+            "coordinator": {
+              "timeMs": 42514,
+              "success": true
+            },
+            "workers": {
+              "successful": 4,
+              "total": 4,
+              "timeMs": 68388
+            },
+            "reviews": {
+              "successful": 4,
+              "total": 4,
+              "timeMs": 53297
+            },
+            "synthesis": {
+              "timeMs": 51077,
+              "success": true
+            }
+          },
+          "metrics": {
+            "totalTimeMs": 215282,
+            "estimatedSequentialTimeMs": 580331,
+            "speedup": 2.7,
+            "totalOperations": 10,
+            "avgTimeMs": 21528
+          }
+        },
+        {
+          "topology": "hierarchical",
+          "timestamp": "2025-12-03T02:12:42.245Z",
+          "config": {
+            "maxAgents": 8,
+            "batchSize": 4
+          },
+          "levels": {
+            "coordinator": {
+              "timeMs": 47088,
+              "success": true
+            },
+            "workers": {
+              "successful": 4,
+              "total": 4,
+              "timeMs": 62112
+            },
+            "reviews": {
+              "successful": 4,
+              "total": 4,
+              "timeMs": 72143
+            },
+            "synthesis": {
+              "timeMs": 44210,
+              "success": true
+            }
+          },
+          "metrics": {
+            "totalTimeMs": 225561,
+            "estimatedSequentialTimeMs": 628318,
+            "speedup": 2.79,
+            "totalOperations": 10,
+            "avgTimeMs": 22556
+          }
+        },
+        {
+          "topology": "hierarchical",
+          "timestamp": "2025-12-03T02:16:26.323Z",
+          "config": {
+            "maxAgents": 8,
+            "batchSize": 4
+          },
+          "levels": {
+            "coordinator": {
+              "timeMs": 46330,
+              "success": true
+            },
+            "workers": {
+              "successful": 4,
+              "total": 4,
+              "timeMs": 59071
+            },
+            "reviews": {
+              "successful": 4,
+              "total": 4,
+              "timeMs": 66205
+            },
+            "synthesis": {
+              "timeMs": 51467,
+              "success": true
+            }
+          },
+          "metrics": {
+            "totalTimeMs": 223075,
+            "estimatedSequentialTimeMs": 598901,
+            "speedup": 2.68,
+            "totalOperations": 10,
+            "avgTimeMs": 22308
+          }
+        }
+      ],
+      "times": [
+        215283,
+        225561,
+        223075
+      ],
+      "statistics": {
+        "avgTimeMs": 221306,
+        "minTimeMs": 215283,
+        "maxTimeMs": 225561,
+        "successRate": 100,
+        "validResults": 3
+      }
+    },
+    "ring": {
+      "name": "Ring Topology",
+      "iterations": 3,
+      "results": [
+        {
+          "topology": "ring",
+          "timestamp": "2025-12-03T02:18:38.718Z",
+          "config": {
+            "maxAgents": 6,
+            "batchSize": 3
+          },
+          "tests": {
+            "initialization": {
+              "successful": 3,
+              "total": 3,
+              "timeMs": 28080
+            },
+            "tokenPassing": {
+              "successful": 3,
+              "avgPassTimeMs": 15434,
+              "totalTimeMs": 46301
+            },
+            "parallelProcessing": {
+              "successful": 3,
+              "total": 3,
+              "timeMs": 58011
+            }
+          },
+          "metrics": {
+            "totalTimeMs": 132394,
+            "ringSize": 3,
+            "totalOperations": 9,
+            "parallelBenefit": 0.7981417317405319
+          }
+        },
+        {
+          "topology": "ring",
+          "timestamp": "2025-12-03T02:21:28.912Z",
+          "config": {
+            "maxAgents": 6,
+            "batchSize": 3
+          },
+          "tests": {
+            "initialization": {
+              "successful": 3,
+              "total": 3,
+              "timeMs": 23459
+            },
+            "tokenPassing": {
+              "successful": 3,
+              "avgPassTimeMs": 29010,
+              "totalTimeMs": 87031
+            },
+            "parallelProcessing": {
+              "successful": 3,
+              "total": 3,
+              "timeMs": 58700
+            }
+          },
+          "metrics": {
+            "totalTimeMs": 169193,
+            "ringSize": 3,
+            "totalOperations": 9,
+            "parallelBenefit": 1.4826405451448041
+          }
+        },
+        {
+          "topology": "ring",
+          "timestamp": "2025-12-03T02:24:01.417Z",
+          "config": {
+            "maxAgents": 6,
+            "batchSize": 3
+          },
+          "tests": {
+            "initialization": {
+              "successful": 3,
+              "total": 3,
+              "timeMs": 23450
+            },
+            "tokenPassing": {
+              "successful": 3,
+              "avgPassTimeMs": 23707,
+              "totalTimeMs": 71120
+            },
+            "parallelProcessing": {
+              "successful": 3,
+              "total": 3,
+              "timeMs": 56931
+            }
+          },
+          "metrics": {
+            "totalTimeMs": 151501,
+            "ringSize": 3,
+            "totalOperations": 9,
+            "parallelBenefit": 1.2492315258822082
+          }
+        }
+      ],
+      "times": [
+        132394,
+        169193,
+        151501
+      ],
+      "statistics": {
+        "avgTimeMs": 151029,
+        "minTimeMs": 132394,
+        "maxTimeMs": 169193,
+        "successRate": 100,
+        "validResults": 3
+      }
+    }
+  }
+}

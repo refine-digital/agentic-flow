@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.1-alpha.4] - 2025-12-03
+
+### Added
+- **SONA v0.1.4 Federated Learning Integration**: Complete integration with AgentDB
+  - Updated AgentDB dependency to 2.0.0-alpha.2.16
+  - Full support for `EphemeralLearningAgent`, `FederatedLearningCoordinator`, and `FederatedLearningManager`
+  - Quality-based filtering and weighted aggregation
+  - Large-scale federation (50+ agents with configurable limits)
+
+### Changed
+- **Dependencies Updated**:
+  - `agentdb`: 2.0.0-alpha.2.15 → 2.0.0-alpha.2.16 (SONA v0.1.4 federated learning)
+
+### Documentation
+- Comprehensive federated learning guide available in AgentDB package
+- 5 detailed use cases for distributed learning
+- API documentation and performance tuning recommendations
+
+### Tested
+- ✅ Complete federated learning workflow with 50+ agents
+- ✅ Quality filtering and weighted consolidation
+- ✅ Multi-agent coordination and automatic aggregation
+- ✅ All test suites passing
+
+---
+
 ## [1.10.2] - 2025-01-10
 
 ### Fixed

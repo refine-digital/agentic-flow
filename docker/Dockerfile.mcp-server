@@ -1,0 +1,54 @@
+# =============================================================================
+# MCP Server - Claude Flow MCP Tools
+# 213 MCP tools for AI agent coordination
+# =============================================================================
+
+FROM node:20-alpine AS base
+
+RUN apk add --no-cache \
+    bash \
+    curl \
+    git \
+    ca-certificates
+
+WORKDIR /app
+
+# =============================================================================
+# Dependencies Stage
+# =============================================================================
+FROM base AS dependencies
+
+COPY package*.json ./
+COPY agentic-flow/package*.json ./agentic-flow/
+RUN npm install --omit=dev --ignore-scripts
+
+# =============================================================================
+# Production Stage
+# =============================================================================
+FROM node:20-alpine AS production
+
+RUN apk add --no-cache \
+    bash \
+    curl \
+    dumb-init
+
+WORKDIR /app
+
+COPY --from=dependencies /app/node_modules ./node_modules
+COPY agentic-flow ./agentic-flow
+COPY package*.json ./
+
+# Health check for MCP server
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:${MCP_PORT:-8080}/health || exit 1
+
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+CMD ["npx", "claude-flow@alpha", "mcp", "start"]
+
+# Labels
+LABEL maintainer="ruv <contact@ruv.io>"
+LABEL org.opencontainers.image.title="Claude Flow MCP Server"
+LABEL org.opencontainers.image.description="213 MCP tools for AI agent coordination"
+LABEL org.opencontainers.image.source="https://github.com/ruvnet/agentic-flow"
+
+EXPOSE 8080

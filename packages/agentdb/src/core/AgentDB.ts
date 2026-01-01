@@ -29,7 +29,7 @@ export class AgentDB {
   private skills!: SkillLibrary;
   private causalGraph!: CausalMemoryGraph;
   private embedder!: EmbeddingService;
-  private vectorBackend!: VectorBackend;
+  public vectorBackend!: VectorBackend;
   private initialized = false;
   private config: AgentDBConfig;
 

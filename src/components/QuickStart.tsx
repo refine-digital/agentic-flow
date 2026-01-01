@@ -1,3 +1,4 @@
+import React from 'react';
 import { Terminal, Rocket, Package, GitBranch } from 'lucide-react';
 
 const installSteps = [

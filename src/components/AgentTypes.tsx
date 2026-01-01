@@ -1,4 +1,5 @@
-import { Code, GitPullRequest, TestTube, Layers, Brain, Workflow } from 'lucide-react';
+import React from 'react';
+import { Code, GitPullRequest, Layers, Workflow } from 'lucide-react';
 
 const agentCategories = [
   {

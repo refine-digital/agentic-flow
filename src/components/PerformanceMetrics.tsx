@@ -1,3 +1,4 @@
+import React from 'react';
 import { BarChart3, TrendingDown, Clock, DollarSign } from 'lucide-react';
 
 const metrics = [

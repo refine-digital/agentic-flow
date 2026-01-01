@@ -16,13 +16,12 @@
  * - 100% backward compatible with fallback to standard retrieval
  */
 
+import type { IDatabaseConnection, DatabaseRows } from '../types/database.types.js';
+import { normalizeRowId } from '../types/database.types.js';
 import type { GraphDatabaseAdapter, CausalEdge as GraphCausalEdge } from '../backends/graph/GraphDatabaseAdapter.js';
 import { NodeIdMapper } from '../utils/NodeIdMapper.js';
 import { AttentionService, type HyperbolicAttentionConfig } from '../services/AttentionService.js';
 import { EmbeddingService } from './EmbeddingService.js';
-
-// Database type from db-fallback
-type Database = any;
 
 /**
  * Configuration for CausalMemoryGraph
@@ -100,7 +99,7 @@ export interface CausalQuery {
 }
 
 export class CausalMemoryGraph {
-  private db: Database;
+  private db: IDatabaseConnection;
   private graphBackend?: any; // GraphBackend or GraphDatabaseAdapter
   private attentionService?: AttentionService;
   private embedder?: EmbeddingService;
@@ -113,7 +112,7 @@ export class CausalMemoryGraph {
    * v2 mode: new CausalMemoryGraph(db, graphBackend, embedder, config)
    */
   constructor(
-    db: Database,
+    db: IDatabaseConnection,
     graphBackend?: any,
     embedder?: EmbeddingService,
     config?: CausalMemoryGraphConfig
@@ -206,7 +205,7 @@ export class CausalMemoryGraph {
       edge.metadata ? JSON.stringify(edge.metadata) : null
     );
 
-    return result.lastInsertRowid as number;
+    return normalizeRowId(result.lastInsertRowid);
   }
 
   /**
@@ -232,7 +231,7 @@ export class CausalMemoryGraph {
       experiment.metadata ? JSON.stringify(experiment.metadata) : null
     );
 
-    return result.lastInsertRowid as number;
+    return normalizeRowId(result.lastInsertRowid);
   }
 
   /**
@@ -270,12 +269,17 @@ export class CausalMemoryGraph {
     pValue: number;
     confidenceInterval: [number, number];
   } {
+    interface ObservationRow {
+      is_treatment: number;
+      outcome_value: number;
+    }
+
     // Get treatment and control observations
-    const observations = this.db.prepare(`
+    const observations = this.db.prepare<ObservationRow>(`
       SELECT is_treatment, outcome_value
       FROM causal_observations
       WHERE experiment_id = ?
-    `).all(experimentId) as any[];
+    `).all(experimentId);
 
     const treatmentValues = observations
       .filter(o => o.is_treatment === 1)
@@ -370,7 +374,7 @@ export class CausalMemoryGraph {
 
     sql += ' ORDER BY ABS(uplift) * confidence DESC';
 
-    const rows = this.db.prepare(sql).all(...params) as any[];
+    const rows = this.db.prepare<DatabaseRows.CausalEdge>(sql).all(...params);
 
     return rows.map(row => this.rowToCausalEdge(row));
   }
@@ -400,8 +404,14 @@ export class CausalMemoryGraph {
       return this.getCausalChainWithAttention(fromMemoryId, toMemoryId, maxDepth);
     }
 
+    interface ChainRow {
+      path: string;
+      total_uplift: number;
+      min_confidence: number;
+    }
+
     // v1: Legacy recursive CTE
-    const chains = this.db.prepare(`
+    const chains = this.db.prepare<ChainRow>(`
       WITH RECURSIVE chain(from_id, to_id, depth, path, total_uplift, min_confidence) AS (
         SELECT
           from_memory_id,
@@ -433,7 +443,7 @@ export class CausalMemoryGraph {
       WHERE to_id = ?
       ORDER BY total_uplift DESC
       LIMIT 10
-    `).all(fromMemoryId, maxDepth, toMemoryId) as any[];
+    `).all(fromMemoryId, maxDepth, toMemoryId);
 
     return chains.map(row => ({
       path: row.path.split('->').map(Number),
@@ -714,21 +724,21 @@ export class CausalMemoryGraph {
   // Private Helper Methods
   // ========================================================================
 
-  private rowToCausalEdge(row: any): CausalEdge {
+  private rowToCausalEdge(row: DatabaseRows.CausalEdge): CausalEdge {
     return {
       id: row.id,
       fromMemoryId: row.from_memory_id,
-      fromMemoryType: row.from_memory_type,
+      fromMemoryType: row.from_memory_type as 'episode' | 'skill' | 'note' | 'fact',
       toMemoryId: row.to_memory_id,
-      toMemoryType: row.to_memory_type,
+      toMemoryType: row.to_memory_type as 'episode' | 'skill' | 'note' | 'fact',
       similarity: row.similarity,
-      uplift: row.uplift,
+      uplift: row.uplift ?? undefined,
       confidence: row.confidence,
-      sampleSize: row.sample_size,
+      sampleSize: row.sample_size ?? undefined,
       evidenceIds: row.evidence_ids ? JSON.parse(row.evidence_ids) : undefined,
-      experimentIds: row.experiment_ids ? JSON.parse(row.experiment_ids) : undefined,
-      confounderScore: row.confounder_score,
-      mechanism: row.mechanism,
+      experimentIds: undefined, // Not in DatabaseRows.CausalEdge
+      confounderScore: row.confounder_score ?? undefined,
+      mechanism: row.mechanism ?? undefined,
       metadata: row.metadata ? JSON.parse(row.metadata) : undefined
     };
   }

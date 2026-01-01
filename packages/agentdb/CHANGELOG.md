@@ -5,6 +5,57 @@ All notable changes to AgentDB will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0-alpha.2.16] - 2025-12-03
+
+### Added
+- **SONA v0.1.4 Federated Learning Integration**: Complete TypeScript implementation
+  - `EphemeralLearningAgent`: Lightweight distributed learning nodes (~5MB footprint)
+  - `FederatedLearningCoordinator`: Central aggregation with quality-weighted consolidation
+  - `FederatedLearningManager`: Multi-agent coordination with automatic aggregation
+  - Quality-based filtering for high-quality agent selection
+  - Large-scale federation support (50+ agents with configurable limits)
+  - Comprehensive documentation in `docs/SONA_FEDERATED_LEARNING_v0.1.4.md`
+  - Working examples in `examples/federated-learning-example.ts`
+
+### Changed
+- **Dependencies Updated**:
+  - `@ruvector/sona`: ^0.1.3 → ^0.1.4 (federated learning features)
+  - `@ruvector/gnn`: ^0.1.21 → ^0.1.22 (array conversion fixes)
+  - `ruvector`: ^0.1.24 → ^0.1.29 (improved performance)
+
+### Fixed
+- **AgentDB Fast API**: Fixed `db.insert is not a function` error
+  - Made `vectorBackend` public in AgentDB.ts for wrapper access
+  - Updated wrapper to use `vectorBackend.insert(id, embedding, metadata)` signature
+  - Fixed import path from `'agentdb'` to `'../core/AgentDB.js'`
+  - Verified working at 0.09ms average insert time
+
+- **TypeScript Compilation**: Fixed AttentionBrowser.ts WASM loader import error
+  - Added `@ts-ignore` for dynamically generated WASM loader
+
+### Performance
+- **Native Attention Mechanisms**: All components verified working with native bindings
+  - MultiHeadAttention: 0.018ms avg with native Float32Array
+  - LinearAttention: Working with 2D arrays [seqLen][dim]
+  - scaledDotProductAttention: 0.018ms avg
+  - AgentDB Fast: 0.09ms avg insert time
+
+### Documentation
+- Complete federated learning guide with 5 detailed use cases
+- API documentation for all 3 core federated classes
+- Performance characteristics and tuning recommendations
+- Migration guide from v0.1.3 to v0.1.4
+- Example implementations and test results
+
+### Tested
+- ✅ EphemeralLearningAgent: Task processing, quality filtering, state export
+- ✅ FederatedLearningCoordinator: Multi-agent aggregation, weighted consolidation
+- ✅ Quality filtering: High-quality agent selection (threshold-based)
+- ✅ Large-scale federation: 50+ agents → 20 kept (configurable limits)
+- ✅ FederatedLearningManager: Complete workflow coordination
+
+---
+
 ## [1.6.0] - 2025-10-25
 
 ### Added
