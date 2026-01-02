@@ -12,8 +12,21 @@
  * - SIMD optimizations when available
  */
 
+import { fileURLToPath } from 'url';
+import { dirname, join, resolve } from 'path';
+import { existsSync } from 'fs';
+
 // Database type from db-fallback
 type Database = any;
+
+/**
+ * WASM module path resolution configuration
+ */
+interface WASMPathConfig {
+  searchPaths: string[];
+  moduleName: string;
+  fallbackEnabled: boolean;
+}
 
 export interface VectorSearchConfig {
   enableWASM: boolean;
@@ -44,6 +57,7 @@ export class WASMVectorSearch {
   private wasmAvailable: boolean = false;
   private simdAvailable: boolean = false;
   private vectorIndex: VectorIndex | null = null;
+  private wasmInitPromise: Promise<void> | null = null;
 
   constructor(db: Database, config?: Partial<VectorSearchConfig>) {
     this.db = db;
@@ -55,40 +69,166 @@ export class WASMVectorSearch {
       ...config,
     };
 
-    this.initializeWASM();
+    this.wasmInitPromise = this.initializeWASM();
     this.detectSIMD();
   }
 
   /**
-   * Initialize WASM module
+   * Wait for WASM initialization to complete
+   */
+  async waitForInit(): Promise<boolean> {
+    if (this.wasmInitPromise) {
+      await this.wasmInitPromise;
+    }
+    return this.wasmAvailable;
+  }
+
+  /**
+   * Get the directory of the current module
+   */
+  private getCurrentModuleDir(): string {
+    try {
+      // ESM context - use import.meta.url if available
+      if (typeof import.meta !== 'undefined' && import.meta.url) {
+        return dirname(fileURLToPath(import.meta.url));
+      }
+    } catch {
+      // Fallback for CJS context
+    }
+
+    // CommonJS context or fallback
+    if (typeof __dirname !== 'undefined') {
+      return __dirname;
+    }
+
+    // Last resort: use process.cwd()
+    return process.cwd();
+  }
+
+  /**
+   * Build list of potential WASM module paths
+   */
+  private getWASMSearchPaths(): string[] {
+    const currentDir = this.getCurrentModuleDir();
+    const moduleName = 'reasoningbank_wasm.js';
+
+    // Build a comprehensive list of potential paths
+    const searchPaths: string[] = [];
+
+    // 1. Environment variable override (highest priority)
+    if (process.env.AGENTDB_WASM_PATH) {
+      searchPaths.push(join(process.env.AGENTDB_WASM_PATH, moduleName));
+    }
+
+    // 2. Relative to current file (src/controllers -> wasm paths)
+    // From src/controllers/WASMVectorSearch.ts up to project roots
+    searchPaths.push(
+      // Direct path in agentic-flow package
+      resolve(currentDir, '..', '..', '..', 'agentic-flow', 'wasm', 'reasoningbank', moduleName),
+      // From packages/agentdb to workspace root
+      resolve(currentDir, '..', '..', '..', '..', 'agentic-flow', 'wasm', 'reasoningbank', moduleName),
+      // Monorepo structure: packages/agentdb -> packages/agentic-flow
+      resolve(currentDir, '..', '..', '..', 'agentic-flow', 'wasm', 'reasoningbank', moduleName),
+    );
+
+    // 3. From dist directory (compiled output)
+    searchPaths.push(
+      resolve(currentDir, '..', '..', '..', '..', 'agentic-flow', 'wasm', 'reasoningbank', moduleName),
+    );
+
+    // 4. Relative to process.cwd() (package root)
+    searchPaths.push(
+      resolve(process.cwd(), 'wasm', 'reasoningbank', moduleName),
+      resolve(process.cwd(), 'node_modules', '@ruvector', 'wasm', moduleName),
+      resolve(process.cwd(), '..', 'agentic-flow', 'wasm', 'reasoningbank', moduleName),
+    );
+
+    // 5. Workspace-level paths (for monorepo setups)
+    searchPaths.push(
+      '/workspaces/agentic-flow/agentic-flow/wasm/reasoningbank/' + moduleName,
+      '/workspaces/agentic-flow/packages/agentic-flow/wasm/reasoningbank/' + moduleName,
+    );
+
+    // 6. Check for installed npm package
+    try {
+      const npmPath = require.resolve('@ruvector/wasm/reasoningbank_wasm.js');
+      if (npmPath) {
+        searchPaths.unshift(npmPath); // Prioritize npm package
+      }
+    } catch {
+      // @ruvector/wasm not installed as npm package
+    }
+
+    return searchPaths;
+  }
+
+  /**
+   * Initialize WASM module with robust path resolution
    */
   private async initializeWASM(): Promise<void> {
-    if (!this.config.enableWASM) return;
-
-    try {
-      // Try to load ReasoningBank WASM module
-      // Note: This requires the ReasoningBank WASM module to be built and available
-      // If not available, the system gracefully falls back to optimized JavaScript
-      const wasmPath = '../../../agentic-flow/wasm/reasoningbank/reasoningbank_wasm.js';
-      const { ReasoningBankWasm } = await import(wasmPath);
-
-      // Test WASM functionality
-      const testInstance = new ReasoningBankWasm();
-      await testInstance.free();
-
-      this.wasmModule = ReasoningBankWasm;
-      this.wasmAvailable = true;
-      console.log('[WASMVectorSearch] ReasoningBank WASM acceleration enabled');
-    } catch (error) {
-      // Graceful fallback - the JavaScript implementation is still highly optimized
-      // with loop unrolling and batch processing
+    if (!this.config.enableWASM) {
       this.wasmAvailable = false;
+      return;
+    }
 
-      // Only show detailed error in development
-      if (process.env.NODE_ENV === 'development') {
-        console.debug('[WASMVectorSearch] ReasoningBank WASM not available, using optimized JavaScript fallback');
-        console.debug('[WASMVectorSearch] Error:', (error as Error).message);
+    const searchPaths = this.getWASMSearchPaths();
+    const triedPaths: string[] = [];
+
+    for (const wasmPath of searchPaths) {
+      // Normalize and check if file exists
+      const normalizedPath = resolve(wasmPath);
+
+      // Skip if we've already tried this path (dedup)
+      if (triedPaths.includes(normalizedPath)) {
+        continue;
       }
+      triedPaths.push(normalizedPath);
+
+      // Check if the file exists before attempting import
+      if (!existsSync(normalizedPath)) {
+        continue;
+      }
+
+      try {
+        // Attempt dynamic import
+        const wasmModule = await import(normalizedPath);
+        const ReasoningBankWasm = wasmModule.ReasoningBankWasm || wasmModule.default?.ReasoningBankWasm;
+
+        if (!ReasoningBankWasm) {
+          console.debug(`[WASMVectorSearch] Module found at ${normalizedPath} but ReasoningBankWasm not exported`);
+          continue;
+        }
+
+        // Test WASM functionality
+        const testInstance = new ReasoningBankWasm();
+        if (typeof testInstance.free === 'function') {
+          await testInstance.free();
+        }
+
+        this.wasmModule = ReasoningBankWasm;
+        this.wasmAvailable = true;
+
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[WASMVectorSearch] ReasoningBank WASM acceleration enabled (loaded from: ${normalizedPath})`);
+        }
+        return;
+      } catch (error: any) {
+        // Log in development mode for debugging
+        if (process.env.NODE_ENV === 'development') {
+          console.debug(`[WASMVectorSearch] Failed to load from ${normalizedPath}: ${error.message}`);
+        }
+        continue;
+      }
+    }
+
+    // All paths exhausted - fallback to JavaScript implementation
+    this.wasmAvailable = false;
+
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[WASMVectorSearch] ReasoningBank WASM not available, using optimized JavaScript fallback');
+      console.debug(`[WASMVectorSearch] Searched ${triedPaths.length} paths:`, triedPaths.slice(0, 5).join(', '));
+    } else {
+      console.log('[WASMVectorSearch] Using optimized JavaScript fallback (WASM not available)');
     }
   }
 

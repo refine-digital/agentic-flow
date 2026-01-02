@@ -56,6 +56,32 @@ export interface SyncResult {
   error?: string;
 }
 
+export interface PushOptions {
+  type: 'episodes' | 'skills' | 'edges';
+  data: any[];
+  batchSize?: number;
+  onProgress?: (progress: PushProgress) => void;
+}
+
+export interface PushProgress {
+  phase: 'connecting' | 'pushing' | 'processing' | 'completed' | 'error';
+  itemsPushed?: number;
+  totalItems?: number;
+  bytesTransferred?: number;
+  currentBatch?: number;
+  totalBatches?: number;
+  error?: string;
+}
+
+export interface PushResult {
+  success: boolean;
+  itemsPushed: number;
+  bytesTransferred: number;
+  durationMs: number;
+  error?: string;
+  failedItems?: any[];
+}
+
 interface Connection {
   id: string;
   inUse: boolean;
@@ -402,6 +428,234 @@ export class QUICClient {
         error: err.message,
       };
     }
+  }
+
+  /**
+   * Push data to remote server
+   */
+  async push(options: PushOptions): Promise<PushResult> {
+    if (!this.isConnected) {
+      await this.connect();
+    }
+
+    const startTime = Date.now();
+    let bytesTransferred = 0;
+    let itemsPushed = 0;
+    const failedItems: any[] = [];
+    const batchSize = options.batchSize || 100;
+
+    try {
+      // Report progress: connecting
+      options.onProgress?.({
+        phase: 'connecting',
+        totalItems: options.data.length,
+      });
+
+      // Get connection from pool
+      const connection = await this.acquireConnection();
+
+      console.log(chalk.blue('📤 Pushing data to remote...'));
+      console.log(chalk.gray(`   Type: ${options.type}`));
+      console.log(chalk.gray(`   Items: ${options.data.length}`));
+      console.log(chalk.gray(`   Batch size: ${batchSize}`));
+      console.log(chalk.gray(`   Connection: ${connection.id}`));
+
+      // Calculate total batches
+      const totalBatches = Math.ceil(options.data.length / batchSize);
+
+      // Process in batches
+      for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+        const start = batchIndex * batchSize;
+        const end = Math.min(start + batchSize, options.data.length);
+        const batch = options.data.slice(start, end);
+
+        // Report progress: pushing
+        options.onProgress?.({
+          phase: 'pushing',
+          itemsPushed,
+          totalItems: options.data.length,
+          currentBatch: batchIndex + 1,
+          totalBatches,
+          bytesTransferred,
+        });
+
+        // Prepare push request
+        const request = {
+          action: 'push',
+          type: options.type,
+          data: batch,
+          batchIndex,
+          totalBatches,
+        };
+
+        try {
+          // Send batch with retry logic
+          const response = await this.sendWithRetry(connection, request);
+
+          if (response.success) {
+            const batchBytes = JSON.stringify(batch).length;
+            bytesTransferred += batchBytes;
+            itemsPushed += batch.length;
+
+            console.log(chalk.gray(`  Batch ${batchIndex + 1}/${totalBatches}: ${batch.length} items pushed (${batchBytes} bytes)`));
+          } else {
+            // Track failed items from this batch
+            failedItems.push(...batch.map(item => ({ item, error: response.error || 'Push failed' })));
+            console.log(chalk.yellow(`  Batch ${batchIndex + 1}/${totalBatches}: Failed - ${response.error || 'Unknown error'}`));
+          }
+        } catch (batchError) {
+          const err = batchError as Error;
+          // Track failed items from this batch
+          failedItems.push(...batch.map(item => ({ item, error: err.message })));
+          console.log(chalk.yellow(`  Batch ${batchIndex + 1}/${totalBatches}: Error - ${err.message}`));
+        }
+      }
+
+      // Report progress: processing
+      options.onProgress?.({
+        phase: 'processing',
+        itemsPushed,
+        totalItems: options.data.length,
+        bytesTransferred,
+      });
+
+      // Release connection
+      this.releaseConnection(connection);
+
+      const durationMs = Date.now() - startTime;
+
+      console.log(chalk.green('✓ Push completed'));
+      console.log(chalk.gray(`  Items pushed: ${itemsPushed}/${options.data.length}`));
+      console.log(chalk.gray(`  Bytes transferred: ${bytesTransferred}`));
+      console.log(chalk.gray(`  Duration: ${durationMs}ms`));
+      if (failedItems.length > 0) {
+        console.log(chalk.yellow(`  Failed items: ${failedItems.length}`));
+      }
+
+      // Report progress: completed
+      options.onProgress?.({
+        phase: 'completed',
+        itemsPushed,
+        totalItems: options.data.length,
+        bytesTransferred,
+      });
+
+      return {
+        success: failedItems.length === 0,
+        itemsPushed,
+        bytesTransferred,
+        durationMs,
+        failedItems: failedItems.length > 0 ? failedItems : undefined,
+        error: failedItems.length > 0 ? `${failedItems.length} items failed to push` : undefined,
+      };
+    } catch (error) {
+      const err = error as Error;
+      const durationMs = Date.now() - startTime;
+
+      console.error(chalk.red('✗ Push failed:'), err.message);
+
+      // Report progress: error
+      options.onProgress?.({
+        phase: 'error',
+        itemsPushed,
+        totalItems: options.data.length,
+        bytesTransferred,
+        error: err.message,
+      });
+
+      return {
+        success: false,
+        itemsPushed,
+        bytesTransferred,
+        durationMs,
+        error: err.message,
+        failedItems,
+      };
+    }
+  }
+
+  /**
+   * Push multiple data types in a single operation
+   */
+  async pushAll(data: {
+    episodes?: any[];
+    skills?: any[];
+    edges?: any[];
+  }, options?: {
+    batchSize?: number;
+    onProgress?: (type: string, progress: PushProgress) => void;
+  }): Promise<{
+    success: boolean;
+    results: Record<string, PushResult>;
+    totalItemsPushed: number;
+    totalBytesTransferred: number;
+    totalDurationMs: number;
+    errors: string[];
+  }> {
+    const startTime = Date.now();
+    const results: Record<string, PushResult> = {};
+    const errors: string[] = [];
+    let totalItemsPushed = 0;
+    let totalBytesTransferred = 0;
+
+    // Push episodes
+    if (data.episodes && data.episodes.length > 0) {
+      const result = await this.push({
+        type: 'episodes',
+        data: data.episodes,
+        batchSize: options?.batchSize,
+        onProgress: (progress) => options?.onProgress?.('episodes', progress),
+      });
+      results.episodes = result;
+      totalItemsPushed += result.itemsPushed;
+      totalBytesTransferred += result.bytesTransferred;
+      if (result.error) {
+        errors.push(`episodes: ${result.error}`);
+      }
+    }
+
+    // Push skills
+    if (data.skills && data.skills.length > 0) {
+      const result = await this.push({
+        type: 'skills',
+        data: data.skills,
+        batchSize: options?.batchSize,
+        onProgress: (progress) => options?.onProgress?.('skills', progress),
+      });
+      results.skills = result;
+      totalItemsPushed += result.itemsPushed;
+      totalBytesTransferred += result.bytesTransferred;
+      if (result.error) {
+        errors.push(`skills: ${result.error}`);
+      }
+    }
+
+    // Push edges
+    if (data.edges && data.edges.length > 0) {
+      const result = await this.push({
+        type: 'edges',
+        data: data.edges,
+        batchSize: options?.batchSize,
+        onProgress: (progress) => options?.onProgress?.('edges', progress),
+      });
+      results.edges = result;
+      totalItemsPushed += result.itemsPushed;
+      totalBytesTransferred += result.bytesTransferred;
+      if (result.error) {
+        errors.push(`edges: ${result.error}`);
+      }
+    }
+
+    const totalDurationMs = Date.now() - startTime;
+
+    return {
+      success: errors.length === 0,
+      results,
+      totalItemsPushed,
+      totalBytesTransferred,
+      totalDurationMs,
+      errors,
+    };
   }
 
   /**

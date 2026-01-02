@@ -15,7 +15,7 @@
  */
 
 import chalk from 'chalk';
-import { QUICClient, SyncOptions, SyncResult } from './QUICClient.js';
+import { QUICClient, SyncOptions, SyncResult, PushResult } from './QUICClient.js';
 import { QUICServer, SyncRequest } from './QUICServer.js';
 
 // Database type from db-fallback
@@ -236,13 +236,132 @@ export class SyncCoordinator {
     changes: { episodes: any[]; skills: any[]; edges: any[] },
     onProgress?: (progress: SyncProgress) => void
   ): Promise<{ itemsPushed: number; bytesTransferred: number; errors: string[] }> {
+    if (!this.client) {
+      throw new Error('QUICClient not configured');
+    }
+
     const errors: string[] = [];
     let itemsPushed = 0;
     let bytesTransferred = 0;
+    const totalItems = changes.episodes.length + changes.skills.length + changes.edges.length;
 
-    // Note: Push functionality would require server API to accept writes
-    // This is a placeholder for the push logic
-    console.log(chalk.yellow('⚠️  Push to remote not yet implemented (read-only sync)'));
+    try {
+      console.log(chalk.blue('📤 Pushing changes to remote...'));
+      console.log(chalk.gray(`  Episodes: ${changes.episodes.length}`));
+      console.log(chalk.gray(`  Skills: ${changes.skills.length}`));
+      console.log(chalk.gray(`  Edges: ${changes.edges.length}`));
+
+      // Push episodes
+      if (changes.episodes.length > 0) {
+        onProgress?.({
+          phase: 'pushing',
+          current: itemsPushed,
+          total: totalItems,
+          itemType: 'episodes',
+          message: `Pushing ${changes.episodes.length} episodes...`,
+        });
+
+        const episodesResult = await this.client.push({
+          type: 'episodes',
+          data: changes.episodes,
+          batchSize: this.config.batchSize,
+          onProgress: (progress) => {
+            onProgress?.({
+              phase: 'pushing',
+              current: itemsPushed + (progress.itemsPushed || 0),
+              total: totalItems,
+              itemType: 'episodes',
+              message: `Pushing episodes: batch ${progress.currentBatch || 0}/${progress.totalBatches || 0}`,
+            });
+          },
+        });
+
+        if (episodesResult.success) {
+          itemsPushed += episodesResult.itemsPushed;
+          bytesTransferred += episodesResult.bytesTransferred;
+          console.log(chalk.gray(`  Episodes pushed: ${episodesResult.itemsPushed}`));
+        } else {
+          errors.push(`Episodes push failed: ${episodesResult.error || 'Unknown error'}`);
+          console.log(chalk.yellow(`  Episodes push failed: ${episodesResult.error}`));
+        }
+      }
+
+      // Push skills
+      if (changes.skills.length > 0) {
+        onProgress?.({
+          phase: 'pushing',
+          current: itemsPushed,
+          total: totalItems,
+          itemType: 'skills',
+          message: `Pushing ${changes.skills.length} skills...`,
+        });
+
+        const skillsResult = await this.client.push({
+          type: 'skills',
+          data: changes.skills,
+          batchSize: this.config.batchSize,
+          onProgress: (progress) => {
+            onProgress?.({
+              phase: 'pushing',
+              current: itemsPushed + (progress.itemsPushed || 0),
+              total: totalItems,
+              itemType: 'skills',
+              message: `Pushing skills: batch ${progress.currentBatch || 0}/${progress.totalBatches || 0}`,
+            });
+          },
+        });
+
+        if (skillsResult.success) {
+          itemsPushed += skillsResult.itemsPushed;
+          bytesTransferred += skillsResult.bytesTransferred;
+          console.log(chalk.gray(`  Skills pushed: ${skillsResult.itemsPushed}`));
+        } else {
+          errors.push(`Skills push failed: ${skillsResult.error || 'Unknown error'}`);
+          console.log(chalk.yellow(`  Skills push failed: ${skillsResult.error}`));
+        }
+      }
+
+      // Push edges
+      if (changes.edges.length > 0) {
+        onProgress?.({
+          phase: 'pushing',
+          current: itemsPushed,
+          total: totalItems,
+          itemType: 'edges',
+          message: `Pushing ${changes.edges.length} edges...`,
+        });
+
+        const edgesResult = await this.client.push({
+          type: 'edges',
+          data: changes.edges,
+          batchSize: this.config.batchSize,
+          onProgress: (progress) => {
+            onProgress?.({
+              phase: 'pushing',
+              current: itemsPushed + (progress.itemsPushed || 0),
+              total: totalItems,
+              itemType: 'edges',
+              message: `Pushing edges: batch ${progress.currentBatch || 0}/${progress.totalBatches || 0}`,
+            });
+          },
+        });
+
+        if (edgesResult.success) {
+          itemsPushed += edgesResult.itemsPushed;
+          bytesTransferred += edgesResult.bytesTransferred;
+          console.log(chalk.gray(`  Edges pushed: ${edgesResult.itemsPushed}`));
+        } else {
+          errors.push(`Edges push failed: ${edgesResult.error || 'Unknown error'}`);
+          console.log(chalk.yellow(`  Edges push failed: ${edgesResult.error}`));
+        }
+      }
+
+      console.log(chalk.green(`✓ Push completed: ${itemsPushed} items, ${bytesTransferred} bytes`));
+    } catch (error) {
+      const err = error as Error;
+      errors.push(err.message);
+      console.error(chalk.red('✗ Push failed:'), err.message);
+    }
 
     return { itemsPushed, bytesTransferred, errors };
   }

@@ -24,9 +24,8 @@ import { MultiHeadAttentionController } from '../../src/controllers/attention/Mu
 import fs from 'fs';
 import path from 'path';
 
-// TODO: These tests require attention controllers (MemoryController, SelfAttentionController, etc.)
-// that are not yet implemented. Mark as .todo() until feature is built.
-describe.todo('Attention Mechanism Integration', () => {
+// Attention controllers (MemoryController, SelfAttentionController, etc.) are now implemented
+describe('Attention Mechanism Integration', () => {
   let db: AgentDB;
   let memoryController: MemoryController;
   const testDbPath = path.join(__dirname, '../fixtures/test-attention.db');

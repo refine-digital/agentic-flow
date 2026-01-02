@@ -22,6 +22,7 @@ import type { GraphDatabaseAdapter, CausalEdge as GraphCausalEdge } from '../bac
 import { NodeIdMapper } from '../utils/NodeIdMapper.js';
 import { AttentionService, type HyperbolicAttentionConfig } from '../services/AttentionService.js';
 import { EmbeddingService } from './EmbeddingService.js';
+import type { VectorBackend } from '../backends/VectorBackend.js';
 
 /**
  * Configuration for CausalMemoryGraph
@@ -103,23 +104,32 @@ export class CausalMemoryGraph {
   private graphBackend?: any; // GraphBackend or GraphDatabaseAdapter
   private attentionService?: AttentionService;
   private embedder?: EmbeddingService;
+  private vectorBackend?: VectorBackend;
   private config: CausalMemoryGraphConfig;
 
   /**
    * Constructor supports both v1 (legacy) and v2 (with attention) modes
    *
    * v1 mode: new CausalMemoryGraph(db)
-   * v2 mode: new CausalMemoryGraph(db, graphBackend, embedder, config)
+   * v2 mode: new CausalMemoryGraph(db, graphBackend, embedder, config, vectorBackend)
+   *
+   * @param db - Database connection
+   * @param graphBackend - Optional graph database adapter
+   * @param embedder - Optional embedding service for generating embeddings
+   * @param config - Optional configuration for hyperbolic attention
+   * @param vectorBackend - Optional vector backend for optimized similarity search (150x faster than SQLite)
    */
   constructor(
     db: IDatabaseConnection,
     graphBackend?: any,
     embedder?: EmbeddingService,
-    config?: CausalMemoryGraphConfig
+    config?: CausalMemoryGraphConfig,
+    vectorBackend?: VectorBackend
   ) {
     this.db = db;
     this.graphBackend = graphBackend;
     this.embedder = embedder;
+    this.vectorBackend = vectorBackend;
     this.config = {
       ENABLE_HYPERBOLIC_ATTENTION: false,
       ...config,
@@ -138,15 +148,25 @@ export class CausalMemoryGraph {
 
   /**
    * Add a causal edge between memories
+   *
+   * When vectorBackend is available, stores the edge embedding for fast similarity search.
+   * This enables finding similar causal patterns across the memory graph.
    */
   async addCausalEdge(edge: CausalEdge): Promise<number> {
+    // Create embedding for causal mechanism if embedder is available
+    const mechanismText = edge.mechanism || `${edge.fromMemoryType}-${edge.toMemoryType} causal link`;
+    let embedding: Float32Array;
+
+    if (this.embedder) {
+      embedding = await this.embedder.embed(mechanismText);
+    } else {
+      // Fallback to zero embedding if no embedder available
+      embedding = new Float32Array(384).fill(0);
+    }
+
     // Use GraphDatabaseAdapter if available (AgentDB v2)
     if (this.graphBackend && 'createCausalEdge' in this.graphBackend) {
       const graphAdapter = this.graphBackend as any as GraphDatabaseAdapter;
-
-      // Create embedding for causal mechanism
-      const mechanismText = edge.mechanism || `${edge.fromMemoryType}-${edge.toMemoryType} causal link`;
-      const embedding = new Float32Array(384).fill(0); // Placeholder - would use embedder in production
 
       // Convert episode IDs to string format expected by graph database
       // Use NodeIdMapper to get full node IDs from numeric IDs
@@ -205,7 +225,22 @@ export class CausalMemoryGraph {
       edge.metadata ? JSON.stringify(edge.metadata) : null
     );
 
-    return normalizeRowId(result.lastInsertRowid);
+    const edgeId = normalizeRowId(result.lastInsertRowid);
+
+    // Store embedding in VectorBackend for fast similarity search
+    if (this.vectorBackend && embedding) {
+      this.vectorBackend.insert(`causal-edge:${edgeId}`, embedding, {
+        fromMemoryId: edge.fromMemoryId,
+        fromMemoryType: edge.fromMemoryType,
+        toMemoryId: edge.toMemoryId,
+        toMemoryType: edge.toMemoryType,
+        mechanism: mechanismText,
+        confidence: edge.confidence,
+        uplift: edge.uplift,
+      });
+    }
+
+    return edgeId;
   }
 
   /**
@@ -377,6 +412,63 @@ export class CausalMemoryGraph {
     const rows = this.db.prepare<DatabaseRows.CausalEdge>(sql).all(...params);
 
     return rows.map(row => this.rowToCausalEdge(row));
+  }
+
+  /**
+   * Find similar causal patterns using vector similarity search
+   *
+   * Uses vectorBackend for fast similarity search (150x faster than SQLite).
+   * This enables discovering analogous causal relationships across different
+   * domains or contexts.
+   *
+   * @param mechanism - The causal mechanism description to search for
+   * @param k - Number of similar patterns to return (default: 10)
+   * @param minConfidence - Minimum confidence threshold (default: 0.5)
+   * @returns Similar causal edges with similarity scores
+   */
+  async findSimilarCausalPatterns(
+    mechanism: string,
+    k: number = 10,
+    minConfidence: number = 0.5
+  ): Promise<Array<CausalEdge & { similarity: number }>> {
+    // If no embedder or vectorBackend, return empty array
+    if (!this.embedder || !this.vectorBackend) {
+      return [];
+    }
+
+    // Generate embedding for the query mechanism
+    const queryEmbedding = await this.embedder.embed(mechanism);
+
+    // Search for similar causal edges using vectorBackend
+    const results = this.vectorBackend.search(queryEmbedding, k * 2); // Get more to filter by confidence
+
+    // Filter results to only causal-edge entries and by confidence
+    const filteredResults = results.filter(result => {
+      if (!result.id.startsWith('causal-edge:')) return false;
+      const confidence = result.metadata?.confidence as number | undefined;
+      return confidence === undefined || confidence >= minConfidence;
+    });
+
+    // Get full edge data from database
+    const edges: Array<CausalEdge & { similarity: number }> = [];
+
+    for (const result of filteredResults.slice(0, k)) {
+      const edgeId = parseInt(result.id.replace('causal-edge:', ''), 10);
+      if (isNaN(edgeId)) continue;
+
+      const row = this.db.prepare<DatabaseRows.CausalEdge>(
+        'SELECT * FROM causal_edges WHERE id = ?'
+      ).get(edgeId);
+
+      if (row) {
+        edges.push({
+          ...this.rowToCausalEdge(row),
+          similarity: result.similarity
+        });
+      }
+    }
+
+    return edges;
   }
 
   /**

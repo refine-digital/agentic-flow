@@ -68,6 +68,17 @@ export interface TokenPair {
 const revokedTokens = new Set<string>();
 
 /**
+ * Session-to-tokens mapping for bulk revocation
+ * Maps sessionId -> Set of token JTIs
+ */
+const sessionTokens = new Map<string, Set<string>>();
+
+/**
+ * Token JTI to full token mapping for revocation
+ */
+const tokenJtiMap = new Map<string, string>();
+
+/**
  * Get JWT secret from environment
  */
 function getJWTSecret(): string {
@@ -293,12 +304,68 @@ export function revokeToken(token: string): void {
 }
 
 /**
+ * Register a token with its session for bulk revocation support
+ */
+export function registerTokenWithSession(token: string, sessionId: string): void {
+  const decoded = decodeToken(token);
+  if (!decoded || !decoded.jti) return;
+
+  // Track token JTI -> full token
+  tokenJtiMap.set(decoded.jti, token);
+
+  // Track session -> token JTIs
+  if (!sessionTokens.has(sessionId)) {
+    sessionTokens.set(sessionId, new Set());
+  }
+  sessionTokens.get(sessionId)!.add(decoded.jti);
+
+  // Auto-cleanup after token expiration
+  const expiresIn = decoded.exp ? (decoded.exp * 1000 - Date.now()) : 7 * 24 * 60 * 60 * 1000;
+  setTimeout(() => {
+    tokenJtiMap.delete(decoded.jti!);
+    sessionTokens.get(sessionId)?.delete(decoded.jti!);
+    if (sessionTokens.get(sessionId)?.size === 0) {
+      sessionTokens.delete(sessionId);
+    }
+  }, Math.max(expiresIn, 0));
+}
+
+/**
  * Revoke all tokens for a user (by session ID)
  */
-export function revokeUserSession(sessionId: string): void {
-  // In production, this would query Redis for all tokens with this session ID
-  // For now, this is a placeholder
-  console.log(`Revoked all tokens for session: ${sessionId}`);
+export function revokeUserSession(sessionId: string): { revokedCount: number } {
+  const tokenJtis = sessionTokens.get(sessionId);
+
+  if (!tokenJtis || tokenJtis.size === 0) {
+    return { revokedCount: 0 };
+  }
+
+  let revokedCount = 0;
+  for (const jti of tokenJtis) {
+    const token = tokenJtiMap.get(jti);
+    if (token) {
+      revokedTokens.add(token);
+      tokenJtiMap.delete(jti);
+      revokedCount++;
+    }
+  }
+
+  sessionTokens.delete(sessionId);
+  return { revokedCount };
+}
+
+/**
+ * Get active session count
+ */
+export function getActiveSessionCount(): number {
+  return sessionTokens.size;
+}
+
+/**
+ * Get tokens count for a session
+ */
+export function getSessionTokenCount(sessionId: string): number {
+  return sessionTokens.get(sessionId)?.size ?? 0;
 }
 
 /**
