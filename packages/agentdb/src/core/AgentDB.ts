@@ -77,7 +77,13 @@ export class AgentDB {
     // This enables 150x faster vector search via RuVector instead of SQLite brute-force
     this.reflexion = new ReflexionMemory(this.db, this.embedder, this.vectorBackend);
     this.skills = new SkillLibrary(this.db, this.embedder, this.vectorBackend);
-    this.causalGraph = new CausalMemoryGraph(this.db);
+    this.causalGraph = new CausalMemoryGraph(
+      this.db,
+      undefined, // graphBackend - not used in default initialization
+      this.embedder,
+      undefined, // config - use defaults
+      this.vectorBackend
+    );
 
     this.initialized = true;
 

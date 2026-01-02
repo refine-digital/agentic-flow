@@ -21,12 +21,39 @@ import type {
   SearchOptions,
   VectorStats,
 } from '../VectorBackend.js';
-import hnswlibNode from 'hnswlib-node';
 import * as fs from 'fs/promises';
 import * as fsSync from 'fs';
 import * as path from 'path';
 
-const { HierarchicalNSW } = hnswlibNode as any;
+// Lazy-loaded hnswlib-node to avoid import failures on systems without build tools
+let HierarchicalNSW: any = null;
+let hnswlibLoadAttempted = false;
+let hnswlibLoadError: Error | null = null;
+
+async function loadHnswlib(): Promise<boolean> {
+  if (hnswlibLoadAttempted) {
+    if (hnswlibLoadError) throw hnswlibLoadError;
+    return HierarchicalNSW !== null;
+  }
+  hnswlibLoadAttempted = true;
+
+  try {
+    const hnswlibNode = await import('hnswlib-node');
+    HierarchicalNSW = (hnswlibNode as any).default?.HierarchicalNSW
+      || (hnswlibNode as any).HierarchicalNSW;
+    return true;
+  } catch (error) {
+    hnswlibLoadError = new Error(
+      `hnswlib-node failed to load: ${(error as Error).message}\n` +
+      'This usually means native dependencies are missing.\n' +
+      'Either:\n' +
+      '  1. Install build tools and run npm rebuild\n' +
+      '  2. Use forceWasm: true to skip hnswlib entirely\n' +
+      '  3. Install agentdb/wasm for WASM-only mode'
+    );
+    throw hnswlibLoadError;
+  }
+}
 
 interface SavedMappings {
   idToLabel: Record<string, number>;
@@ -72,6 +99,9 @@ export class HNSWLibBackend implements VectorBackend {
    * Must be called after construction
    */
   async initialize(): Promise<void> {
+    // Lazy load hnswlib-node (avoids import failures on systems without build tools)
+    await loadHnswlib();
+
     // Map metric names to hnswlib format
     const metricMap: Record<string, string> = {
       cosine: 'cosine',

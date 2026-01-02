@@ -20,6 +20,9 @@ import { EmbeddingService } from '../controllers/EmbeddingService.js';
 import { MMRDiversityRanker } from '../controllers/MMRDiversityRanker.js';
 import { ContextSynthesizer } from '../controllers/ContextSynthesizer.js';
 import { MetadataFilter } from '../controllers/MetadataFilter.js';
+import { QUICServer, QUICServerConfig } from '../controllers/QUICServer.js';
+import { QUICClient, QUICClientConfig, SyncProgress as ClientSyncProgress } from '../controllers/QUICClient.js';
+import { SyncCoordinator, SyncCoordinatorConfig, SyncProgress, SyncReport } from '../controllers/SyncCoordinator.js';
 import { initCommand } from './commands/init.js';
 import { statusCommand } from './commands/status.js';
 import { installEmbeddingsCommand } from './commands/install-embeddings.js';
@@ -53,6 +56,73 @@ const log = {
   header: (msg: string) => console.log(`${colors.bright}${colors.cyan}${msg}${colors.reset}`)
 };
 
+// Spinner utility for progress indication
+class Spinner {
+  private frames = ['|', '/', '-', '\\'];
+  private current = 0;
+  private interval: NodeJS.Timeout | null = null;
+  private message: string = '';
+
+  start(message: string): void {
+    this.message = message;
+    this.current = 0;
+    process.stdout.write(`\r${this.frames[0]} ${message}`);
+    this.interval = setInterval(() => {
+      this.current = (this.current + 1) % this.frames.length;
+      process.stdout.write(`\r${this.frames[this.current]} ${this.message}`);
+    }, 100);
+  }
+
+  update(message: string): void {
+    this.message = message;
+    process.stdout.write(`\r${this.frames[this.current]} ${this.message}`);
+  }
+
+  succeed(message: string): void {
+    this.stop();
+    console.log(`\r${colors.green}v${colors.reset} ${message}`);
+  }
+
+  fail(message: string): void {
+    this.stop();
+    console.log(`\r${colors.red}x${colors.reset} ${message}`);
+  }
+
+  stop(): void {
+    if (this.interval) {
+      clearInterval(this.interval);
+      this.interval = null;
+    }
+    process.stdout.write('\r' + ' '.repeat(this.message.length + 10) + '\r');
+  }
+}
+
+// Progress bar utility
+class ProgressBar {
+  private width = 40;
+  private current = 0;
+  private total = 100;
+  private message = '';
+
+  update(current: number, total: number, message?: string): void {
+    this.current = current;
+    this.total = total;
+    if (message) this.message = message;
+
+    const percent = Math.round((current / total) * 100);
+    const filled = Math.round((current / total) * this.width);
+    const empty = this.width - filled;
+    const bar = `${colors.green}${'='.repeat(filled)}${colors.reset}${'-'.repeat(empty)}`;
+
+    process.stdout.write(`\r[${bar}] ${percent}% ${this.message}`);
+  }
+
+  complete(message: string): void {
+    const bar = `${colors.green}${'='.repeat(this.width)}${colors.reset}`;
+    console.log(`\r[${bar}] 100% ${message}`);
+  }
+}
+
 class AgentDBCLI {
   public db?: any; // Database instance from createDatabase (public for init command)
   private causalGraph?: CausalMemoryGraph;
@@ -62,6 +132,11 @@ class AgentDBCLI {
   private reflexion?: ReflexionMemory;
   private skills?: SkillLibrary;
   private embedder?: EmbeddingService;
+
+  // QUIC sync controllers
+  private quicServer?: QUICServer;
+  private quicClient?: QUICClient;
+  private syncCoordinator?: SyncCoordinator;
 
   async initialize(dbPath: string = './agentdb.db'): Promise<void> {
     // Initialize database
@@ -769,28 +844,119 @@ class AgentDBCLI {
     cert?: string;
     key?: string;
     authToken?: string;
+    maxConnections?: number;
   }): Promise<void> {
-    log.header('\n🚀 Starting QUIC Sync Server');
+    if (!this.db) throw new Error('Not initialized');
 
+    log.header('\n[QUIC] Starting QUIC Sync Server');
+
+    const spinner = new Spinner();
     const port = params.port || 4433;
     const authToken = params.authToken || this.generateAuthToken();
 
-    log.info(`Port: ${port}`);
-    log.info(`Auth Token: ${authToken}`);
+    console.log('\n' + '='.repeat(80));
+    console.log(`${colors.bright}Server Configuration${colors.reset}`);
+    console.log('='.repeat(80));
+    console.log(`  Host: ${colors.cyan}0.0.0.0${colors.reset}`);
+    console.log(`  Port: ${colors.cyan}${port}${colors.reset}`);
+    console.log(`  Auth Token: ${colors.cyan}${authToken.substring(0, 8)}...${colors.reset}`);
+    console.log(`  Max Connections: ${colors.cyan}${params.maxConnections || 100}${colors.reset}`);
 
     if (params.cert && params.key) {
-      log.info(`TLS Certificate: ${params.cert}`);
-      log.info(`TLS Key: ${params.key}`);
+      console.log(`  TLS Certificate: ${colors.green}${params.cert}${colors.reset}`);
+      console.log(`  TLS Key: ${colors.green}${params.key}${colors.reset}`);
     } else {
-      log.warning('No TLS certificate provided - using self-signed certificate');
+      console.log(`  TLS: ${colors.yellow}Self-signed (development mode)${colors.reset}`);
     }
+    console.log('='.repeat(80));
 
-    // TODO: Implement QUIC server using existing QUICSync controller
-    log.info('\nServer started. Waiting for connections...');
-    log.info('Press Ctrl+C to stop');
+    try {
+      spinner.start('Initializing QUIC server...');
 
-    // Keep process alive
-    await new Promise(() => {});
+      // Create QUIC server configuration
+      const serverConfig: QUICServerConfig = {
+        host: '0.0.0.0',
+        port,
+        maxConnections: params.maxConnections || 100,
+        authToken,
+        tlsConfig: {
+          cert: params.cert,
+          key: params.key,
+        },
+        rateLimit: {
+          maxRequestsPerMinute: 60,
+          maxBytesPerMinute: 10 * 1024 * 1024, // 10MB
+        },
+      };
+
+      // Initialize the QUIC server with database
+      this.quicServer = new QUICServer(this.db, serverConfig);
+
+      spinner.update('Starting server...');
+      await this.quicServer.start();
+
+      spinner.succeed('QUIC server started successfully');
+
+      console.log('\n' + '-'.repeat(80));
+      console.log(`${colors.bright}Server Status${colors.reset}`);
+      console.log('-'.repeat(80));
+
+      const status = this.quicServer.getStatus();
+      console.log(`  Status: ${colors.green}Running${colors.reset}`);
+      console.log(`  Active Connections: ${colors.cyan}${status.activeConnections}${colors.reset}`);
+      console.log(`  Rate Limit: ${colors.cyan}${status.config.rateLimit?.maxRequestsPerMinute} req/min${colors.reset}`);
+      console.log('-'.repeat(80));
+
+      log.info('\nServer is ready to accept connections.');
+      log.info(`Clients can connect using: agentdb sync connect <host> ${port} --auth-token ${authToken}`);
+      log.info('\nPress Ctrl+C to stop the server');
+
+      // Handle graceful shutdown
+      const shutdown = async () => {
+        console.log('\n');
+        log.info('Shutting down server...');
+        const shutdownSpinner = new Spinner();
+        shutdownSpinner.start('Closing connections...');
+
+        try {
+          if (this.quicServer) {
+            await this.quicServer.stop();
+          }
+          shutdownSpinner.succeed('Server stopped gracefully');
+        } catch (error) {
+          shutdownSpinner.fail(`Error during shutdown: ${(error as Error).message}`);
+        }
+        process.exit(0);
+      };
+
+      process.on('SIGINT', shutdown);
+      process.on('SIGTERM', shutdown);
+
+      // Monitor server status periodically
+      const monitorInterval = setInterval(() => {
+        if (this.quicServer) {
+          const currentStatus = this.quicServer.getStatus();
+          if (currentStatus.activeConnections > 0) {
+            process.stdout.write(`\r${colors.cyan}[${new Date().toLocaleTimeString()}]${colors.reset} Active connections: ${currentStatus.activeConnections} | Total requests: ${currentStatus.totalRequests}  `);
+          }
+        }
+      }, 5000);
+
+      // Keep process alive
+      await new Promise<void>((resolve) => {
+        process.on('SIGINT', () => {
+          clearInterval(monitorInterval);
+          resolve();
+        });
+        process.on('SIGTERM', () => {
+          clearInterval(monitorInterval);
+          resolve();
+        });
+      });
+    } catch (error) {
+      spinner.fail(`Failed to start server: ${(error as Error).message}`);
+      throw error;
+    }
   }
 
   async quicConnect(params: {
@@ -798,139 +964,649 @@ class AgentDBCLI {
     port: number;
     authToken?: string;
     cert?: string;
+    timeout?: number;
   }): Promise<void> {
-    log.header('\n🔌 Connecting to QUIC Sync Server');
+    log.header('\n[QUIC] Connecting to QUIC Sync Server');
 
-    log.info(`Host: ${params.host}`);
-    log.info(`Port: ${params.port}`);
+    const spinner = new Spinner();
 
-    if (params.authToken) {
-      log.info('Authentication: Enabled');
-    }
+    console.log('\n' + '='.repeat(80));
+    console.log(`${colors.bright}Connection Details${colors.reset}`);
+    console.log('='.repeat(80));
+    console.log(`  Server: ${colors.cyan}${params.host}:${params.port}${colors.reset}`);
+    console.log(`  Authentication: ${params.authToken ? colors.green + 'Enabled' : colors.yellow + 'Disabled'}${colors.reset}`);
+    console.log(`  Timeout: ${colors.cyan}${params.timeout || 30000}ms${colors.reset}`);
 
     if (params.cert) {
-      log.info(`TLS Certificate: ${params.cert}`);
+      console.log(`  TLS Certificate: ${colors.green}${params.cert}${colors.reset}`);
     } else {
-      log.warning('No TLS certificate provided - using insecure connection');
+      console.log(`  TLS: ${colors.yellow}Insecure (no certificate provided)${colors.reset}`);
     }
+    console.log('='.repeat(80));
 
-    // TODO: Implement QUIC client connection
-    log.success('Connected to remote server');
-    log.info('Server info: AgentDB QUIC Sync v1.0');
+    try {
+      spinner.start('Initializing QUIC client...');
+
+      // Create QUIC client configuration
+      const clientConfig: QUICClientConfig = {
+        serverHost: params.host,
+        serverPort: params.port,
+        authToken: params.authToken,
+        maxRetries: 3,
+        retryDelayMs: 1000,
+        timeoutMs: params.timeout || 30000,
+        poolSize: 5,
+        tlsConfig: {
+          cert: params.cert,
+          rejectUnauthorized: !!params.cert,
+        },
+      };
+
+      // Initialize the QUIC client
+      this.quicClient = new QUICClient(clientConfig);
+
+      spinner.update('Establishing connection...');
+      await this.quicClient.connect();
+
+      spinner.update('Testing connection (ping)...');
+      const pingResult = await this.quicClient.ping();
+
+      if (!pingResult.success) {
+        throw new Error(pingResult.error || 'Ping failed');
+      }
+
+      spinner.succeed('Connected to remote server successfully');
+
+      console.log('\n' + '-'.repeat(80));
+      console.log(`${colors.bright}Connection Status${colors.reset}`);
+      console.log('-'.repeat(80));
+
+      const status = this.quicClient.getStatus();
+      console.log(`  Status: ${colors.green}Connected${colors.reset}`);
+      console.log(`  Latency: ${colors.cyan}${pingResult.latencyMs}ms${colors.reset}`);
+      console.log(`  Pool Size: ${colors.cyan}${status.poolSize}${colors.reset}`);
+      console.log(`  Active Connections: ${colors.cyan}${status.activeConnections}${colors.reset}`);
+      console.log('-'.repeat(80));
+
+      // Initialize the SyncCoordinator for subsequent push/pull operations
+      if (this.db) {
+        this.syncCoordinator = new SyncCoordinator({
+          db: this.db,
+          client: this.quicClient,
+        });
+        log.info('\nSync coordinator initialized. Ready for push/pull operations.');
+      }
+
+      log.success('\nConnection established.');
+      log.info('Use "agentdb sync push" or "agentdb sync pull" to sync data.');
+    } catch (error) {
+      spinner.fail(`Connection failed: ${(error as Error).message}`);
+
+      console.log('\n' + '-'.repeat(80));
+      console.log(`${colors.bright}Troubleshooting${colors.reset}`);
+      console.log('-'.repeat(80));
+      console.log('  1. Verify the server is running and accessible');
+      console.log('  2. Check firewall settings allow traffic on the specified port');
+      console.log('  3. Ensure the auth token matches the server configuration');
+      console.log('  4. For TLS connections, verify the certificate is valid');
+      console.log('-'.repeat(80));
+
+      throw error;
+    }
   }
 
   async quicPush(params: {
     server: string;
     incremental?: boolean;
     filter?: string;
+    authToken?: string;
+    batchSize?: number;
   }): Promise<void> {
     if (!this.db) throw new Error('Not initialized');
 
-    log.header('\n⬆️  Pushing Changes to Remote');
+    log.header('\n[QUIC] Pushing Changes to Remote');
 
-    log.info(`Server: ${params.server}`);
-    log.info(`Mode: ${params.incremental ? 'Incremental' : 'Full'}`);
+    const spinner = new Spinner();
+    const progressBar = new ProgressBar();
 
+    // Parse server address
+    const [host, portStr] = params.server.split(':');
+    const port = parseInt(portStr) || 4433;
+
+    console.log('\n' + '='.repeat(80));
+    console.log(`${colors.bright}Push Configuration${colors.reset}`);
+    console.log('='.repeat(80));
+    console.log(`  Server: ${colors.cyan}${host}:${port}${colors.reset}`);
+    console.log(`  Mode: ${colors.cyan}${params.incremental ? 'Incremental' : 'Full Sync'}${colors.reset}`);
+    console.log(`  Batch Size: ${colors.cyan}${params.batchSize || 100}${colors.reset}`);
     if (params.filter) {
-      log.info(`Filter: ${params.filter}`);
+      console.log(`  Filter: ${colors.cyan}${params.filter}${colors.reset}`);
+    }
+    console.log('='.repeat(80));
+
+    try {
+      // Step 1: Analyze pending changes
+      spinner.start('Analyzing local changes...');
+      const pendingChanges = this.getPendingChangesDetailed(params.incremental, params.filter);
+      spinner.succeed(`Found ${pendingChanges.totalItems} items to push`);
+
+      console.log('\n' + '-'.repeat(80));
+      console.log(`${colors.bright}Pending Changes${colors.reset}`);
+      console.log('-'.repeat(80));
+      console.log(`  Episodes: ${colors.cyan}${pendingChanges.episodes.length}${colors.reset}`);
+      console.log(`  Skills: ${colors.cyan}${pendingChanges.skills.length}${colors.reset}`);
+      console.log(`  Edges: ${colors.cyan}${pendingChanges.edges.length}${colors.reset}`);
+      console.log(`  Total Size: ${colors.cyan}${(pendingChanges.totalSize / 1024).toFixed(2)} KB${colors.reset}`);
+      console.log('-'.repeat(80));
+
+      if (pendingChanges.totalItems === 0) {
+        log.info('\nNo changes to push. Database is up to date.');
+        return;
+      }
+
+      // Step 2: Establish connection if not already connected
+      spinner.start('Connecting to server...');
+
+      if (!this.quicClient) {
+        const clientConfig: QUICClientConfig = {
+          serverHost: host,
+          serverPort: port,
+          authToken: params.authToken,
+          maxRetries: 3,
+          retryDelayMs: 1000,
+          timeoutMs: 30000,
+          poolSize: 5,
+        };
+        this.quicClient = new QUICClient(clientConfig);
+        await this.quicClient.connect();
+      }
+      spinner.succeed('Connected to server');
+
+      // Step 3: Initialize sync coordinator if not exists
+      if (!this.syncCoordinator) {
+        this.syncCoordinator = new SyncCoordinator({
+          db: this.db,
+          client: this.quicClient,
+          batchSize: params.batchSize || 100,
+        });
+      }
+
+      // Step 4: Push changes with progress tracking
+      console.log('\n' + '-'.repeat(80));
+      console.log(`${colors.bright}Push Progress${colors.reset}`);
+      console.log('-'.repeat(80));
+
+      let pushedItems = 0;
+      const startTime = Date.now();
+
+      // Perform sync with progress callback
+      const syncReport = await this.syncCoordinator.sync((progress: SyncProgress) => {
+        if (progress.phase === 'pushing') {
+          pushedItems = progress.current;
+          progressBar.update(progress.current, progress.total, progress.itemType || 'items');
+        } else if (progress.phase === 'completed') {
+          progressBar.complete('Push completed');
+        } else if (progress.phase === 'error') {
+          console.log(`\n${colors.red}Error: ${progress.error}${colors.reset}`);
+        }
+      });
+
+      const duration = Date.now() - startTime;
+
+      console.log('\n' + '='.repeat(80));
+      console.log(`${colors.bright}Push Summary${colors.reset}`);
+      console.log('='.repeat(80));
+      console.log(`  Status: ${syncReport.success ? colors.green + 'Success' : colors.red + 'Failed'}${colors.reset}`);
+      console.log(`  Items Pushed: ${colors.cyan}${syncReport.itemsPushed}${colors.reset}`);
+      console.log(`  Bytes Transferred: ${colors.cyan}${(syncReport.bytesTransferred / 1024).toFixed(2)} KB${colors.reset}`);
+      console.log(`  Duration: ${colors.cyan}${duration}ms${colors.reset}`);
+      console.log(`  Throughput: ${colors.cyan}${((syncReport.bytesTransferred / 1024) / (duration / 1000)).toFixed(2)} KB/s${colors.reset}`);
+
+      if (syncReport.errors.length > 0) {
+        console.log(`  Errors: ${colors.red}${syncReport.errors.length}${colors.reset}`);
+        syncReport.errors.forEach((err, i) => {
+          console.log(`    ${i + 1}. ${err}`);
+        });
+      }
+      console.log('='.repeat(80));
+
+      if (syncReport.success) {
+        log.success('\nChanges pushed successfully');
+      } else {
+        log.error('\nPush completed with errors');
+      }
+    } catch (error) {
+      spinner.fail(`Push failed: ${(error as Error).message}`);
+      throw error;
+    }
+  }
+
+  // Helper to get detailed pending changes with actual data
+  private getPendingChangesDetailed(incremental?: boolean, filter?: string): {
+    episodes: any[];
+    skills: any[];
+    edges: any[];
+    totalItems: number;
+    totalSize: number;
+  } {
+    if (!this.db) {
+      return { episodes: [], skills: [], edges: [], totalItems: 0, totalSize: 0 };
     }
 
-    // Get pending changes
-    const changes = this.getPendingChanges(params.incremental, params.filter);
+    try {
+      // Get last sync time
+      let lastSyncTime = 0;
+      if (incremental) {
+        try {
+          const syncState = this.db.prepare('SELECT last_sync_at FROM sync_state WHERE id = 1').get();
+          if (syncState) {
+            lastSyncTime = syncState.last_sync_at || 0;
+          }
+        } catch {
+          // Table might not exist
+        }
+      }
 
-    console.log('\n' + '═'.repeat(80));
-    console.log(`${colors.bright}Pending Changes${colors.reset}`);
-    console.log('═'.repeat(80));
-    console.log(`  Episodes: ${changes.episodes}`);
-    console.log(`  Skills: ${changes.skills}`);
-    console.log(`  Causal Edges: ${changes.causalEdges}`);
-    console.log(`  Total Size: ${(changes.totalSize / 1024).toFixed(2)} KB`);
-    console.log('═'.repeat(80));
+      // Query episodes
+      let episodesQuery = 'SELECT * FROM episodes WHERE 1=1';
+      const episodeParams: any[] = [];
+      if (incremental && lastSyncTime > 0) {
+        episodesQuery += ' AND ts > ?';
+        episodeParams.push(lastSyncTime);
+      }
+      const episodes = this.db.prepare(episodesQuery).all(...episodeParams) || [];
 
-    // TODO: Implement QUIC push
-    log.success('Changes pushed successfully');
-    log.info(`Transferred: ${(changes.totalSize / 1024).toFixed(2)} KB`);
+      // Query skills
+      let skillsQuery = 'SELECT * FROM skills WHERE 1=1';
+      const skillParams: any[] = [];
+      if (incremental && lastSyncTime > 0) {
+        skillsQuery += ' AND ts > ?';
+        skillParams.push(lastSyncTime);
+      }
+      let skills: any[] = [];
+      try {
+        skills = this.db.prepare(skillsQuery).all(...skillParams) || [];
+      } catch {
+        // Skills table might not exist
+      }
+
+      // Query edges
+      let edgesQuery = 'SELECT * FROM skill_edges WHERE 1=1';
+      const edgeParams: any[] = [];
+      if (incremental && lastSyncTime > 0) {
+        edgesQuery += ' AND ts > ?';
+        edgeParams.push(lastSyncTime);
+      }
+      let edges: any[] = [];
+      try {
+        edges = this.db.prepare(edgesQuery).all(...edgeParams) || [];
+      } catch {
+        // Edges table might not exist
+      }
+
+      // Calculate total size
+      const totalSize =
+        JSON.stringify(episodes).length +
+        JSON.stringify(skills).length +
+        JSON.stringify(edges).length;
+
+      return {
+        episodes,
+        skills,
+        edges,
+        totalItems: episodes.length + skills.length + edges.length,
+        totalSize,
+      };
+    } catch (error) {
+      log.warning(`Error analyzing changes: ${(error as Error).message}`);
+      return { episodes: [], skills: [], edges: [], totalItems: 0, totalSize: 0 };
+    }
   }
 
   async quicPull(params: {
     server: string;
     incremental?: boolean;
     filter?: string;
+    authToken?: string;
+    batchSize?: number;
+    conflictStrategy?: 'local-wins' | 'remote-wins' | 'latest-wins';
   }): Promise<void> {
     if (!this.db) throw new Error('Not initialized');
 
-    log.header('\n⬇️  Pulling Changes from Remote');
+    log.header('\n[QUIC] Pulling Changes from Remote');
 
-    log.info(`Server: ${params.server}`);
-    log.info(`Mode: ${params.incremental ? 'Incremental' : 'Full'}`);
+    const spinner = new Spinner();
+    const progressBar = new ProgressBar();
 
+    // Parse server address
+    const [host, portStr] = params.server.split(':');
+    const port = parseInt(portStr) || 4433;
+
+    console.log('\n' + '='.repeat(80));
+    console.log(`${colors.bright}Pull Configuration${colors.reset}`);
+    console.log('='.repeat(80));
+    console.log(`  Server: ${colors.cyan}${host}:${port}${colors.reset}`);
+    console.log(`  Mode: ${colors.cyan}${params.incremental ? 'Incremental' : 'Full Sync'}${colors.reset}`);
+    console.log(`  Conflict Strategy: ${colors.cyan}${params.conflictStrategy || 'latest-wins'}${colors.reset}`);
+    console.log(`  Batch Size: ${colors.cyan}${params.batchSize || 100}${colors.reset}`);
     if (params.filter) {
-      log.info(`Filter: ${params.filter}`);
+      console.log(`  Filter: ${colors.cyan}${params.filter}${colors.reset}`);
+    }
+    console.log('='.repeat(80));
+
+    try {
+      // Step 1: Establish connection if not already connected
+      spinner.start('Connecting to server...');
+
+      if (!this.quicClient) {
+        const clientConfig: QUICClientConfig = {
+          serverHost: host,
+          serverPort: port,
+          authToken: params.authToken,
+          maxRetries: 3,
+          retryDelayMs: 1000,
+          timeoutMs: 30000,
+          poolSize: 5,
+        };
+        this.quicClient = new QUICClient(clientConfig);
+        await this.quicClient.connect();
+      }
+      spinner.succeed('Connected to server');
+
+      // Step 2: Initialize sync coordinator if not exists
+      if (!this.syncCoordinator) {
+        this.syncCoordinator = new SyncCoordinator({
+          db: this.db,
+          client: this.quicClient,
+          batchSize: params.batchSize || 100,
+          conflictStrategy: params.conflictStrategy || 'latest-wins',
+        });
+      }
+
+      // Step 3: Pull changes with progress tracking
+      console.log('\n' + '-'.repeat(80));
+      console.log(`${colors.bright}Pull Progress${colors.reset}`);
+      console.log('-'.repeat(80));
+
+      const startTime = Date.now();
+      let currentPhase = '';
+      let episodesReceived = 0;
+      let skillsReceived = 0;
+      let edgesReceived = 0;
+
+      // Perform sync with progress callback
+      const syncReport = await this.syncCoordinator.sync((progress: SyncProgress) => {
+        if (progress.phase === 'pulling') {
+          currentPhase = progress.itemType || 'items';
+          progressBar.update(progress.current, progress.total, `Pulling ${currentPhase}...`);
+
+          // Track received items
+          if (progress.itemType === 'episodes') episodesReceived = progress.current;
+          if (progress.itemType === 'skills') skillsReceived = progress.current;
+          if (progress.itemType === 'edges') edgesReceived = progress.current;
+        } else if (progress.phase === 'resolving') {
+          progressBar.update(progress.current, progress.total, 'Resolving conflicts...');
+        } else if (progress.phase === 'applying') {
+          progressBar.update(progress.current, progress.total, 'Applying changes...');
+        } else if (progress.phase === 'completed') {
+          progressBar.complete('Pull completed');
+        } else if (progress.phase === 'error') {
+          console.log(`\n${colors.red}Error: ${progress.error}${colors.reset}`);
+        }
+      });
+
+      const duration = Date.now() - startTime;
+
+      console.log('\n' + '='.repeat(80));
+      console.log(`${colors.bright}Pull Summary${colors.reset}`);
+      console.log('='.repeat(80));
+      console.log(`  Status: ${syncReport.success ? colors.green + 'Success' : colors.red + 'Failed'}${colors.reset}`);
+      console.log(`  Items Pulled: ${colors.cyan}${syncReport.itemsPulled}${colors.reset}`);
+      console.log(`  Conflicts Resolved: ${colors.cyan}${syncReport.conflictsResolved}${colors.reset}`);
+      console.log(`  Bytes Transferred: ${colors.cyan}${(syncReport.bytesTransferred / 1024).toFixed(2)} KB${colors.reset}`);
+      console.log(`  Duration: ${colors.cyan}${duration}ms${colors.reset}`);
+      console.log(`  Throughput: ${colors.cyan}${((syncReport.bytesTransferred / 1024) / (duration / 1000)).toFixed(2)} KB/s${colors.reset}`);
+
+      console.log('\n' + '-'.repeat(80));
+      console.log(`${colors.bright}Received Data${colors.reset}`);
+      console.log('-'.repeat(80));
+      console.log(`  Episodes: ${colors.cyan}${episodesReceived}${colors.reset}`);
+      console.log(`  Skills: ${colors.cyan}${skillsReceived}${colors.reset}`);
+      console.log(`  Edges: ${colors.cyan}${edgesReceived}${colors.reset}`);
+      console.log('-'.repeat(80));
+
+      if (syncReport.errors.length > 0) {
+        console.log(`\n${colors.bright}Errors${colors.reset}`);
+        console.log('-'.repeat(80));
+        syncReport.errors.forEach((err, i) => {
+          console.log(`  ${colors.red}${i + 1}. ${err}${colors.reset}`);
+        });
+        console.log('-'.repeat(80));
+      }
+      console.log('='.repeat(80));
+
+      if (syncReport.success) {
+        log.success('\nChanges pulled and merged successfully');
+      } else {
+        log.error('\nPull completed with errors');
+      }
+
+      // Display local database status after pull
+      spinner.start('Verifying local database...');
+      const localStatus = this.getLocalDatabaseStatus();
+      spinner.succeed('Local database verified');
+
+      console.log('\n' + '-'.repeat(80));
+      console.log(`${colors.bright}Local Database Status${colors.reset}`);
+      console.log('-'.repeat(80));
+      console.log(`  Total Episodes: ${colors.cyan}${localStatus.episodes}${colors.reset}`);
+      console.log(`  Total Skills: ${colors.cyan}${localStatus.skills}${colors.reset}`);
+      console.log(`  Total Edges: ${colors.cyan}${localStatus.edges}${colors.reset}`);
+      console.log('-'.repeat(80));
+    } catch (error) {
+      spinner.fail(`Pull failed: ${(error as Error).message}`);
+      throw error;
+    }
+  }
+
+  // Helper to get local database status
+  private getLocalDatabaseStatus(): {
+    episodes: number;
+    skills: number;
+    edges: number;
+  } {
+    if (!this.db) {
+      return { episodes: 0, skills: 0, edges: 0 };
     }
 
-    // TODO: Implement QUIC pull
-    const changes = {
-      episodes: 5,
-      skills: 2,
-      causalEdges: 3,
-      totalSize: 12800
-    };
+    let episodes = 0;
+    let skills = 0;
+    let edges = 0;
 
-    console.log('\n' + '═'.repeat(80));
-    console.log(`${colors.bright}Received Changes${colors.reset}`);
-    console.log('═'.repeat(80));
-    console.log(`  Episodes: ${changes.episodes}`);
-    console.log(`  Skills: ${changes.skills}`);
-    console.log(`  Causal Edges: ${changes.causalEdges}`);
-    console.log(`  Total Size: ${(changes.totalSize / 1024).toFixed(2)} KB`);
-    console.log('═'.repeat(80));
+    try {
+      const episodeCount = this.db.prepare('SELECT COUNT(*) as count FROM episodes').get();
+      episodes = episodeCount?.count || 0;
+    } catch {
+      // Table might not exist
+    }
 
-    log.success('Changes pulled and merged successfully');
-    log.info(`Downloaded: ${(changes.totalSize / 1024).toFixed(2)} KB`);
+    try {
+      const skillCount = this.db.prepare('SELECT COUNT(*) as count FROM skills').get();
+      skills = skillCount?.count || 0;
+    } catch {
+      // Table might not exist
+    }
+
+    try {
+      const edgeCount = this.db.prepare('SELECT COUNT(*) as count FROM skill_edges').get();
+      edges = edgeCount?.count || 0;
+    } catch {
+      // Table might not exist
+    }
+
+    return { episodes, skills, edges };
   }
 
   async quicStatus(): Promise<void> {
     if (!this.db) throw new Error('Not initialized');
 
-    log.header('\n📊 QUIC Sync Status');
+    log.header('\n[QUIC] Sync Status');
 
-    // Get sync metadata
-    const syncMeta = this.getSyncMetadata();
+    const spinner = new Spinner();
 
-    console.log('\n' + '═'.repeat(80));
-    console.log(`${colors.bright}Sync Status${colors.reset}`);
-    console.log('═'.repeat(80));
+    spinner.start('Loading sync status...');
 
-    if (syncMeta.lastSyncTime) {
-      const lastSync = new Date(syncMeta.lastSyncTime * 1000);
+    // Get sync metadata from database
+    const syncMeta = this.getSyncMetadataFromDb();
+
+    // Get pending changes
+    const pendingChanges = this.getPendingChangesDetailed(true);
+
+    spinner.succeed('Status loaded');
+
+    console.log('\n' + '='.repeat(80));
+    console.log(`${colors.bright}Sync Overview${colors.reset}`);
+    console.log('='.repeat(80));
+
+    // Last sync information
+    if (syncMeta.lastSyncAt > 0) {
+      const lastSync = new Date(syncMeta.lastSyncAt);
       console.log(`  Last Sync: ${colors.cyan}${lastSync.toLocaleString()}${colors.reset}`);
-      console.log(`  Time Ago: ${this.timeAgo(syncMeta.lastSyncTime)}`);
+      console.log(`  Time Ago: ${colors.cyan}${this.timeAgo(Math.floor(syncMeta.lastSyncAt / 1000))}${colors.reset}`);
     } else {
       console.log(`  Last Sync: ${colors.yellow}Never${colors.reset}`);
     }
 
-    console.log('\n' + '─'.repeat(80));
-    console.log(`${colors.bright}Pending Changes${colors.reset}`);
-    console.log('─'.repeat(80));
-    console.log(`  Episodes: ${colors.green}${syncMeta.pendingEpisodes}${colors.reset}`);
-    console.log(`  Skills: ${colors.green}${syncMeta.pendingSkills}${colors.reset}`);
-    console.log(`  Causal Edges: ${colors.green}${syncMeta.pendingCausalEdges}${colors.reset}`);
+    console.log(`  Total Syncs: ${colors.cyan}${syncMeta.syncCount}${colors.reset}`);
+    console.log(`  Total Items Synced: ${colors.cyan}${syncMeta.totalItemsSynced}${colors.reset}`);
+    console.log(`  Total Data Synced: ${colors.cyan}${(syncMeta.totalBytesSynced / 1024).toFixed(2)} KB${colors.reset}`);
 
-    console.log('\n' + '─'.repeat(80));
-    console.log(`${colors.bright}Connected Servers${colors.reset}`);
-    console.log('─'.repeat(80));
-
-    if (syncMeta.servers.length === 0) {
-      console.log(`  ${colors.yellow}No servers connected${colors.reset}`);
-    } else {
-      syncMeta.servers.forEach((server: any) => {
-        console.log(`  ${colors.cyan}${server.host}:${server.port}${colors.reset}`);
-        console.log(`    Status: ${server.connected ? colors.green + 'Connected' : colors.red + 'Disconnected'}${colors.reset}`);
-        console.log(`    Last Seen: ${new Date(server.lastSeen * 1000).toLocaleString()}`);
-      });
+    if (syncMeta.lastError) {
+      console.log(`  Last Error: ${colors.red}${syncMeta.lastError}${colors.reset}`);
     }
 
-    console.log('═'.repeat(80));
+    console.log('\n' + '-'.repeat(80));
+    console.log(`${colors.bright}Pending Changes (Unsynced)${colors.reset}`);
+    console.log('-'.repeat(80));
+    console.log(`  Episodes: ${colors.cyan}${pendingChanges.episodes.length}${colors.reset}`);
+    console.log(`  Skills: ${colors.cyan}${pendingChanges.skills.length}${colors.reset}`);
+    console.log(`  Edges: ${colors.cyan}${pendingChanges.edges.length}${colors.reset}`);
+    console.log(`  Total Size: ${colors.cyan}${(pendingChanges.totalSize / 1024).toFixed(2)} KB${colors.reset}`);
+
+    console.log('\n' + '-'.repeat(80));
+    console.log(`${colors.bright}Local Database${colors.reset}`);
+    console.log('-'.repeat(80));
+    const localStatus = this.getLocalDatabaseStatus();
+    console.log(`  Episodes: ${colors.cyan}${localStatus.episodes}${colors.reset}`);
+    console.log(`  Skills: ${colors.cyan}${localStatus.skills}${colors.reset}`);
+    console.log(`  Edges: ${colors.cyan}${localStatus.edges}${colors.reset}`);
+
+    console.log('\n' + '-'.repeat(80));
+    console.log(`${colors.bright}Controller Status${colors.reset}`);
+    console.log('-'.repeat(80));
+
+    // Server status
+    if (this.quicServer) {
+      const serverStatus = this.quicServer.getStatus();
+      console.log(`  QUIC Server: ${serverStatus.isRunning ? colors.green + 'Running' : colors.yellow + 'Stopped'}${colors.reset}`);
+      if (serverStatus.isRunning) {
+        console.log(`    Active Connections: ${colors.cyan}${serverStatus.activeConnections}${colors.reset}`);
+        console.log(`    Total Requests: ${colors.cyan}${serverStatus.totalRequests}${colors.reset}`);
+      }
+    } else {
+      console.log(`  QUIC Server: ${colors.yellow}Not initialized${colors.reset}`);
+    }
+
+    // Client status
+    if (this.quicClient) {
+      const clientStatus = this.quicClient.getStatus();
+      console.log(`  QUIC Client: ${clientStatus.isConnected ? colors.green + 'Connected' : colors.yellow + 'Disconnected'}${colors.reset}`);
+      if (clientStatus.isConnected) {
+        console.log(`    Server: ${colors.cyan}${clientStatus.config.serverHost}:${clientStatus.config.serverPort}${colors.reset}`);
+        console.log(`    Pool Size: ${colors.cyan}${clientStatus.poolSize}${colors.reset}`);
+        console.log(`    Total Requests: ${colors.cyan}${clientStatus.totalRequests}${colors.reset}`);
+      }
+    } else {
+      console.log(`  QUIC Client: ${colors.yellow}Not initialized${colors.reset}`);
+    }
+
+    // Sync coordinator status
+    if (this.syncCoordinator) {
+      const coordStatus = this.syncCoordinator.getStatus();
+      console.log(`  Sync Coordinator: ${colors.green}Ready${colors.reset}`);
+      console.log(`    Auto-Sync: ${coordStatus.autoSyncEnabled ? colors.green + 'Enabled' : colors.yellow + 'Disabled'}${colors.reset}`);
+      console.log(`    Currently Syncing: ${coordStatus.isSyncing ? colors.yellow + 'Yes' : colors.cyan + 'No'}${colors.reset}`);
+    } else {
+      console.log(`  Sync Coordinator: ${colors.yellow}Not initialized${colors.reset}`);
+    }
+
+    console.log('='.repeat(80));
+
+    // Recommendations
+    if (pendingChanges.totalItems > 0) {
+      log.info(`\nTip: You have ${pendingChanges.totalItems} unsynced items. Use "agentdb sync push" to sync them.`);
+    }
+
+    if (!this.quicClient && !this.quicServer) {
+      log.info('\nTo start syncing:');
+      log.info('  - Start a server: agentdb sync start-server --port 4433');
+      log.info('  - Or connect to one: agentdb sync connect <host> <port>');
+    }
+  }
+
+  // Get sync metadata from database
+  private getSyncMetadataFromDb(): {
+    lastSyncAt: number;
+    lastEpisodeSync: number;
+    lastSkillSync: number;
+    lastEdgeSync: number;
+    totalItemsSynced: number;
+    totalBytesSynced: number;
+    syncCount: number;
+    lastError?: string;
+  } {
+    if (!this.db) {
+      return {
+        lastSyncAt: 0,
+        lastEpisodeSync: 0,
+        lastSkillSync: 0,
+        lastEdgeSync: 0,
+        totalItemsSynced: 0,
+        totalBytesSynced: 0,
+        syncCount: 0,
+      };
+    }
+
+    try {
+      const row = this.db
+        .prepare('SELECT * FROM sync_state WHERE id = 1')
+        .get();
+
+      if (row) {
+        return {
+          lastSyncAt: row.last_sync_at || 0,
+          lastEpisodeSync: row.last_episode_sync || 0,
+          lastSkillSync: row.last_skill_sync || 0,
+          lastEdgeSync: row.last_edge_sync || 0,
+          totalItemsSynced: row.total_items_synced || 0,
+          totalBytesSynced: row.total_bytes_synced || 0,
+          syncCount: row.sync_count || 0,
+          lastError: row.last_error || undefined,
+        };
+      }
+    } catch {
+      // Table might not exist
+    }
+
+    return {
+      lastSyncAt: 0,
+      lastEpisodeSync: 0,
+      lastSkillSync: 0,
+      lastEdgeSync: 0,
+      totalItemsSynced: 0,
+      totalBytesSynced: 0,
+      syncCount: 0,
+    };
   }
 
   private generateAuthToken(): string {
@@ -1664,6 +2340,7 @@ async function handleSyncCommands(cli: AgentDBCLI, subcommand: string, args: str
     let cert: string | undefined;
     let key: string | undefined;
     let authToken: string | undefined;
+    let maxConnections: number | undefined;
 
     for (let i = 0; i < args.length; i++) {
       if (args[i] === '--port' && i + 1 < args.length) {
@@ -1674,10 +2351,12 @@ async function handleSyncCommands(cli: AgentDBCLI, subcommand: string, args: str
         key = args[++i];
       } else if (args[i] === '--auth-token' && i + 1 < args.length) {
         authToken = args[++i];
+      } else if (args[i] === '--max-connections' && i + 1 < args.length) {
+        maxConnections = parseInt(args[++i]);
       }
     }
 
-    await cli.quicStartServer({ port, cert, key, authToken });
+    await cli.quicStartServer({ port, cert, key, authToken, maxConnections });
   } else if (subcommand === 'connect') {
     // Parse host and port
     const host = args[0];
@@ -1685,27 +2364,32 @@ async function handleSyncCommands(cli: AgentDBCLI, subcommand: string, args: str
 
     if (!host || !port) {
       log.error('Missing required arguments: host and port');
-      log.info('Usage: agentdb sync connect <host> <port> [--auth-token <token>] [--cert <path>]');
+      log.info('Usage: agentdb sync connect <host> <port> [--auth-token <token>] [--cert <path>] [--timeout <ms>]');
       process.exit(1);
     }
 
     let authToken: string | undefined;
     let cert: string | undefined;
+    let timeout: number | undefined;
 
     for (let i = 2; i < args.length; i++) {
       if (args[i] === '--auth-token' && i + 1 < args.length) {
         authToken = args[++i];
       } else if (args[i] === '--cert' && i + 1 < args.length) {
         cert = args[++i];
+      } else if (args[i] === '--timeout' && i + 1 < args.length) {
+        timeout = parseInt(args[++i]);
       }
     }
 
-    await cli.quicConnect({ host, port, authToken, cert });
+    await cli.quicConnect({ host, port, authToken, cert, timeout });
   } else if (subcommand === 'push') {
     // Parse options
     let server: string | undefined;
     let incremental = false;
     let filter: string | undefined;
+    let authToken: string | undefined;
+    let batchSize: number | undefined;
 
     for (let i = 0; i < args.length; i++) {
       if (args[i] === '--server' && i + 1 < args.length) {
@@ -1714,6 +2398,10 @@ async function handleSyncCommands(cli: AgentDBCLI, subcommand: string, args: str
         incremental = true;
       } else if (args[i] === '--filter' && i + 1 < args.length) {
         filter = args[++i];
+      } else if (args[i] === '--auth-token' && i + 1 < args.length) {
+        authToken = args[++i];
+      } else if (args[i] === '--batch-size' && i + 1 < args.length) {
+        batchSize = parseInt(args[++i]);
       } else if (!args[i].startsWith('--') && !server) {
         server = args[i];
       }
@@ -1721,16 +2409,19 @@ async function handleSyncCommands(cli: AgentDBCLI, subcommand: string, args: str
 
     if (!server) {
       log.error('Missing required --server parameter');
-      log.info('Usage: agentdb sync push --server <host:port> [--incremental] [--filter <pattern>]');
+      log.info('Usage: agentdb sync push --server <host:port> [--incremental] [--filter <pattern>] [--auth-token <token>] [--batch-size <n>]');
       process.exit(1);
     }
 
-    await cli.quicPush({ server, incremental, filter });
+    await cli.quicPush({ server, incremental, filter, authToken, batchSize });
   } else if (subcommand === 'pull') {
     // Parse options
     let server: string | undefined;
     let incremental = false;
     let filter: string | undefined;
+    let authToken: string | undefined;
+    let batchSize: number | undefined;
+    let conflictStrategy: 'local-wins' | 'remote-wins' | 'latest-wins' | undefined;
 
     for (let i = 0; i < args.length; i++) {
       if (args[i] === '--server' && i + 1 < args.length) {
@@ -1739,6 +2430,17 @@ async function handleSyncCommands(cli: AgentDBCLI, subcommand: string, args: str
         incremental = true;
       } else if (args[i] === '--filter' && i + 1 < args.length) {
         filter = args[++i];
+      } else if (args[i] === '--auth-token' && i + 1 < args.length) {
+        authToken = args[++i];
+      } else if (args[i] === '--batch-size' && i + 1 < args.length) {
+        batchSize = parseInt(args[++i]);
+      } else if (args[i] === '--conflict-strategy' && i + 1 < args.length) {
+        const strategy = args[++i];
+        if (strategy === 'local-wins' || strategy === 'remote-wins' || strategy === 'latest-wins') {
+          conflictStrategy = strategy;
+        } else {
+          log.warning(`Unknown conflict strategy: ${strategy}. Using default: latest-wins`);
+        }
       } else if (!args[i].startsWith('--') && !server) {
         server = args[i];
       }
@@ -1746,16 +2448,23 @@ async function handleSyncCommands(cli: AgentDBCLI, subcommand: string, args: str
 
     if (!server) {
       log.error('Missing required --server parameter');
-      log.info('Usage: agentdb sync pull --server <host:port> [--incremental] [--filter <pattern>]');
+      log.info('Usage: agentdb sync pull --server <host:port> [--incremental] [--filter <pattern>] [--auth-token <token>] [--batch-size <n>] [--conflict-strategy <local-wins|remote-wins|latest-wins>]');
       process.exit(1);
     }
 
-    await cli.quicPull({ server, incremental, filter });
+    await cli.quicPull({ server, incremental, filter, authToken, batchSize, conflictStrategy });
   } else if (subcommand === 'status') {
     await cli.quicStatus();
   } else {
     log.error(`Unknown sync subcommand: ${subcommand}`);
     log.info('Available subcommands: start-server, connect, push, pull, status');
+    log.info('');
+    log.info('Examples:');
+    log.info('  agentdb sync start-server --port 4433 --auth-token secret123');
+    log.info('  agentdb sync connect localhost 4433 --auth-token secret123');
+    log.info('  agentdb sync push --server localhost:4433 --incremental');
+    log.info('  agentdb sync pull --server localhost:4433 --conflict-strategy latest-wins');
+    log.info('  agentdb sync status');
     printHelp();
   }
 }

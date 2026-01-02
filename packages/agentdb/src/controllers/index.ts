@@ -18,6 +18,14 @@ export { QUICClient } from './QUICClient.js';
 export { SyncCoordinator } from './SyncCoordinator.js';
 export { AttentionService } from './AttentionService.js';
 
+// Memory Controller with Attention Integration
+export { MemoryController } from './MemoryController.js';
+
+// Attention Controllers
+export { SelfAttentionController } from './attention/SelfAttentionController.js';
+export { CrossAttentionController } from './attention/CrossAttentionController.js';
+export { MultiHeadAttentionController } from './attention/MultiHeadAttentionController.js';
+
 export type { Episode, EpisodeWithEmbedding, ReflexionQuery } from './ReflexionMemory.js';
 export type { Skill, SkillLink, SkillQuery } from './SkillLibrary.js';
 export type { EmbeddingConfig } from './EmbeddingService.js';
@@ -31,3 +39,34 @@ export type { QUICServerConfig, SyncRequest, SyncResponse } from './QUICServer.j
 export type { QUICClientConfig, SyncOptions, SyncResult, SyncProgress } from './QUICClient.js';
 export type { SyncCoordinatorConfig, SyncState, SyncReport } from './SyncCoordinator.js';
 export type { AttentionConfig, AttentionResult, AttentionStats } from './AttentionService.js';
+
+// MemoryController types
+export type {
+  MemoryControllerConfig,
+  Memory,
+  SearchOptions,
+  SearchResult,
+  AttentionRetrievalResult
+} from './MemoryController.js';
+
+// Attention Controller types
+export type {
+  SelfAttentionConfig,
+  AttentionScore,
+  SelfAttentionResult,
+  SelfAttentionMemoryEntry
+} from './attention/index.js';
+
+export type {
+  CrossAttentionConfig,
+  CrossAttentionScore,
+  CrossAttentionResult,
+  ContextEntry
+} from './attention/index.js';
+
+export type {
+  MultiHeadAttentionConfig,
+  HeadAttentionOutput,
+  MultiHeadAttentionResult,
+  MultiHeadMemoryEntry
+} from './attention/index.js';

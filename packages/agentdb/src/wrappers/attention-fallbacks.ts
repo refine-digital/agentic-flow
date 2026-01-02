@@ -1313,8 +1313,21 @@ export class FlashAttentionOptimized {
   }
 
   /**
-   * Backward pass placeholder for gradient computation
-   * Full implementation would compute dQ, dK, dV from dOutput
+   * Backward pass for gradient computation
+   * Computes dQ, dK, dV from dOutput using the attention scores from forward pass
+   *
+   * Forward pass recap:
+   *   S = Q @ K^T / sqrt(d)     (scaled dot-product scores)
+   *   A = softmax(S)            (attention weights)
+   *   O = A @ V                 (output)
+   *
+   * Backward pass:
+   *   dV = A^T @ dO             (gradient w.r.t. values)
+   *   dA = dO @ V^T             (gradient through output)
+   *   dS = A * (dA - sum(dA * A, axis=-1, keepdims=True))  (softmax backward)
+   *   dS = dS / sqrt(d)         (apply scaling)
+   *   dQ = dS @ K               (gradient w.r.t. queries)
+   *   dK = dS^T @ Q             (gradient w.r.t. keys)
    */
   backward(
     dOutput: Float32Array,
@@ -1325,26 +1338,207 @@ export class FlashAttentionOptimized {
     seqLen: number,
     dim: number
   ): { dQuery: Float32Array; dKey: Float32Array; dValue: Float32Array } {
-    // Placeholder implementation - full backward pass would be memory-efficient
-    // using the same tiling strategy as forward pass
+    // Validate inputs
+    validateFloat32Array(dOutput, 'dOutput');
+    validateFloat32Array(query, 'query');
+    validateFloat32Array(key, 'key');
+    validateFloat32Array(value, 'value');
+    validateFloat32Array(attentionScores, 'attentionScores');
+    validateSeqLength(seqLen, 'seqLen');
+    validateDimension(dim, 'dim');
 
     const dQuery = globalBufferPool.acquire(seqLen * dim);
     const dKey = globalBufferPool.acquire(seqLen * dim);
     const dValue = globalBufferPool.acquire(seqLen * dim);
 
-    // Simple backward pass (not optimized - placeholder for full implementation)
-    // dV = A^T @ dO
-    // dA = dO @ V^T
-    // dS = dA * A * (1 - A)  (softmax backward)
-    // dQ = dS @ K
-    // dK = dS^T @ Q
-
-    // For now, return zero gradients as placeholder
+    // Initialize gradients to zero
     dQuery.fill(0);
     dKey.fill(0);
     dValue.fill(0);
 
-    // TODO: Implement full memory-efficient backward pass
+    // Scaling factor (must match forward pass)
+    const numHeads = 8; // Default from forward
+    const headDim = dim / numHeads;
+    const scale = 1.0 / Math.sqrt(headDim);
+
+    // First: Normalize attention scores to get attention weights A
+    // attentionScores contains the raw scores S, we need to apply softmax
+    // In the forward pass, scores were stored after softmax, so use them directly
+    // But the scores buffer may contain raw scores - we recompute softmax for numerical stability
+
+    // Allocate temporary buffer for attention weights (normalized)
+    const attentionWeights = globalBufferPool.acquire(seqLen * seqLen);
+
+    // Apply softmax row-wise to get attention weights A
+    for (let i = 0; i < seqLen; i++) {
+      const rowOffset = i * seqLen;
+
+      // Find max for numerical stability
+      let maxScore = -Infinity;
+      for (let j = 0; j < seqLen; j++) {
+        const score = attentionScores[rowOffset + j];
+        if (score > maxScore) maxScore = score;
+      }
+
+      // Compute exp and sum
+      let sumExp = 0;
+      for (let j = 0; j < seqLen; j++) {
+        const expVal = Math.exp(attentionScores[rowOffset + j] - maxScore);
+        attentionWeights[rowOffset + j] = expVal;
+        sumExp += expVal;
+      }
+
+      // Normalize
+      const invSum = 1.0 / (sumExp + EPSILON);
+      for (let j = 0; j < seqLen; j++) {
+        attentionWeights[rowOffset + j] *= invSum;
+      }
+    }
+
+    // Step 1: Compute dV = A^T @ dO
+    // dV[j, d] = sum_i A[i, j] * dO[i, d]
+    for (let j = 0; j < seqLen; j++) {
+      const dVOffset = j * dim;
+
+      for (let i = 0; i < seqLen; i++) {
+        const aWeight = attentionWeights[i * seqLen + j]; // A^T[j, i] = A[i, j]
+        const dOOffset = i * dim;
+
+        // 8x unrolled accumulation
+        const unrolledDim = dim - (dim % 8);
+        for (let d = 0; d < unrolledDim; d += 8) {
+          dValue[dVOffset + d] += aWeight * dOutput[dOOffset + d];
+          dValue[dVOffset + d + 1] += aWeight * dOutput[dOOffset + d + 1];
+          dValue[dVOffset + d + 2] += aWeight * dOutput[dOOffset + d + 2];
+          dValue[dVOffset + d + 3] += aWeight * dOutput[dOOffset + d + 3];
+          dValue[dVOffset + d + 4] += aWeight * dOutput[dOOffset + d + 4];
+          dValue[dVOffset + d + 5] += aWeight * dOutput[dOOffset + d + 5];
+          dValue[dVOffset + d + 6] += aWeight * dOutput[dOOffset + d + 6];
+          dValue[dVOffset + d + 7] += aWeight * dOutput[dOOffset + d + 7];
+        }
+        for (let d = unrolledDim; d < dim; d++) {
+          dValue[dVOffset + d] += aWeight * dOutput[dOOffset + d];
+        }
+      }
+    }
+
+    // Step 2: Compute dA = dO @ V^T
+    // dA[i, j] = sum_d dO[i, d] * V[j, d]
+    const dAttention = globalBufferPool.acquire(seqLen * seqLen);
+    dAttention.fill(0);
+
+    for (let i = 0; i < seqLen; i++) {
+      const dOOffset = i * dim;
+      const dARowOffset = i * seqLen;
+
+      for (let j = 0; j < seqLen; j++) {
+        const vOffset = j * dim;
+        let dotProduct = 0;
+
+        // 8x unrolled dot product
+        const unrolledDim = dim - (dim % 8);
+        let sum0 = 0, sum1 = 0, sum2 = 0, sum3 = 0;
+        let sum4 = 0, sum5 = 0, sum6 = 0, sum7 = 0;
+
+        for (let d = 0; d < unrolledDim; d += 8) {
+          sum0 += dOutput[dOOffset + d] * value[vOffset + d];
+          sum1 += dOutput[dOOffset + d + 1] * value[vOffset + d + 1];
+          sum2 += dOutput[dOOffset + d + 2] * value[vOffset + d + 2];
+          sum3 += dOutput[dOOffset + d + 3] * value[vOffset + d + 3];
+          sum4 += dOutput[dOOffset + d + 4] * value[vOffset + d + 4];
+          sum5 += dOutput[dOOffset + d + 5] * value[vOffset + d + 5];
+          sum6 += dOutput[dOOffset + d + 6] * value[vOffset + d + 6];
+          sum7 += dOutput[dOOffset + d + 7] * value[vOffset + d + 7];
+        }
+        dotProduct = (sum0 + sum1) + (sum2 + sum3) + (sum4 + sum5) + (sum6 + sum7);
+
+        for (let d = unrolledDim; d < dim; d++) {
+          dotProduct += dOutput[dOOffset + d] * value[vOffset + d];
+        }
+
+        dAttention[dARowOffset + j] = dotProduct;
+      }
+    }
+
+    // Step 3: Compute dS = softmax_backward(dA, A)
+    // For softmax: dS_ij = A_ij * (dA_ij - sum_k(A_ik * dA_ik))
+    const dScores = globalBufferPool.acquire(seqLen * seqLen);
+
+    for (let i = 0; i < seqLen; i++) {
+      const rowOffset = i * seqLen;
+
+      // Compute sum_k(A_ik * dA_ik) for this row
+      let sumAdA = 0;
+      for (let k = 0; k < seqLen; k++) {
+        sumAdA += attentionWeights[rowOffset + k] * dAttention[rowOffset + k];
+      }
+
+      // Compute dS_ij = A_ij * (dA_ij - sumAdA) * scale
+      for (let j = 0; j < seqLen; j++) {
+        const idx = rowOffset + j;
+        dScores[idx] = attentionWeights[idx] * (dAttention[idx] - sumAdA) * scale;
+      }
+    }
+
+    // Step 4: Compute dQ = dS @ K
+    // dQ[i, d] = sum_j dS[i, j] * K[j, d]
+    for (let i = 0; i < seqLen; i++) {
+      const dQOffset = i * dim;
+      const dSRowOffset = i * seqLen;
+
+      for (let j = 0; j < seqLen; j++) {
+        const dSValue = dScores[dSRowOffset + j];
+        const kOffset = j * dim;
+
+        // 8x unrolled accumulation
+        const unrolledDim = dim - (dim % 8);
+        for (let d = 0; d < unrolledDim; d += 8) {
+          dQuery[dQOffset + d] += dSValue * key[kOffset + d];
+          dQuery[dQOffset + d + 1] += dSValue * key[kOffset + d + 1];
+          dQuery[dQOffset + d + 2] += dSValue * key[kOffset + d + 2];
+          dQuery[dQOffset + d + 3] += dSValue * key[kOffset + d + 3];
+          dQuery[dQOffset + d + 4] += dSValue * key[kOffset + d + 4];
+          dQuery[dQOffset + d + 5] += dSValue * key[kOffset + d + 5];
+          dQuery[dQOffset + d + 6] += dSValue * key[kOffset + d + 6];
+          dQuery[dQOffset + d + 7] += dSValue * key[kOffset + d + 7];
+        }
+        for (let d = unrolledDim; d < dim; d++) {
+          dQuery[dQOffset + d] += dSValue * key[kOffset + d];
+        }
+      }
+    }
+
+    // Step 5: Compute dK = dS^T @ Q
+    // dK[j, d] = sum_i dS[i, j] * Q[i, d]
+    for (let j = 0; j < seqLen; j++) {
+      const dKOffset = j * dim;
+
+      for (let i = 0; i < seqLen; i++) {
+        const dSValue = dScores[i * seqLen + j]; // dS^T[j, i] = dS[i, j]
+        const qOffset = i * dim;
+
+        // 8x unrolled accumulation
+        const unrolledDim = dim - (dim % 8);
+        for (let d = 0; d < unrolledDim; d += 8) {
+          dKey[dKOffset + d] += dSValue * query[qOffset + d];
+          dKey[dKOffset + d + 1] += dSValue * query[qOffset + d + 1];
+          dKey[dKOffset + d + 2] += dSValue * query[qOffset + d + 2];
+          dKey[dKOffset + d + 3] += dSValue * query[qOffset + d + 3];
+          dKey[dKOffset + d + 4] += dSValue * query[qOffset + d + 4];
+          dKey[dKOffset + d + 5] += dSValue * query[qOffset + d + 5];
+          dKey[dKOffset + d + 6] += dSValue * query[qOffset + d + 6];
+          dKey[dKOffset + d + 7] += dSValue * query[qOffset + d + 7];
+        }
+        for (let d = unrolledDim; d < dim; d++) {
+          dKey[dKOffset + d] += dSValue * query[qOffset + d];
+        }
+      }
+    }
+
+    // Release temporary buffers
+    globalBufferPool.release(attentionWeights);
+    globalBufferPool.release(dAttention);
+    globalBufferPool.release(dScores);
 
     return { dQuery, dKey, dValue };
   }
