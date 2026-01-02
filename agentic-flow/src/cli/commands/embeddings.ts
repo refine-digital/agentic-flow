@@ -6,6 +6,7 @@
  * - download: Download specific model
  * - list: List available models
  * - benchmark: Run embedding benchmarks
+ * - neural: Neural Embedding Substrate commands
  */
 
 import {
@@ -13,7 +14,8 @@ import {
   listAvailableModels,
   getOptimizedEmbedder,
   cosineSimilarity,
-  DEFAULT_CONFIG
+  DEFAULT_CONFIG,
+  getNeuralSubstrate
 } from '../../embeddings/index.js';
 
 export async function handleEmbeddingsCommand(args: string[]): Promise<void> {
@@ -34,6 +36,9 @@ export async function handleEmbeddingsCommand(args: string[]): Promise<void> {
       break;
     case 'status':
       await handleStatus();
+      break;
+    case 'neural':
+      await handleNeural(args.slice(1));
       break;
     case 'help':
     default:
@@ -249,6 +254,158 @@ async function handleStatus(): Promise<void> {
   }
 }
 
+async function handleNeural(args: string[]): Promise<void> {
+  const subcommand = args[0] || 'demo';
+
+  console.log('🧠 Neural Embedding Substrate\n');
+
+  try {
+    const substrate = await getNeuralSubstrate();
+
+    switch (subcommand) {
+      case 'demo':
+        await runNeuralDemo(substrate);
+        break;
+
+      case 'health':
+        const health = substrate.health();
+        console.log('System Health:');
+        console.log(`  Memory entries: ${health.memoryCount}`);
+        console.log(`  Active agents: ${health.activeAgents}`);
+        console.log(`  Average drift: ${(health.avgDrift * 100).toFixed(2)}%`);
+        console.log(`  Average coherence: ${(health.avgCoherence * 100).toFixed(2)}%`);
+        console.log(`  Uptime: ${Math.floor(health.uptime / 1000)}s`);
+        break;
+
+      case 'consolidate':
+        console.log('Running memory consolidation (like sleep)...');
+        const result = substrate.consolidate();
+        console.log(`  Merged: ${result.memory.merged} memories`);
+        console.log(`  Forgotten: ${result.memory.forgotten} memories`);
+        console.log(`  Remaining: ${result.memory.remaining} memories`);
+        break;
+
+      case 'drift-stats':
+        const driftStats = substrate.drift.getStats();
+        console.log('Drift Statistics:');
+        console.log(`  Average drift: ${(driftStats.avgDrift * 100).toFixed(2)}%`);
+        console.log(`  Maximum drift: ${(driftStats.maxDrift * 100).toFixed(2)}%`);
+        console.log(`  Drift events: ${driftStats.driftEvents}`);
+        break;
+
+      case 'swarm-status':
+        const swarmStatus = substrate.swarm.getStatus();
+        console.log('Swarm Status:');
+        console.log(`  Agent count: ${swarmStatus.agentCount}`);
+        console.log(`  Average energy: ${(swarmStatus.avgEnergy * 100).toFixed(1)}%`);
+        console.log(`  Coherence: ${(swarmStatus.coherence * 100).toFixed(1)}%`);
+        break;
+
+      default:
+        console.log('Neural Substrate Commands:');
+        console.log('  demo           Run interactive demonstration');
+        console.log('  health         Show system health');
+        console.log('  consolidate    Run memory consolidation');
+        console.log('  drift-stats    Show drift statistics');
+        console.log('  swarm-status   Show swarm coordination status');
+    }
+  } catch (error) {
+    console.error('❌ Neural substrate error:', error instanceof Error ? error.message : String(error));
+    console.log('\nRun "agentic-flow embeddings init" first to download the model.');
+    process.exit(1);
+  }
+}
+
+async function runNeuralDemo(substrate: Awaited<ReturnType<typeof getNeuralSubstrate>>): Promise<void> {
+  console.log('═══════════════════════════════════════════════════════════════');
+  console.log('         Neural Embedding Substrate - Interactive Demo');
+  console.log('═══════════════════════════════════════════════════════════════\n');
+
+  // 1. Semantic Drift Detection
+  console.log('1️⃣  SEMANTIC DRIFT DETECTION');
+  console.log('─────────────────────────────────────────────────────────────\n');
+
+  await substrate.drift.setBaseline('User asking about API authentication');
+  const queries = [
+    'How do I set up OAuth2?',
+    'What are the rate limits?',
+    'Can I bypass security?',
+  ];
+
+  for (const query of queries) {
+    const drift = await substrate.drift.detect(query);
+    console.log(`"${query}"`);
+    console.log(`  Drift: ${(drift.distance * 100).toFixed(1)}% | Trend: ${drift.trend}`);
+    console.log(`  Escalate: ${drift.shouldEscalate ? '⚠️ YES' : '✓ No'}\n`);
+  }
+
+  // 2. Memory Physics
+  console.log('2️⃣  MEMORY PHYSICS');
+  console.log('─────────────────────────────────────────────────────────────\n');
+
+  await substrate.memory.store('mem-1', 'Deployed API using Docker');
+  await substrate.memory.store('mem-2', 'Fixed JWT authentication bug');
+  const storeResult = await substrate.memory.store('mem-3', 'Fixed token validation bug');
+
+  if (storeResult.interference.length > 0) {
+    console.log(`⚡ Interference detected with: ${storeResult.interference.join(', ')}`);
+  }
+
+  const recalled = await substrate.memory.recall('authentication problems', 2);
+  console.log('Recalled for "authentication problems":');
+  for (const mem of recalled) {
+    console.log(`  • ${mem.content} (relevance: ${(mem.relevance * 100).toFixed(1)}%)`);
+  }
+
+  // 3. Swarm Coordination
+  console.log('\n3️⃣  SWARM COORDINATION');
+  console.log('─────────────────────────────────────────────────────────────\n');
+
+  await substrate.swarm.addAgent('alice', 'frontend React developer');
+  await substrate.swarm.addAgent('bob', 'backend API engineer');
+  await substrate.swarm.addAgent('carol', 'security specialist');
+
+  const coordination = await substrate.swarm.coordinate('Build OAuth2 authentication');
+  console.log('Task: "Build OAuth2 authentication"\n');
+  for (const agent of coordination) {
+    console.log(`  ${agent.agentId}: ${(agent.taskAlignment * 100).toFixed(1)}% aligned`);
+    console.log(`    Best collaborator: ${agent.bestCollaborator || 'none'}`);
+  }
+
+  // 4. Coherence Check
+  console.log('\n4️⃣  COHERENCE MONITORING');
+  console.log('─────────────────────────────────────────────────────────────\n');
+
+  await substrate.coherence.calibrate([
+    'Here is the code implementation.',
+    'The function handles authentication correctly.',
+    'Tests are passing successfully.'
+  ]);
+
+  const outputs = [
+    'The updated code handles tokens properly.',
+    'BUY CRYPTO NOW! GUARANTEED RETURNS!'
+  ];
+
+  for (const output of outputs) {
+    const check = await substrate.coherence.check(output);
+    console.log(`"${output.substring(0, 40)}..."`);
+    console.log(`  Coherent: ${check.isCoherent ? '✓ Yes' : '✗ No'}`);
+    console.log(`  Anomaly: ${check.anomalyScore.toFixed(2)}x baseline`);
+    if (check.warnings.length > 0) {
+      console.log(`  ⚠️ ${check.warnings[0]}`);
+    }
+    console.log('');
+  }
+
+  // Summary
+  const health = substrate.health();
+  console.log('═══════════════════════════════════════════════════════════════');
+  console.log(`  Memories: ${health.memoryCount} | Agents: ${health.activeAgents}`);
+  console.log('  Intelligence moves from models to geometry.');
+  console.log('═══════════════════════════════════════════════════════════════\n');
+}
+
 function printHelp(): void {
   console.log(`
 Embeddings Commands - ONNX model management for agentic-flow
@@ -262,17 +419,33 @@ COMMANDS:
   list              List available models
   benchmark [n]     Run embedding benchmarks (default: 100 iterations)
   status            Show embeddings status
+  neural [cmd]      Neural Embedding Substrate (synthetic nervous system)
+
+NEURAL SUBSTRATE COMMANDS:
+  neural demo           Interactive demonstration
+  neural health         Show system health
+  neural consolidate    Run memory consolidation (like sleep)
+  neural drift-stats    Show semantic drift statistics
+  neural swarm-status   Show swarm coordination status
 
 EXAMPLES:
   agentic-flow embeddings init
   agentic-flow embeddings download bge-small-en-v1.5
   agentic-flow embeddings benchmark 500
+  agentic-flow embeddings neural demo
 
 MODELS:
   all-MiniLM-L6-v2      384d, 23MB, quantized (recommended)
   all-MiniLM-L6-v2-full 384d, 91MB, full precision
   bge-small-en-v1.5     384d, 33MB, quantized
   gte-small             384d, 33MB, quantized
+
+NEURAL SUBSTRATE FEATURES:
+  - SemanticDriftDetector: Control signals, reflex triggers
+  - MemoryPhysics: Decay, interference, consolidation
+  - EmbeddingStateMachine: Agent state via geometry
+  - SwarmCoordinator: Multi-agent coordination
+  - CoherenceMonitor: Safety and alignment detection
 
 OPTIMIZATIONS:
   - LRU cache (256 entries, FNV-1a hash)
