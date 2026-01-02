@@ -144,3 +144,11 @@ export {
   type StatusChangeCallback,
   type DistributedOperationResult,
 } from './coordination/index.js';
+
+// LLM Router - Multi-provider LLM integration with RuvLLM support
+export {
+  LLMRouter,
+  isRuvLLMInstalled,
+  type LLMConfig,
+  type LLMResponse,
+} from './services/LLMRouter.js';
