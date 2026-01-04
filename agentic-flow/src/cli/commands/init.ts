@@ -68,20 +68,20 @@ const SETTINGS_TEMPLATE = {
   hooks: {
     PreToolUse: [
       {
-        matcher: "Edit|Write|MultiEdit",
-        hooks: ["npx agentic-flow@alpha hooks pre-edit"]
+        matcher: { tools: ["Edit", "Write", "MultiEdit"] },
+        hooks: [{ type: "command", command: "npx agentic-flow@alpha hooks pre-edit" }]
       }
     ],
     PostToolUse: [
       {
-        matcher: "Edit|Write|MultiEdit",
-        hooks: ["npx agentic-flow@alpha hooks post-edit"]
+        matcher: { tools: ["Edit", "Write", "MultiEdit"] },
+        hooks: [{ type: "command", command: "npx agentic-flow@alpha hooks post-edit" }]
       }
     ],
     Notification: [
       {
-        matcher: ".*",
-        hooks: ["npx agentic-flow@alpha hooks notify"]
+        matcher: {},
+        hooks: [{ type: "command", command: "npx agentic-flow@alpha hooks notify" }]
       }
     ]
   },
