@@ -1188,6 +1188,31 @@ EMBEDDINGS COMMANDS:
 
   Optimized ONNX embeddings with LRU cache, SIMD operations, and 150x faster search.
 
+HOOKS COMMANDS:
+  npx agentic-flow hooks                 Show all hook commands
+  npx agentic-flow hooks pre-edit        Get context before editing a file
+  npx agentic-flow hooks post-edit       Record edit outcome for learning
+  npx agentic-flow hooks route           Route task to optimal agent
+  npx agentic-flow hooks pretrain        Analyze repository to bootstrap intelligence
+  npx agentic-flow hooks build-agents    Generate optimized agent configurations
+  npx agentic-flow hooks metrics         View learning metrics dashboard
+  npx agentic-flow hooks intelligence    RuVector intelligence commands (SONA + MoE + HNSW)
+  npx agentic-flow hooks init            Initialize hooks in project
+
+  Self-learning hooks for intelligent agent routing and optimization.
+
+WORKERS COMMANDS:
+  npx agentic-flow workers               Show all worker commands
+  npx agentic-flow workers dispatch      Dispatch background workers from triggers
+  npx agentic-flow workers status        Get worker status
+  npx agentic-flow workers triggers      List available trigger keywords
+  npx agentic-flow workers stats         Get worker statistics
+  npx agentic-flow workers results       View worker analysis results
+  npx agentic-flow workers benchmark     Run worker performance benchmarks
+  npx agentic-flow workers native        Run native ruvector workers
+
+  Background workers for non-blocking analysis tasks.
+
 OPTIONS:
   --task, -t <task>           Task description for agent mode
   --model, -m <model>         Model to use (triggers OpenRouter if contains "/")

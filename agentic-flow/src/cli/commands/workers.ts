@@ -21,7 +21,12 @@ import {
 
 export function createWorkersCommand(): Command {
   const workers = new Command('workers')
-    .description('Background worker management - non-blocking tasks that run silently');
+    .description('Background worker management - non-blocking tasks that run silently')
+    .addHelpCommand(true) // Enable 'workers help <subcommand>'
+    .action(() => {
+      // Default action when no subcommand provided - show help
+      workers.outputHelp();
+    });
 
   // Dispatch command
   workers
