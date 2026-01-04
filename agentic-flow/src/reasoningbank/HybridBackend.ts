@@ -19,10 +19,7 @@
  */
 
 import { SharedMemoryPool } from '../memory/SharedMemoryPool.js';
-import { ReflexionMemory } from 'agentdb/controllers/ReflexionMemory';
-import { SkillLibrary } from 'agentdb/controllers/SkillLibrary';
-import { CausalRecall } from 'agentdb/controllers/CausalRecall';
-import { CausalMemoryGraph } from 'agentdb/controllers/CausalMemoryGraph';
+import { ReflexionMemory, SkillLibrary, CausalRecall, CausalMemoryGraph } from 'agentdb';
 
 export interface PatternData {
   sessionId: string;
@@ -64,7 +61,7 @@ export class HybridReasoningBank {
   constructor(options: { preferWasm?: boolean } = {}) {
     this.memory = SharedMemoryPool.getInstance();
     const db = this.memory.getDatabase();
-    const embedder = this.memory.getEmbedder();
+    const embedder = this.memory.getEmbedder() as any;
 
     this.reflexion = new ReflexionMemory(db, embedder);
     this.skills = new SkillLibrary(db, embedder);

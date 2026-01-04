@@ -806,20 +806,44 @@ export class EnhancedAgentBooster {
     }
   }
 
+  // Security: Allowlist of valid languages for agent-booster
+  private static readonly VALID_LANGUAGES = new Set([
+    'javascript', 'typescript', 'python', 'rust', 'go', 'java', 'c', 'cpp',
+    'ruby', 'php', 'swift', 'kotlin', 'scala', 'haskell', 'lua', 'perl',
+    'r', 'julia', 'dart', 'elixir', 'clojure', 'shell', 'bash', 'powershell',
+    'sql', 'html', 'css', 'json', 'yaml', 'xml', 'markdown', 'plaintext'
+  ]);
+
   /**
    * Call underlying agent-booster CLI
    */
   private async callAgentBooster(request: EnhancedEditRequest): Promise<EnhancedEditResult> {
     try {
-      const cmd = `npx --yes agent-booster@0.2.2 apply --language ${request.language}`;
-      const result = execSync(cmd, {
+      // Security: Validate language against allowlist to prevent command injection
+      const normalizedLanguage = request.language.toLowerCase().trim();
+      if (!EnhancedAgentBooster.VALID_LANGUAGES.has(normalizedLanguage)) {
+        // Fall back to plaintext for unknown languages instead of throwing
+        console.warn(`[AgentBooster] Unknown language '${request.language}', using 'plaintext'`);
+      }
+      const safeLanguage = EnhancedAgentBooster.VALID_LANGUAGES.has(normalizedLanguage)
+        ? normalizedLanguage
+        : 'plaintext';
+
+      // Security: Use execSync with argument array pattern via shell: false
+      // Note: We still use execSync here because we need stdin input, but we validate the language
+      const { spawnSync } = await import('child_process');
+      const result = spawnSync('npx', ['--yes', 'agent-booster@0.2.2', 'apply', '--language', safeLanguage], {
         encoding: 'utf-8',
         input: JSON.stringify({ code: request.code, edit: request.edit }),
         maxBuffer: 10 * 1024 * 1024,
         timeout: 30000
       });
 
-      const parsed = JSON.parse(result);
+      if (result.error || result.status !== 0) {
+        throw new Error(result.stderr || 'Agent booster failed');
+      }
+
+      const parsed = JSON.parse(result.stdout || '{}');
       return {
         output: parsed.output || '',
         success: parsed.success || false,

@@ -1,7 +1,12 @@
 // Swarm init tool implementation using FastMCP
 import { z } from 'zod';
-import { execSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import type { ToolDefinition } from '../../types/index.js';
+
+// Security: Allowed values for validation (defense in depth beyond Zod)
+const VALID_TOPOLOGIES = new Set(['mesh', 'hierarchical', 'ring', 'star']);
+const VALID_STRATEGIES = new Set(['balanced', 'specialized', 'adaptive']);
+const MAX_AGENTS_LIMIT = 100;
 
 export const swarmInitTool: ToolDefinition = {
   name: 'swarm_init',
@@ -21,24 +26,56 @@ export const swarmInitTool: ToolDefinition = {
   }),
   execute: async ({ topology, maxAgents, strategy }, { onProgress, auth }) => {
     try {
-      const cmd = `npx claude-flow@alpha swarm init --topology ${topology} --max-agents ${maxAgents} --strategy ${strategy}`;
+      // Security: Defense in depth - validate even though Zod should have validated
+      if (!VALID_TOPOLOGIES.has(topology)) {
+        throw new Error(`Invalid topology: ${topology}`);
+      }
+      if (!VALID_STRATEGIES.has(strategy)) {
+        throw new Error(`Invalid strategy: ${strategy}`);
+      }
 
-      const result = execSync(cmd, {
+      // Security: Sanitize and bound maxAgents
+      const safeMaxAgents = Math.min(
+        Math.max(1, Math.floor(Number(maxAgents) || 8)),
+        MAX_AGENTS_LIMIT
+      );
+
+      // Security: Use spawnSync with argument array to prevent command injection
+      const args = [
+        'claude-flow@alpha',
+        'swarm',
+        'init',
+        '--topology', topology,
+        '--max-agents', String(safeMaxAgents),
+        '--strategy', strategy
+      ];
+
+      const result = spawnSync('npx', args, {
         encoding: 'utf-8',
-        maxBuffer: 10 * 1024 * 1024
+        maxBuffer: 10 * 1024 * 1024,
+        timeout: 60000
       });
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      if (result.status !== 0) {
+        throw new Error(result.stderr || 'Command failed');
+      }
 
       return {
         success: true,
         topology,
-        maxAgents,
+        maxAgents: safeMaxAgents,
         strategy,
-        result: result.trim(),
+        result: (result.stdout || '').trim(),
         userId: auth?.userId,
         timestamp: new Date().toISOString()
       };
     } catch (error: any) {
-      throw new Error(`Failed to initialize swarm: ${error.message}`);
+      // Security: Don't expose internal error details to clients
+      throw new Error('Failed to initialize swarm. Check server logs for details.');
     }
   }
 };

@@ -16,8 +16,12 @@ interface CachedModel {
 interface CacheStats {
   models: number;
   totalSize: number;
+  size?: number;
   totalHits: number;
   totalMisses: number;
+  hits: number;
+  misses: number;
+  hitRate: number;
 }
 
 class ModelCache {
@@ -121,11 +125,18 @@ class ModelCache {
     for (const cached of this.cache.values()) {
       totalSize += cached.sizeEstimate;
     }
+    const hits = this.totalHits;
+    const misses = this.totalMisses;
+    const total = hits + misses;
     return {
       models: this.cache.size,
       totalSize,
-      totalHits: this.totalHits,
-      totalMisses: this.totalMisses
+      size: this.cache.size,
+      totalHits: hits,
+      totalMisses: misses,
+      hits,
+      misses,
+      hitRate: total > 0 ? hits / total : 0
     };
   }
 
@@ -179,7 +190,7 @@ export async function getCachedOnnxEmbedder(): Promise<any> {
       };
 
       try {
-        const onnxModule = await import('ruvector-onnx-embeddings-wasm');
+        const onnxModule = await import('ruvector-onnx-embeddings-wasm') as any;
         const EmbedderClass = onnxModule.OnnxEmbeddings || onnxModule.default;
         if (EmbedderClass) {
           const embedder = new EmbedderClass();
@@ -203,7 +214,7 @@ export async function getCachedTransformersPipeline(
     `transformers:${task}:${model}`,
     async () => {
       const { pipeline } = await import('@xenova/transformers');
-      return pipeline(task, model);
+      return pipeline(task as any, model);
     },
     200 * 1024 * 1024 // 200MB estimate for transformers model
   );

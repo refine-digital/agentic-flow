@@ -6,7 +6,7 @@
  */
 
 import { AgentBooster } from 'agent-booster';
-import { MCPTool } from '../types';
+import type { MCPTool } from './sona-tools.js';
 import type { MorphApplyRequest, MorphApplyResponse } from 'agent-booster';
 
 // Initialize Agent Booster instance

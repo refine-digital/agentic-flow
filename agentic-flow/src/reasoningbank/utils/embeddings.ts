@@ -12,20 +12,22 @@ env.backends.onnx.wasm.proxy = false; // Disable ONNX runtime proxy
 env.backends.onnx.wasm.numThreads = 1; // Single thread for stability
 
 let embeddingPipeline: any = null;
-let isInitializing = false;
+let initializationPromise: Promise<void> | null = null;
 const embeddingCache = new Map<string, Float32Array>();
+// MEMORY LEAK FIX: Track TTL timers so they can be cleaned up
+const embeddingTimers = new Map<string, NodeJS.Timeout>();
 
 /**
  * Initialize the embedding pipeline (lazy load)
+ * RACE CONDITION FIX: Use promise-based initialization instead of busy-wait
  */
 async function initializeEmbeddings(): Promise<void> {
+  // Already initialized
   if (embeddingPipeline) return;
-  if (isInitializing) {
-    // Wait for initialization to complete
-    while (isInitializing) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    return;
+
+  // Initialization in progress - await existing promise
+  if (initializationPromise) {
+    return initializationPromise;
   }
 
   // Detect npx environment (known transformer initialization issues)
@@ -37,27 +39,30 @@ async function initializeEmbeddings(): Promise<void> {
   if (isNpxEnv && !process.env.FORCE_TRANSFORMERS) {
     console.log('[Embeddings] NPX environment detected - using hash-based embeddings');
     console.log('[Embeddings] For semantic search, install globally: npm install -g claude-flow');
-    isInitializing = false;
     return;
   }
 
-  isInitializing = true;
-  console.log('[Embeddings] Initializing local embedding model (Xenova/all-MiniLM-L6-v2)...');
-  console.log('[Embeddings] First run will download ~23MB model...');
+  // RACE CONDITION FIX: Create promise for concurrent callers to await
+  initializationPromise = (async () => {
+    console.log('[Embeddings] Initializing local embedding model (Xenova/all-MiniLM-L6-v2)...');
+    console.log('[Embeddings] First run will download ~23MB model...');
 
-  try {
-    embeddingPipeline = await pipeline(
-      'feature-extraction',
-      'Xenova/all-MiniLM-L6-v2',
-      { quantized: true } // Smaller, faster
-    );
-    console.log('[Embeddings] Local model ready! (384 dimensions)');
-  } catch (error: any) {
-    console.error('[Embeddings] Failed to initialize:', error?.message || error);
-    console.warn('[Embeddings] Falling back to hash-based embeddings');
-  } finally {
-    isInitializing = false;
-  }
+    try {
+      embeddingPipeline = await pipeline(
+        'feature-extraction',
+        'Xenova/all-MiniLM-L6-v2',
+        { quantized: true } // Smaller, faster
+      );
+      console.log('[Embeddings] Local model ready! (384 dimensions)');
+    } catch (error: any) {
+      console.error('[Embeddings] Failed to initialize:', error?.message || error);
+      console.warn('[Embeddings] Falling back to hash-based embeddings');
+      // Reset promise so retry is possible
+      initializationPromise = null;
+    }
+  })();
+
+  return initializationPromise;
 }
 
 /**
@@ -95,21 +100,39 @@ export async function computeEmbedding(text: string): Promise<Float32Array> {
     embedding = hashEmbed(text, dims);
   }
 
+  // MEMORY LEAK FIX: Clear existing timer if key exists
+  const existingTimer = embeddingTimers.get(cacheKey);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+    embeddingTimers.delete(cacheKey);
+  }
+
   // Cache with LRU (limit 1000 entries)
-  if (embeddingCache.size > 1000) {
+  // PERFORMANCE FIX: Use proper LRU by tracking access order
+  if (embeddingCache.size >= 1000) {
+    // Find and remove oldest entry (first key in iteration order)
     const firstKey = embeddingCache.keys().next().value;
     if (firstKey) {
       embeddingCache.delete(firstKey);
+      // Also clear its timer
+      const timer = embeddingTimers.get(firstKey);
+      if (timer) {
+        clearTimeout(timer);
+        embeddingTimers.delete(firstKey);
+      }
     }
   }
   embeddingCache.set(cacheKey, embedding);
 
-  // Set TTL for cache entry
+  // Set TTL for cache entry with tracked timer
   const ttl = config?.embeddings?.cache_ttl_seconds || 3600;
-  setTimeout(
-    () => embeddingCache.delete(cacheKey),
-    ttl * 1000
-  );
+  const timerId = setTimeout(() => {
+    embeddingCache.delete(cacheKey);
+    embeddingTimers.delete(cacheKey);
+  }, ttl * 1000);
+
+  // MEMORY LEAK FIX: Track timer for cleanup
+  embeddingTimers.set(cacheKey, timerId);
 
   return embedding;
 }
@@ -175,7 +198,13 @@ function normalize(vec: Float32Array): Float32Array {
 
 /**
  * Clear embedding cache
+ * MEMORY LEAK FIX: Also clear all TTL timers
  */
 export function clearEmbeddingCache(): void {
+  // Clear all timers first to prevent memory leaks
+  for (const timer of embeddingTimers.values()) {
+    clearTimeout(timer);
+  }
+  embeddingTimers.clear();
   embeddingCache.clear();
 }

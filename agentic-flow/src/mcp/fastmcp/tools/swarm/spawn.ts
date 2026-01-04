@@ -1,7 +1,23 @@
 // Agent spawn tool implementation using FastMCP
 import { z } from 'zod';
-import { execSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import type { ToolDefinition } from '../../types/index.js';
+
+// Security: Validate input to prevent command injection
+function sanitizeInput(input: string): string {
+  // Remove any shell metacharacters
+  return input.replace(/[;&|`$(){}[\]<>\\'"!#*?~\n\r]/g, '');
+}
+
+function validateCapability(cap: string): boolean {
+  // Only allow alphanumeric, hyphens, and underscores
+  return /^[a-zA-Z0-9_-]+$/.test(cap);
+}
+
+function validateName(name: string): boolean {
+  // Only allow alphanumeric, hyphens, underscores, and dots (max 64 chars)
+  return /^[a-zA-Z0-9_.-]{1,64}$/.test(name);
+}
 
 export const agentSpawnTool: ToolDefinition = {
   name: 'agent_spawn',
@@ -18,26 +34,56 @@ export const agentSpawnTool: ToolDefinition = {
   }),
   execute: async ({ type, capabilities, name }, { onProgress, auth }) => {
     try {
-      const capStr = capabilities ? ` --capabilities "${capabilities.join(',')}"` : '';
-      const nameStr = name ? ` --name "${name}"` : '';
-      const cmd = `npx claude-flow@alpha agent spawn --type ${type}${capStr}${nameStr}`;
+      // Security: Build command using argument array to prevent injection
+      const args = ['claude-flow@alpha', 'agent', 'spawn', '--type', type];
 
-      const result = execSync(cmd, {
+      // Validate and add capabilities
+      if (capabilities && capabilities.length > 0) {
+        const validCaps = capabilities.filter(validateCapability);
+        if (validCaps.length !== capabilities.length) {
+          throw new Error('Invalid capability format. Only alphanumeric, hyphens, and underscores allowed.');
+        }
+        args.push('--capabilities', validCaps.join(','));
+      }
+
+      // Validate and add name
+      if (name) {
+        if (!validateName(name)) {
+          throw new Error('Invalid agent name. Only alphanumeric, hyphens, underscores, and dots allowed (max 64 chars).');
+        }
+        args.push('--name', name);
+      }
+
+      // Security: Use spawnSync with argument array instead of string interpolation
+      const result = spawnSync('npx', args, {
         encoding: 'utf-8',
-        maxBuffer: 10 * 1024 * 1024
+        maxBuffer: 10 * 1024 * 1024,
+        timeout: 60000
       });
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      if (result.status !== 0) {
+        throw new Error(result.stderr || 'Command failed');
+      }
 
       return {
         success: true,
         type,
         capabilities,
         name,
-        result: result.trim(),
+        result: (result.stdout || '').trim(),
         userId: auth?.userId,
         timestamp: new Date().toISOString()
       };
     } catch (error: any) {
-      throw new Error(`Failed to spawn agent: ${error.message}`);
+      // Security: Don't expose internal error details
+      const safeMessage = error.message?.includes('Invalid')
+        ? error.message
+        : 'Failed to spawn agent. Check server logs for details.';
+      throw new Error(safeMessage);
     }
   }
 };

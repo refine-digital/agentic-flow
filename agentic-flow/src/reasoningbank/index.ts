@@ -10,17 +10,20 @@ import '../utils/agentdb-runtime-patch.js';
 
 // New hybrid backend (recommended for new code)
 export { HybridReasoningBank } from './HybridBackend.js';
+export { HybridReasoningBank as ReasoningBank } from './HybridBackend.js';  // Alias for backwards compat
 export { AdvancedMemorySystem } from './AdvancedMemory.js';
 export type { PatternData, RetrievalOptions, CausalInsight } from './HybridBackend.js';
 export type { FailureAnalysis, SkillComposition } from './AdvancedMemory.js';
 
 // Re-export AgentDB controllers for advanced usage
-export { ReflexionMemory } from 'agentdb/controllers/ReflexionMemory';
-export { SkillLibrary } from 'agentdb/controllers/SkillLibrary';
-export { CausalMemoryGraph } from 'agentdb/controllers/CausalMemoryGraph';
-export { CausalRecall } from 'agentdb/controllers/CausalRecall';
-export { NightlyLearner } from 'agentdb/controllers/NightlyLearner';
-export { EmbeddingService } from 'agentdb/controllers/EmbeddingService';
+export {
+  ReflexionMemory,
+  SkillLibrary,
+  CausalMemoryGraph,
+  CausalRecall,
+  NightlyLearner,
+  EmbeddingService
+} from 'agentdb';
 
 // Original ReasoningBank implementations (backwards compatibility)
 export { retrieveMemories, formatMemoriesForPrompt } from './core/retrieve.js';

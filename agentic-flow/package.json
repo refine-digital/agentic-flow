@@ -178,6 +178,7 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/express": "^5.0.3",
     "@types/node": "^20.19.19",
+    "@types/uuid": "^11.0.0",
     "@types/ws": "^8.18.1",
     "@vitest/coverage-v8": "^4.0.14",
     "patch-package": "^8.0.1",

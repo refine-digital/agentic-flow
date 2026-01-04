@@ -244,7 +244,8 @@ export class SONAService extends EventEmitter {
    * Begin a new trajectory
    */
   beginTrajectory(embedding: number[], route?: string): string {
-    const id = this.engine.beginTrajectory(embedding);
+    const numericId = this.engine.beginTrajectory(embedding);
+    const id = String(numericId);
 
     const metadata: TrajectoryMetadata = {
       id,
@@ -260,7 +261,7 @@ export class SONAService extends EventEmitter {
     this.stats.activeTrajectories++;
 
     if (route) {
-      this.engine.setTrajectoryRoute(id, route);
+      this.engine.setTrajectoryRoute(numericId, route);
     }
 
     this.emit('trajectory:begin', { id, route });
@@ -282,7 +283,7 @@ export class SONAService extends EventEmitter {
       throw new Error(`Trajectory ${trajectoryId} not found`);
     }
 
-    this.engine.addTrajectoryStep(trajectoryId, activations, attentionWeights, reward);
+    this.engine.addTrajectoryStep(Number(trajectoryId), activations, attentionWeights, reward);
 
     metadata.steps.push({
       activations,
@@ -303,7 +304,7 @@ export class SONAService extends EventEmitter {
       throw new Error(`Trajectory ${trajectoryId} not found`);
     }
 
-    this.engine.addTrajectoryContext(trajectoryId, contextId);
+    this.engine.addTrajectoryContext(Number(trajectoryId), contextId);
     metadata.contexts.push(contextId);
 
     this.emit('trajectory:context', { trajectoryId, contextId });
@@ -318,7 +319,7 @@ export class SONAService extends EventEmitter {
       throw new Error(`Trajectory ${trajectoryId} not found`);
     }
 
-    this.engine.endTrajectory(trajectoryId, qualityScore);
+    this.engine.endTrajectory(Number(trajectoryId), qualityScore);
 
     metadata.endTime = Date.now();
     metadata.qualityScore = qualityScore;

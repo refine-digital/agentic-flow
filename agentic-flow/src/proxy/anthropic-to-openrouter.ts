@@ -241,7 +241,7 @@ export class AnthropicToOpenRouterProxy {
     logger.info('=== OPENROUTER RESPONSE RECEIVED ===', {
       status: response.status,
       statusText: response.statusText,
-      headers: Object.fromEntries(response.headers.entries())
+      headers: Object.fromEntries((response.headers as any).entries())
     });
 
     // Handle streaming vs non-streaming

@@ -27,8 +27,34 @@ export * from './mcp-tools.js';
 export * from './consolidated-phases.js';
 
 // Custom worker system (uses consolidated phases)
-export * from './custom-worker-config.js';
-export * from './phase-executors.js';
+// Note: Exclude PhaseResult to avoid conflict with types.ts
+export {
+  DEFAULT_CAPABILITIES,
+  DEFAULT_FILE_FILTER,
+  DEFAULT_OUTPUT,
+  WORKER_PRESETS,
+  EXAMPLE_CONFIG,
+  validateWorkerDefinition
+} from './custom-worker-config.js';
+export type {
+  PhaseConfig,
+  CustomWorkerDefinition,
+  CapabilityConfig,
+  FileFilterConfig,
+  OutputConfig,
+  WorkerConfigFile,
+  PhaseResult as CustomPhaseResult,
+  PhaseType
+} from './custom-worker-config.js';
+
+// Phase executors - exclude PhaseContext to avoid conflict
+export {
+  createPhaseContext,
+  registerPhaseExecutor,
+  getPhaseExecutor,
+  executePhasePipeline
+} from './phase-executors.js';
+
 export * from './custom-worker-factory.js';
 
 // Worker-Agent integration and benchmarks
@@ -54,5 +80,5 @@ export { workerBenchmarks, runBenchmarks } from './worker-benchmarks.js';
 
 // Re-export useful utilities
 export { formatWorkerInfo, formatPresetList } from './custom-worker-factory.js';
-export { listPhaseExecutors } from './phase-executors.js';
+export { listPhaseExecutors } from './phase-executors.js';  // Dedicated export for this utility
 export { listUnifiedPhases, runUnifiedPipeline } from './consolidated-phases.js';
