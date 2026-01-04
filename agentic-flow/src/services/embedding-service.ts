@@ -229,7 +229,7 @@ export class TransformersEmbeddingService extends EmbeddingService {
       const output = await this.pipeline(text, { pooling: 'mean', normalize: true });
 
       // Convert to regular array
-      const embedding = Array.from(output.data);
+      const embedding = Array.from(output.data) as number[];
 
       // Cache it
       this.setCached(text, embedding);
@@ -268,7 +268,7 @@ export class TransformersEmbeddingService extends EmbeddingService {
             pooling: 'mean',
             normalize: true
           });
-          const embedding = Array.from(output.data);
+          const embedding = Array.from(output.data) as number[];
 
           this.setCached(text, embedding);
 

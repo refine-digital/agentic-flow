@@ -65,6 +65,7 @@ export interface WorkerInfo {
 
 export interface WorkerResults {
   status: WorkerStatus;
+  success?: boolean;
   data?: Record<string, unknown>;
   error?: string;
   completedPhases: number;

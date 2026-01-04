@@ -108,36 +108,53 @@ export class SecurityManager {
   }
 
   /**
-   * Get or create encryption keys for a tenant
+   * Get or create encryption key for a tenant (key only, IV generated per operation)
+   * SECURITY FIX: IV is now generated fresh for each encryption operation
    */
-  async getEncryptionKeys(tenantId: string): Promise<EncryptionKeys> {
-    // Check cache
-    if (this.encryptionCache.has(tenantId)) {
-      return this.encryptionCache.get(tenantId)!;
+  async getEncryptionKey(tenantId: string): Promise<Buffer> {
+    // Check cache for encryption key only
+    const cached = this.encryptionCache.get(tenantId);
+    if (cached) {
+      return cached.encryptionKey;
     }
 
-    // Generate new keys for tenant
+    // Generate new key for tenant
     // In production, these would be stored in a secure key management service
     const encryptionKey = crypto.randomBytes(32); // 256-bit key
-    const iv = crypto.randomBytes(16); // 128-bit IV
 
-    const keys: EncryptionKeys = { encryptionKey, iv };
-
-    // Cache keys
+    // Cache only the key (IV will be generated per-operation)
+    // We store a dummy IV in the cache structure for backwards compatibility
+    const keys: EncryptionKeys = { encryptionKey, iv: Buffer.alloc(16) };
     this.encryptionCache.set(tenantId, keys);
 
-    logger.info('Generated encryption keys for tenant', { tenantId });
+    logger.info('Generated encryption key for tenant', { tenantId });
 
-    return keys;
+    return encryptionKey;
+  }
+
+  /**
+   * Legacy method for backwards compatibility - prefer getEncryptionKey
+   * @deprecated Use getEncryptionKey instead and generate IV per-operation
+   */
+  async getEncryptionKeys(tenantId: string): Promise<EncryptionKeys> {
+    const encryptionKey = await this.getEncryptionKey(tenantId);
+    // SECURITY: Generate fresh IV for each call (not cached)
+    const iv = crypto.randomBytes(16);
+    return { encryptionKey, iv };
   }
 
   /**
    * Encrypt data with AES-256-GCM
+   * SECURITY FIX: Now generates a fresh IV for each encryption and returns it
    */
-  async encrypt(data: string, tenantId: string): Promise<{ encrypted: string; authTag: string }> {
-    const keys = await this.getEncryptionKeys(tenantId);
+  async encrypt(data: string, tenantId: string): Promise<{ encrypted: string; authTag: string; iv: string }> {
+    const encryptionKey = await this.getEncryptionKey(tenantId);
 
-    const cipher = crypto.createCipheriv(this.algorithm, keys.encryptionKey, keys.iv);
+    // SECURITY: Generate fresh IV for EACH encryption operation
+    // IV reuse with AES-GCM is catastrophic - this fix prevents that
+    const iv = crypto.randomBytes(16);
+
+    const cipher = crypto.createCipheriv(this.algorithm, encryptionKey, iv);
 
     let encrypted = cipher.update(data, 'utf8', 'base64');
     encrypted += cipher.final('base64');
@@ -150,20 +167,38 @@ export class SecurityManager {
       encryptedLength: encrypted.length
     });
 
-    return { encrypted, authTag };
+    // SECURITY: Return IV with encrypted data so it can be used for decryption
+    return { encrypted, authTag, iv: iv.toString('base64') };
   }
 
   /**
    * Decrypt data with AES-256-GCM
+   * SECURITY FIX: Now accepts IV as parameter (required for proper decryption)
    */
   async decrypt(
     encrypted: string,
     authTag: string,
-    tenantId: string
+    tenantId: string,
+    iv?: string
   ): Promise<string> {
-    const keys = await this.getEncryptionKeys(tenantId);
+    const encryptionKey = await this.getEncryptionKey(tenantId);
 
-    const decipher = crypto.createDecipheriv(this.algorithm, keys.encryptionKey, keys.iv);
+    // SECURITY: IV must be provided for proper decryption
+    // For backwards compatibility, generate warning if not provided
+    let ivBuffer: Buffer;
+    if (iv) {
+      ivBuffer = Buffer.from(iv, 'base64');
+    } else {
+      // Legacy fallback - try to use cached IV (will fail for new encryptions)
+      logger.warn('Decrypt called without IV - this may fail for newly encrypted data', { tenantId });
+      const cached = this.encryptionCache.get(tenantId);
+      if (!cached) {
+        throw new Error('No IV provided and no cached keys available');
+      }
+      ivBuffer = cached.iv;
+    }
+
+    const decipher = crypto.createDecipheriv(this.algorithm, encryptionKey, ivBuffer);
     decipher.setAuthTag(Buffer.from(authTag, 'base64'));
 
     let decrypted = decipher.update(encrypted, 'base64', 'utf8');

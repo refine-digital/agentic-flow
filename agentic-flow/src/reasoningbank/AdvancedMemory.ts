@@ -25,7 +25,7 @@
  */
 
 import { HybridReasoningBank } from './HybridBackend.js';
-import { NightlyLearner } from 'agentdb/controllers/NightlyLearner';
+import { NightlyLearner } from 'agentdb';
 import { SharedMemoryPool } from '../memory/SharedMemoryPool.js';
 
 export interface FailureAnalysis {
@@ -59,7 +59,7 @@ export class AdvancedMemorySystem {
     this.pool = SharedMemoryPool.getInstance();
 
     const db = this.pool.getDatabase();
-    const embedder = this.pool.getEmbedder();
+    const embedder = this.pool.getEmbedder() as any;
 
     // Initialize NightlyLearner with optimized config
     this.learner = new NightlyLearner(db, embedder, {

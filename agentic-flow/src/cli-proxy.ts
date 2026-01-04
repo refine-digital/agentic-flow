@@ -41,6 +41,7 @@ import { handleReasoningBankCommand } from "./utils/reasoningbankCommands.js";
 import { handleConfigCommand } from "./cli/config-wizard.js";
 import { handleAgentCommand } from "./cli/agent-manager.js";
 import { handleFederationCommand } from "./cli/federation-cli.js";
+import { handleInitCommand } from "./cli/commands/init.js";
 import { ModelOptimizer } from "./utils/modelOptimizer.js";
 import { detectModelCapabilities } from "./utils/modelCapabilities.js";
 import { AgentBoosterPreprocessor } from "./utils/agentBoosterPreprocessor.js";
@@ -68,8 +69,15 @@ class AgenticFlowCLI {
     }
 
     // If no mode and no agent specified, show help
-    if (!options.agent && options.mode !== 'list' && !['config', 'agent-manager', 'mcp-manager', 'proxy', 'quic', 'claude-code', 'mcp', 'reasoningbank', 'federation', 'hooks', 'workers', 'embeddings'].includes(options.mode)) {
+    if (!options.agent && options.mode !== 'list' && !['init', 'config', 'agent-manager', 'mcp-manager', 'proxy', 'quic', 'claude-code', 'mcp', 'reasoningbank', 'federation', 'hooks', 'workers', 'embeddings'].includes(options.mode)) {
       this.printHelp();
+      process.exit(0);
+    }
+
+    if (options.mode === 'init') {
+      // Handle init command - creates .claude/ folder and configuration
+      const initArgs = process.argv.slice(3); // Skip 'node', 'cli-proxy.js', 'init'
+      await handleInitCommand(initArgs);
       process.exit(0);
     }
 
@@ -1127,6 +1135,7 @@ USAGE:
   npx agentic-flow [COMMAND] [OPTIONS]
 
 COMMANDS:
+  init [options]          Initialize project with .claude/ folder and configuration
   config [subcommand]     Manage environment configuration (interactive wizard)
   mcp <command> [server]  Manage MCP servers (start, stop, status, list)
   agent <command>         Agent management (list, create, info, conflicts)

@@ -275,7 +275,7 @@ export class WorkerRegistry {
     sessionId: string,
     topic?: string | null
   ): WorkerId {
-    const id = `worker-${uuidv4().slice(0, 8)}`;
+    const id = `worker-${ulid().slice(0, 8)}`;
     const now = Date.now();
 
     const stmt = this.db.prepare(`
