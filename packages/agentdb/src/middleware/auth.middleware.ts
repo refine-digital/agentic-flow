@@ -75,16 +75,35 @@ export function authenticate(options: AuthOptions = {}) {
     next: NextFunction
   ): Promise<void> => {
     try {
-      // Development bypass (DANGEROUS - only for testing)
-      if (opts.allowDevelopmentBypass && process.env.NODE_ENV === 'development') {
-        if (req.headers['x-bypass-auth'] === 'development') {
-          console.warn('[WARNING] Authentication bypassed in development mode');
+      // Development bypass - SECURITY HARDENED
+      // Requires explicit opt-in via environment variable AND development mode
+      // The bypass header value must match the secret, not just be "development"
+      if (opts.allowDevelopmentBypass) {
+        const devBypassSecret = process.env.AGENTDB_DEV_BYPASS_SECRET;
+        const isDevMode = process.env.NODE_ENV === 'development';
+        const bypassHeader = req.headers['x-bypass-auth'] as string;
+
+        // SECURITY: Require BOTH explicit secret AND development mode
+        // The secret should be unique per developer, not a well-known value
+        if (devBypassSecret && isDevMode && bypassHeader === devBypassSecret) {
+          console.warn('[SECURITY WARNING] Authentication bypassed in development mode');
+          console.warn('[SECURITY WARNING] Never use AGENTDB_DEV_BYPASS_SECRET in production!');
+
+          // Log bypass for audit trail (use auth_error type with descriptive reason)
+          await auditLogger.logAuthEvent({
+            type: 'auth_error',
+            ip: req.ip,
+            userAgent: req.headers['user-agent'],
+            reason: 'DEV_BYPASS: Development authentication bypass used',
+            timestamp: new Date(),
+          });
+
           req.authMethod = 'none';
           req.user = {
             userId: 'dev_user',
             email: 'dev@localhost',
-            role: 'admin',
-            permissions: ['*'],
+            role: 'developer', // Reduced from 'admin' - dev users shouldn't auto-get admin
+            permissions: ['read', 'write'], // Explicit permissions instead of wildcard
           };
           return next();
         }

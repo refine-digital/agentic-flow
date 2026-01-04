@@ -2,10 +2,15 @@
 /**
  * CLI Init Command
  * Creates .claude/ folder structure and configuration files for Claude Code integration
+ * Copies all agents, commands, skills, and helpers from the package
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const CLAUDE_MD_TEMPLATE = `# Claude Code Configuration - Agentic Flow
 
@@ -18,26 +23,26 @@ This project is configured with Agentic Flow for AI agent orchestration.
 ### Quick Start
 \`\`\`bash
 # Start MCP server for Claude Code integration
-npx agentic-flow mcp start
+npx agentic-flow@alpha mcp start
 
 # Run an agent directly
-npx agentic-flow --agent coder --task "Your task here"
+npx agentic-flow@alpha --agent coder --task "Your task here"
 
 # List available agents
-npx agentic-flow --list
+npx agentic-flow@alpha --list
 \`\`\`
 
 ### Hooks (Self-learning Intelligence)
 \`\`\`bash
-npx agentic-flow hooks pre-edit <file>    # Get context before editing
-npx agentic-flow hooks post-edit <file>   # Learn from edits
-npx agentic-flow hooks route <task>       # Smart agent routing
+npx agentic-flow@alpha hooks pre-edit <file>    # Get context before editing
+npx agentic-flow@alpha hooks post-edit <file>   # Learn from edits
+npx agentic-flow@alpha hooks route <task>       # Smart agent routing
 \`\`\`
 
 ### Workers (Background Tasks)
 \`\`\`bash
-npx agentic-flow workers status           # Check worker status
-npx agentic-flow workers dispatch <task>  # Dispatch background task
+npx agentic-flow@alpha workers status           # Check worker status
+npx agentic-flow@alpha workers dispatch <task>  # Dispatch background task
 \`\`\`
 
 ## Code Style
@@ -57,8 +62,40 @@ const SETTINGS_TEMPLATE = {
   model: "claude-sonnet-4-20250514",
   customInstructions: "Follow the project's CLAUDE.md guidelines",
   permissions: {
-    allowedTools: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
+    allowedTools: ["Read", "Write", "Edit", "Bash", "Glob", "Grep", "Task", "WebFetch", "WebSearch"],
     deniedTools: []
+  },
+  hooks: {
+    "pre-tool-use": [
+      {
+        matcher: "Edit|Write",
+        command: "npx agentic-flow@alpha hooks pre-edit $FILE"
+      }
+    ],
+    "post-tool-use": [
+      {
+        matcher: "Edit|Write",
+        command: "npx agentic-flow@alpha hooks post-edit $FILE"
+      }
+    ],
+    "notification": [
+      {
+        matcher: ".*",
+        command: "npx agentic-flow@alpha hooks notify"
+      }
+    ]
+  },
+  agents: {
+    source: ".claude/agents",
+    customAgents: []
+  },
+  skills: {
+    source: ".claude/commands",
+    enabled: true
+  },
+  statusline: {
+    enabled: true,
+    components: ["model", "tokens", "cost", "time"]
   },
   mcpServers: {
     "claude-flow": {
@@ -68,31 +105,69 @@ const SETTINGS_TEMPLATE = {
   }
 };
 
-const EXAMPLE_AGENT_TEMPLATE = `# Example Custom Agent
-
-You are a specialized assistant for this project.
-
-## Capabilities
-- Code analysis and review
-- Documentation generation
-- Bug fixing and optimization
-
-## Guidelines
-1. Always follow the project's coding standards
-2. Explain your reasoning before making changes
-3. Ask clarifying questions when requirements are unclear
-
-## Context
-When working on this project, consider:
-- The project structure and existing patterns
-- Dependencies and their versions
-- Testing requirements
-`;
-
 interface InitOptions {
   force?: boolean;
   minimal?: boolean;
   verbose?: boolean;
+}
+
+/**
+ * Recursively copy a directory
+ */
+function copyDirRecursive(src: string, dest: string, verbose: boolean = false): number {
+  let fileCount = 0;
+
+  if (!fs.existsSync(src)) {
+    return fileCount;
+  }
+
+  if (!fs.existsSync(dest)) {
+    fs.mkdirSync(dest, { recursive: true });
+  }
+
+  const entries = fs.readdirSync(src, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+
+    if (entry.isDirectory()) {
+      fileCount += copyDirRecursive(srcPath, destPath, verbose);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+      fileCount++;
+      if (verbose) {
+        console.log(`   📄 ${path.relative(dest, destPath)}`);
+      }
+    }
+  }
+
+  return fileCount;
+}
+
+/**
+ * Find the package's .claude directory
+ */
+function findPackageClaudeDir(): string | null {
+  // Try multiple potential locations
+  const potentialPaths = [
+    // When running from dist/
+    path.resolve(__dirname, '..', '..', '..', '.claude'),
+    // When running from src/
+    path.resolve(__dirname, '..', '..', '.claude'),
+    // When installed as package
+    path.resolve(__dirname, '..', '.claude'),
+    // Fallback to package root
+    path.resolve(process.cwd(), 'node_modules', 'agentic-flow', '.claude'),
+  ];
+
+  for (const p of potentialPaths) {
+    if (fs.existsSync(p) && fs.statSync(p).isDirectory()) {
+      return p;
+    }
+  }
+
+  return null;
 }
 
 export async function handleInitCommand(args: string[]): Promise<void> {
@@ -109,8 +184,6 @@ export async function handleInitCommand(args: string[]): Promise<void> {
 
   const cwd = process.cwd();
   const claudeDir = path.join(cwd, '.claude');
-  const agentsDir = path.join(claudeDir, 'agents');
-  const settingsFile = path.join(claudeDir, 'settings.json');
   const claudeMdFile = path.join(cwd, 'CLAUDE.md');
 
   console.log(`
@@ -127,24 +200,63 @@ export async function handleInitCommand(args: string[]): Promise<void> {
   }
 
   try {
-    // Create .claude directory
-    if (!fs.existsSync(claudeDir)) {
-      fs.mkdirSync(claudeDir, { recursive: true });
-      console.log('✅ Created .claude/ directory');
-    } else if (options.force) {
-      console.log('⚠️  .claude/ directory exists (--force specified)');
+    // Find the package's .claude directory
+    const packageClaudeDir = findPackageClaudeDir();
+
+    if (packageClaudeDir && !options.minimal) {
+      console.log('📦 Copying full .claude/ structure from agentic-flow package...\n');
+
+      // Copy entire .claude directory structure
+      const directories = ['agents', 'commands', 'skills', 'helpers'];
+      let totalFiles = 0;
+
+      for (const dir of directories) {
+        const srcDir = path.join(packageClaudeDir, dir);
+        const destDir = path.join(claudeDir, dir);
+
+        if (fs.existsSync(srcDir)) {
+          const count = copyDirRecursive(srcDir, destDir, options.verbose);
+          totalFiles += count;
+          console.log(`✅ Copied .claude/${dir}/ (${count} files)`);
+        }
+      }
+
+      // Copy individual files (settings.json is generated fresh with our template)
+      const individualFiles = ['mcp.json'];
+      for (const file of individualFiles) {
+        const srcFile = path.join(packageClaudeDir, file);
+        const destFile = path.join(claudeDir, file);
+        if (fs.existsSync(srcFile)) {
+          fs.copyFileSync(srcFile, destFile);
+          console.log(`✅ Copied .claude/${file}`);
+          totalFiles++;
+        }
+      }
+
+      console.log(`\n📊 Total: ${totalFiles} files copied`);
+    } else {
+      // Minimal mode: create basic structure
+      console.log('📦 Creating minimal .claude/ structure...\n');
+
+      if (!fs.existsSync(claudeDir)) {
+        fs.mkdirSync(claudeDir, { recursive: true });
+      }
+
+      const dirs = ['agents', 'commands', 'skills', 'helpers'];
+      for (const dir of dirs) {
+        const dirPath = path.join(claudeDir, dir);
+        if (!fs.existsSync(dirPath)) {
+          fs.mkdirSync(dirPath, { recursive: true });
+          console.log(`✅ Created .claude/${dir}/`);
+        }
+      }
     }
 
-    // Create agents subdirectory
-    if (!fs.existsSync(agentsDir)) {
-      fs.mkdirSync(agentsDir, { recursive: true });
-      console.log('✅ Created .claude/agents/ directory');
-    }
-
-    // Create settings.json
+    // Always generate fresh settings.json with our template
+    const settingsFile = path.join(claudeDir, 'settings.json');
     if (!fs.existsSync(settingsFile) || options.force) {
       fs.writeFileSync(settingsFile, JSON.stringify(SETTINGS_TEMPLATE, null, 2));
-      console.log('✅ Created .claude/settings.json');
+      console.log('✅ Created .claude/settings.json (with hooks, agents, skills, statusline)');
     }
 
     // Create CLAUDE.md in project root (unless minimal mode)
@@ -157,22 +269,6 @@ export async function handleInitCommand(args: string[]): Promise<void> {
       }
     }
 
-    // Create example custom agent (unless minimal mode)
-    if (!options.minimal) {
-      const exampleAgentFile = path.join(agentsDir, 'example-agent.md');
-      if (!fs.existsSync(exampleAgentFile) || options.force) {
-        fs.writeFileSync(exampleAgentFile, EXAMPLE_AGENT_TEMPLATE);
-        console.log('✅ Created .claude/agents/example-agent.md');
-      }
-    }
-
-    // Create commands directory for custom slash commands
-    const commandsDir = path.join(claudeDir, 'commands');
-    if (!fs.existsSync(commandsDir)) {
-      fs.mkdirSync(commandsDir, { recursive: true });
-      console.log('✅ Created .claude/commands/ directory');
-    }
-
     console.log(`
 ╔═══════════════════════════════════════════════════════╗
 ║                 Initialization Complete!               ║
@@ -180,21 +276,22 @@ export async function handleInitCommand(args: string[]): Promise<void> {
 
 📁 Created structure:
    .claude/
-   ├── settings.json      # Claude Code settings
-   ├── agents/            # Custom agent definitions
-   │   └── example-agent.md
-   └── commands/          # Custom slash commands
+   ├── settings.json      # Claude Code settings (hooks, agents, skills, statusline)
+   ├── agents/            # 80+ agent definitions (coder, tester, reviewer, etc.)
+   ├── commands/          # 100+ slash commands (swarm, github, sparc, etc.)
+   ├── skills/            # Custom skills and workflows
+   └── helpers/           # Helper utilities
    CLAUDE.md              # Project instructions
 
 🚀 Next steps:
    1. Start the MCP server:
-      npx agentic-flow mcp start
+      npx agentic-flow@alpha mcp start
 
    2. Run Claude Code:
       claude
 
    3. Or run agents directly:
-      npx agentic-flow --agent coder --task "Your task"
+      npx agentic-flow@alpha --agent coder --task "Your task"
 
 📖 Documentation:
    https://github.com/ruvnet/agentic-flow
@@ -211,24 +308,27 @@ function printInitHelp(): void {
 Agentic Flow - Project Initialization
 
 USAGE:
-  npx agentic-flow init [OPTIONS]
+  npx agentic-flow@alpha init [OPTIONS]
 
 OPTIONS:
   --force, -f     Overwrite existing configuration
-  --minimal, -m   Create minimal setup (no CLAUDE.md, no example agent)
-  --verbose, -v   Show detailed output
+  --minimal, -m   Create minimal setup (empty directories only)
+  --verbose, -v   Show detailed file copy output
   --help, -h      Show this help
 
 EXAMPLES:
-  npx agentic-flow init               # Initialize project
-  npx agentic-flow init --force       # Reinitialize (overwrite existing)
-  npx agentic-flow init --minimal     # Minimal setup
+  npx agentic-flow@alpha init               # Initialize with full agent/command library
+  npx agentic-flow@alpha init --force       # Reinitialize (overwrite existing)
+  npx agentic-flow@alpha init --minimal     # Minimal setup (empty directories)
+  npx agentic-flow@alpha init --verbose     # Show all files being copied
 
 CREATED FILES:
   .claude/                  Claude Code configuration directory
-  .claude/settings.json     Settings and MCP server configuration
-  .claude/agents/           Custom agent definitions
-  .claude/commands/         Custom slash commands
+  .claude/settings.json     Settings with hooks, agents, skills, statusline, MCP servers
+  .claude/agents/           80+ agent definitions (coder, tester, reviewer, sparc, etc.)
+  .claude/commands/         100+ slash commands (swarm, github, sparc, etc.)
+  .claude/skills/           Custom skills and workflows
+  .claude/helpers/          Helper utilities
   CLAUDE.md                 Project instructions for Claude
 `);
 }

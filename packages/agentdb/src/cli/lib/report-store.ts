@@ -504,14 +504,42 @@ export class ReportStore {
 
   /**
    * Backup database to file.
+   * SECURITY FIX: Validate path to prevent SQL injection and path traversal
    */
-  async backup(path: string): Promise<void> {
+  async backup(backupPath: string): Promise<void> {
     if (!this.db || this.dbPath === ':memory:') {
       throw new Error('Cannot backup in-memory database');
     }
 
-    // SQLite backup API
-    await this.db.exec(`VACUUM INTO '${path}'`);
+    // Security: Validate backup path to prevent SQL injection and path traversal
+    const normalizedPath = path.normalize(backupPath);
+
+    // Check for path traversal attempts
+    if (normalizedPath.includes('..') || path.isAbsolute(normalizedPath) && !normalizedPath.startsWith(process.cwd())) {
+      throw new Error('Invalid backup path: path traversal not allowed');
+    }
+
+    // Validate path characters - only allow safe characters for file paths
+    // This prevents SQL injection via the path parameter
+    if (!/^[a-zA-Z0-9_\-./\\]+$/.test(normalizedPath)) {
+      throw new Error('Invalid backup path: contains invalid characters');
+    }
+
+    // Ensure path ends with .db or .sqlite extension
+    if (!normalizedPath.endsWith('.db') && !normalizedPath.endsWith('.sqlite')) {
+      throw new Error('Invalid backup path: must end with .db or .sqlite extension');
+    }
+
+    // Ensure target directory exists
+    const dir = path.dirname(normalizedPath);
+    if (dir && dir !== '.' && !fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    // SQLite backup API - path is now validated
+    // Note: VACUUM INTO requires the path as a string literal,
+    // but we've validated it only contains safe characters
+    await this.db.exec(`VACUUM INTO '${normalizedPath}'`);
   }
 
   // --------------------------------------------------------------------------
