@@ -1,6 +1,6 @@
-# 🚀 Agentic-Flow v2.0.0-alpha
+# 🚀 Agentic-Flow v2
 
-> **Production-ready AI agent orchestration platform with 66 self-learning agents, 213 MCP tools, SONA adaptive learning, advanced attention mechanisms, and autonomous multi-agent swarms.**
+> **Production-ready AI agent orchestration with 66 self-learning agents, 213 MCP tools, and autonomous multi-agent swarms.**
 
 [![npm version](https://badge.fury.io/js/agentic-flow.svg)](https://www.npmjs.com/package/agentic-flow)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -9,7 +9,57 @@
 
 ---
 
-## 🎉 What's New in v2.0.0-alpha
+## ⚡ Quick Start (60 seconds)
+
+```bash
+# 1. Initialize your project
+npx agentic-flow init
+
+# 2. Bootstrap intelligence from your codebase
+npx agentic-flow hooks pretrain
+
+# 3. Start Claude Code with self-learning hooks
+claude
+```
+
+That's it! Your project now has:
+- 🧠 **Self-learning hooks** that improve agent routing over time
+- 🤖 **80+ specialized agents** (coder, tester, reviewer, architect, etc.)
+- ⚡ **Background workers** triggered by keywords (ultralearn, optimize, audit)
+- 📊 **213 MCP tools** for swarm coordination
+
+### Common Commands
+
+```bash
+# Route a task to the optimal agent
+npx agentic-flow hooks route "implement user authentication"
+
+# View learning metrics
+npx agentic-flow hooks metrics
+
+# Dispatch background workers
+npx agentic-flow workers dispatch "ultralearn how caching works"
+
+# Run MCP server for Claude Code
+npx agentic-flow mcp start
+```
+
+### Use in Code
+
+```typescript
+import { AgenticFlow } from 'agentic-flow';
+
+const flow = new AgenticFlow();
+await flow.initialize();
+
+// Route task to best agent
+const result = await flow.route('Fix the login bug');
+console.log(`Best agent: ${result.agent} (${result.confidence}% confidence)`);
+```
+
+---
+
+## 🎉 What's New in v2
 
 ### **SONA: Self-Optimizing Neural Architecture** 🧠
 
@@ -38,51 +88,17 @@ Agentic-Flow v2 now includes **ALL** advanced vector/graph, GNN, and attention c
 
 ## 📖 Table of Contents
 
-- [Introduction](#-introduction)
+- [Quick Start](#-quick-start-60-seconds)
+- [What's New](#-whats-new-in-v2)
 - [Key Features](#-key-features)
-- [Benefits](#-benefits)
-- [Use Cases](#-use-cases)
-  - [Business Applications](#business-applications)
-  - [Research & Development](#research--development)
-  - [Enterprise Solutions](#enterprise-solutions)
 - [Performance Benchmarks](#-performance-benchmarks)
-- [Quick Start](#-quick-start)
+- [Project Initialization](#-project-initialization-init)
+- [Self-Learning Hooks](#-self-learning-hooks-system)
+- [Background Workers](#-background-workers-system)
 - [Installation](#-installation)
-- [Documentation](#-documentation)
+- [API Reference](#-api-reference)
 - [Architecture](#-architecture)
 - [Contributing](#-contributing)
-
----
-
-## 🌟 Introduction
-
-**Agentic-Flow** is the most advanced open-source AI agent orchestration platform, combining cutting-edge research with production-ready implementation. Built with Claude Agent SDK, it enables developers to create, deploy, and manage sophisticated multi-agent systems with unprecedented ease and performance.
-
-### Why Agentic-Flow?
-
-In the rapidly evolving landscape of AI agents, Agentic-Flow stands out by offering:
-
-1. **Self-Learning Agents**: SONA-powered agents that improve +55% over time
-2. **Complete Integration**: The only framework with full AgentDB@alpha + SONA support
-3. **Production-Ready**: Battle-tested with enterprise-grade features
-4. **Blazing Fast**: 2.49x-7.47x performance improvements over standard approaches
-5. **Cost Efficient**: 60-70% cost savings with intelligent LLM routing
-6. **Highly Flexible**: 66 specialized agents, 213 MCP tools, 8 attention mechanisms
-7. **Well-Documented**: 6,500+ lines of comprehensive guides and API reference
-
-### What Makes v2.0.0-alpha Special?
-
-Agentic-Flow v2 represents a **quantum leap** in AI agent orchestration:
-
-- **Sub-millisecond adaptive learning** with SONA integration
-- **+55% quality improvement** through continual learning
-- **60-70% cost savings** with intelligent LLM routing
-- **150x-12,500x faster vector search** with HNSW indexing
-- **352x faster code editing** with Agent Booster optimization
-- **4x-13x speedup potential** with Flash Attention and optimizations
-- **+12.4% better recall** with GNN query refinement
-- **Attention-based consensus** for smarter multi-agent coordination
-- **Graph-aware reasoning** with GraphRoPE and topology-aware coordination
 
 ---
 
@@ -880,102 +896,793 @@ console.log(`Common critiques: ${stats.commonCritiques}`);
 
 ---
 
-## 🚀 Quick Start
+## 🔧 Project Initialization (init)
 
-### Installation
+The `init` command sets up your project with the full Agentic-Flow infrastructure, including Claude Code integration, hooks, agents, and skills.
+
+### Quick Init
 
 ```bash
-# Install Agentic-Flow v2.0.0-alpha
-npm install agentic-flow@alpha
+# Initialize project with full agent library
+npx agentic-flow@alpha init
+
+# Force reinitialize (overwrite existing)
+npx agentic-flow@alpha init --force
+
+# Minimal setup (empty directories only)
+npx agentic-flow@alpha init --minimal
+
+# Verbose output showing all files
+npx agentic-flow@alpha init --verbose
 ```
 
-### Basic Usage
+### What Gets Created
 
-```typescript
-import { EnhancedAgentDBWrapper } from 'agentic-flow/core';
-import { AttentionCoordinator } from 'agentic-flow/coordination';
-
-// Initialize with Flash Attention (4x faster!)
-const wrapper = new EnhancedAgentDBWrapper({
-  dimension: 768,
-  enableAttention: true,
-  enableGNN: true,
-  attentionConfig: {
-    type: 'flash',  // Recommended for production
-    numHeads: 8,
-    headDim: 64,
-  },
-  gnnConfig: {
-    numLayers: 3,
-    hiddenDim: 256,
-  },
-});
-
-await wrapper.initialize();
-
-// Use Flash Attention (2.49x-7.47x speedup)
-const query = new Float32Array(768); // Your query embedding
-const candidates = []; // Your candidate embeddings
-
-const result = await wrapper.flashAttention(
-  query,
-  stackVectors(candidates),
-  stackVectors(candidates)
-);
-
-console.log(`Runtime: ${result.runtime}`);
-console.log(`Time: ${result.executionTimeMs}ms`);
-console.log(`Memory: ${result.memoryUsage} bytes`);
-
-// Use GNN query refinement (+12.4% recall)
-const gnnResult = await wrapper.gnnEnhancedSearch(query, {
-  k: 10,
-  graphContext: {
-    nodes: documentEmbeddings,
-    edges: documentRelations,
-  },
-});
-
-console.log(`Found ${gnnResult.results.length} results`);
-console.log(`Recall improved by ${gnnResult.improvementPercent}%`);
-
-// Use multi-agent coordination
-const coordinator = new AttentionCoordinator(wrapper.getAttentionService());
-
-const consensus = await coordinator.coordinateAgents([
-  { agentId: 'agent-1', output: 'Answer A', embedding: embed1 },
-  { agentId: 'agent-2', output: 'Answer B', embedding: embed2 },
-  { agentId: 'agent-3', output: 'Answer C', embedding: embed3 },
-], 'flash');
-
-console.log(`Consensus: ${consensus.consensus}`);
-console.log(`Top agent: ${consensus.topAgents[0].agentId}`);
+```
+.claude/
+├── settings.json      # Claude Code settings (hooks, agents, skills, statusline)
+├── statusline.sh      # Custom statusline (model, tokens, cost, swarm status)
+├── agents/            # 80+ agent definitions (coder, tester, reviewer, etc.)
+├── commands/          # 100+ slash commands (swarm, github, sparc, etc.)
+├── skills/            # Custom skills and workflows
+└── helpers/           # Helper utilities
+CLAUDE.md              # Project instructions for Claude
 ```
 
-### Spawn Specialized Agents
+### settings.json Structure
 
-```typescript
-import { Task } from 'agentic-flow';
+The generated `settings.json` includes:
 
-// Spawn agents concurrently
-await Promise.all([
-  Task('Researcher', 'Analyze requirements and patterns', 'researcher'),
-  Task('Coder', 'Implement core features', 'coder'),
-  Task('Tester', 'Create comprehensive tests', 'tester'),
-  Task('Reviewer', 'Review code quality', 'reviewer'),
-]);
+```json
+{
+  "model": "claude-sonnet-4-20250514",
+  "env": {
+    "AGENTIC_FLOW_INTELLIGENCE": "true",
+    "AGENTIC_FLOW_LEARNING_RATE": "0.1",
+    "AGENTIC_FLOW_MEMORY_BACKEND": "agentdb"
+  },
+  "hooks": {
+    "PreToolUse": [...],
+    "PostToolUse": [...],
+    "SessionStart": [...],
+    "UserPromptSubmit": [...]
+  },
+  "permissions": {
+    "allow": ["Bash(npx:*)", "mcp__agentic-flow", "mcp__claude-flow"]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": ".claude/statusline.sh"
+  },
+  "mcpServers": {
+    "claude-flow": {
+      "command": "npx",
+      "args": ["agentic-flow@alpha", "mcp", "start"]
+    }
+  }
+}
 ```
 
-### Use MCP Tools
+### Post-Init Steps
 
-```typescript
-import { mcp__claude_flow__swarm_init } from 'agentic-flow/mcp';
+After initialization:
 
-// Initialize swarm coordination
-await mcp__claude_flow__swarm_init({
-  topology: 'mesh',
-  maxAgents: 10,
-});
+```bash
+# 1. Start the MCP server
+npx agentic-flow@alpha mcp start
+
+# 2. Bootstrap intelligence from your codebase
+npx agentic-flow@alpha hooks pretrain
+
+# 3. Generate optimized agent configurations
+npx agentic-flow@alpha hooks build-agents
+
+# 4. Start using Claude Code
+claude
+```
+
+---
+
+## 🧠 Self-Learning Hooks System
+
+Agentic-Flow v2 includes a powerful **self-learning hooks system** powered by RuVector intelligence (SONA Micro-LoRA, MoE attention, HNSW indexing). Hooks automatically learn from your development patterns and optimize agent routing over time.
+
+### Hooks Overview
+
+| Hook | Purpose | When Triggered |
+|------|---------|----------------|
+| `pre-edit` | Get context and agent suggestions | Before file edits |
+| `post-edit` | Record edit outcomes for learning | After file edits |
+| `pre-command` | Assess command risk | Before Bash commands |
+| `post-command` | Record command outcomes | After Bash commands |
+| `route` | Route task to optimal agent | On task assignment |
+| `explain` | Explain routing decision | On demand |
+| `pretrain` | Bootstrap from repository | During setup |
+| `build-agents` | Generate agent configs | After pretrain |
+| `metrics` | View learning dashboard | On demand |
+| `transfer` | Transfer patterns between projects | On demand |
+
+### Core Hook Commands
+
+#### Pre-Edit Hook
+Get context and agent suggestions before editing a file:
+
+```bash
+npx agentic-flow@alpha hooks pre-edit <filePath> [options]
+
+Options:
+  -t, --task <task>   Task description
+  -j, --json          Output as JSON
+
+# Example
+npx agentic-flow@alpha hooks pre-edit src/api/users.ts --task "Add validation"
+# Output:
+# 🎯 Suggested Agent: backend-dev
+# 📊 Confidence: 94.2%
+# 📁 Related Files:
+#    - src/api/validation.ts
+#    - src/types/user.ts
+# ⏱️  Latency: 2.3ms
+```
+
+#### Post-Edit Hook
+Record edit outcome for learning:
+
+```bash
+npx agentic-flow@alpha hooks post-edit <filePath> [options]
+
+Options:
+  -s, --success           Mark as successful edit
+  -f, --fail              Mark as failed edit
+  -a, --agent <agent>     Agent that performed the edit
+  -d, --duration <ms>     Edit duration in milliseconds
+  -e, --error <message>   Error message if failed
+  -j, --json              Output as JSON
+
+# Example (success)
+npx agentic-flow@alpha hooks post-edit src/api/users.ts --success --agent coder
+
+# Example (failure)
+npx agentic-flow@alpha hooks post-edit src/api/users.ts --fail --error "Type error"
+```
+
+#### Pre-Command Hook
+Assess command risk before execution:
+
+```bash
+npx agentic-flow@alpha hooks pre-command "<command>" [options]
+
+Options:
+  -j, --json    Output as JSON
+
+# Example
+npx agentic-flow@alpha hooks pre-command "rm -rf node_modules"
+# Output:
+# ⚠️ Risk Level: CAUTION (65%)
+# ✅ Command APPROVED
+# 💡 Suggestions:
+#    - Consider using npm ci instead for cleaner reinstall
+```
+
+#### Route Hook
+Route task to optimal agent using learned patterns:
+
+```bash
+npx agentic-flow@alpha hooks route "<task>" [options]
+
+Options:
+  -f, --file <filePath>   Context file path
+  -e, --explore           Enable exploration mode
+  -j, --json              Output as JSON
+
+# Example
+npx agentic-flow@alpha hooks route "Fix authentication bug in login flow"
+# Output:
+# 🎯 Recommended Agent: backend-dev
+# 📊 Confidence: 91.5%
+# 📋 Routing Factors:
+#    • Task type match: 95%
+#    • Historical success: 88%
+#    • File pattern match: 92%
+# 🔄 Alternatives:
+#    - security-manager (78%)
+#    - coder (75%)
+# ⏱️  Latency: 1.8ms
+```
+
+#### Explain Hook
+Explain routing decision with full transparency:
+
+```bash
+npx agentic-flow@alpha hooks explain "<task>" [options]
+
+Options:
+  -f, --file <filePath>   Context file path
+  -j, --json              Output as JSON
+
+# Example
+npx agentic-flow@alpha hooks explain "Implement caching layer"
+# Output:
+# 📝 Summary: Task involves performance optimization and data caching
+# 🎯 Recommended: perf-analyzer
+# 💡 Reasons:
+#    • High performance impact task
+#    • Matches caching patterns from history
+#    • Agent has 94% success rate on similar tasks
+# 🏆 Agent Ranking:
+#    1. perf-analyzer - 92.3%
+#    2. backend-dev - 85.1%
+#    3. coder - 78.4%
+```
+
+### Learning & Training Commands
+
+#### Pretrain Hook
+Analyze repository to bootstrap intelligence:
+
+```bash
+npx agentic-flow@alpha hooks pretrain [options]
+
+Options:
+  -d, --depth <n>     Git history depth (default: 50)
+  --skip-git          Skip git history analysis
+  --skip-files        Skip file structure analysis
+  -j, --json          Output as JSON
+
+# Example
+npx agentic-flow@alpha hooks pretrain --depth 100
+# Output:
+# 🧠 Analyzing repository...
+# 📊 Pretrain Complete!
+#    📁 Files analyzed: 342
+#    🧩 Patterns created: 156
+#    💾 Memories stored: 89
+#    🔗 Co-edits found: 234
+#    🌐 Languages: TypeScript, JavaScript, Python
+#    ⏱️  Duration: 4521ms
+```
+
+#### Build-Agents Hook
+Generate optimized agent configurations from pretrain data:
+
+```bash
+npx agentic-flow@alpha hooks build-agents [options]
+
+Options:
+  -f, --focus <mode>    Focus: quality|speed|security|testing|fullstack
+  -o, --output <dir>    Output directory (default: .claude/agents)
+  --format <fmt>        Output format: yaml|json
+  --no-prompts          Exclude system prompts
+  -j, --json            Output as JSON
+
+# Example
+npx agentic-flow@alpha hooks build-agents --focus security
+# Output:
+# ✅ Agents Generated!
+#    📦 Total: 12
+#    📂 Output: .claude/agents
+#    🎯 Focus: security
+#    Agents created:
+#      • security-auditor
+#      • vulnerability-scanner
+#      • auth-specialist
+#      • crypto-expert
+```
+
+#### Metrics Hook
+View learning metrics and performance dashboard:
+
+```bash
+npx agentic-flow@alpha hooks metrics [options]
+
+Options:
+  -t, --timeframe <period>   Timeframe: 1h|24h|7d|30d (default: 24h)
+  -d, --detailed             Show detailed metrics
+  -j, --json                 Output as JSON
+
+# Example
+npx agentic-flow@alpha hooks metrics --timeframe 7d --detailed
+# Output:
+# 📊 Learning Metrics (7d)
+#
+# 🎯 Routing:
+#    Total routes: 1,247
+#    Successful: 1,189
+#    Accuracy: 95.3%
+#
+# 📚 Learning:
+#    Patterns: 342
+#    Memories: 156
+#    Error patterns: 23
+#
+# 💚 Health: EXCELLENT
+```
+
+#### Transfer Hook
+Transfer learned patterns from another project:
+
+```bash
+npx agentic-flow@alpha hooks transfer <sourceProject> [options]
+
+Options:
+  -c, --min-confidence <n>   Minimum confidence threshold (default: 0.7)
+  -m, --max-patterns <n>     Maximum patterns to transfer (default: 50)
+  --mode <mode>              Transfer mode: merge|replace|additive
+  -j, --json                 Output as JSON
+
+# Example
+npx agentic-flow@alpha hooks transfer ../other-project --mode merge
+# Output:
+# ✅ Transfer Complete!
+#    📥 Patterns transferred: 45
+#    🔄 Patterns adapted: 38
+#    🎯 Mode: merge
+#    🛠️  Target stack: TypeScript, React, Node.js
+```
+
+### RuVector Intelligence Commands
+
+The `intelligence` (alias: `intel`) subcommand provides access to the full RuVector stack:
+
+#### Intelligence Route
+Route task using SONA + MoE + HNSW (150x faster than brute force):
+
+```bash
+npx agentic-flow@alpha hooks intelligence route "<task>" [options]
+
+Options:
+  -f, --file <path>       File context
+  -e, --error <context>   Error context for debugging
+  -k, --top-k <n>         Number of candidates (default: 5)
+  -j, --json              Output as JSON
+
+# Example
+npx agentic-flow@alpha hooks intel route "Optimize database queries" --top-k 3
+# Output:
+# ⚡ RuVector Intelligence Route
+# 🎯 Agent: perf-analyzer
+# 📊 Confidence: 96.2%
+# 🔧 Engine: SONA+MoE+HNSW
+# ⏱️  Latency: 0.34ms
+# 🧠 Features: micro-lora, moe-attention, hnsw-index
+```
+
+#### Trajectory Tracking
+Track reinforcement learning trajectories for agent improvement:
+
+```bash
+# Start a trajectory
+npx agentic-flow@alpha hooks intel trajectory-start "<task>" -a <agent>
+# Output: 🎬 Trajectory Started - ID: 42
+
+# Record steps
+npx agentic-flow@alpha hooks intel trajectory-step 42 -a "edit file" -r 0.8
+npx agentic-flow@alpha hooks intel trajectory-step 42 -a "run tests" -r 1.0 --test-passed
+
+# End trajectory
+npx agentic-flow@alpha hooks intel trajectory-end 42 --success --quality 0.95
+# Output: 🏁 Trajectory Completed - Learning: EWC++ consolidation applied
+```
+
+#### Pattern Storage & Search
+Store and search patterns using HNSW-indexed ReasoningBank:
+
+```bash
+# Store a pattern
+npx agentic-flow@alpha hooks intel pattern-store \
+  --task "Fix React hydration error" \
+  --resolution "Use useEffect with empty deps for client-only code" \
+  --score 0.95
+
+# Search patterns (150x faster with HNSW)
+npx agentic-flow@alpha hooks intel pattern-search "hydration mismatch"
+# Output:
+# 🔍 Pattern Search Results
+#    Query: "hydration mismatch"
+#    Engine: HNSW (150x faster)
+#    Found: 5 patterns
+#    📋 Results:
+#    1. [94%] Use useEffect with empty deps for client-only...
+#    2. [87%] Add suppressHydrationWarning for dynamic content...
+```
+
+#### Intelligence Stats
+Get RuVector intelligence layer statistics:
+
+```bash
+npx agentic-flow@alpha hooks intelligence stats
+# Output:
+# 📊 RuVector Intelligence Stats
+#
+# 🧠 SONA Engine:
+#    Micro-LoRA: rank-1 (~0.05ms)
+#    Base-LoRA: rank-8
+#    EWC Lambda: 1000.0
+#
+# ⚡ Attention:
+#    Type: moe
+#    Experts: 4
+#    Top-K: 2
+#
+# 🔍 HNSW:
+#    Enabled: true
+#    Speedup: 150x vs brute-force
+#
+# 📈 Learning:
+#    Trajectories: 156
+#    Active: 3
+#
+# 💾 Persistence (SQLite):
+#    Backend: sqlite
+#    Routings: 1247
+#    Patterns: 342
+```
+
+### Hooks in settings.json
+
+The `init` command automatically configures hooks in `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [{"type": "command", "command": "npx agentic-flow@alpha hooks pre-edit \"$TOOL_INPUT_file_path\""}]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [{"type": "command", "command": "npx agentic-flow@alpha hooks pre-command \"$TOOL_INPUT_command\""}]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [{"type": "command", "command": "npx agentic-flow@alpha hooks post-edit \"$TOOL_INPUT_file_path\" --success"}]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [{"type": "command", "command": "npx agentic-flow@alpha hooks post-edit \"$TOOL_INPUT_file_path\" --fail --error \"$ERROR_MESSAGE\""}]
+      }
+    ],
+    "SessionStart": [
+      {"hooks": [{"type": "command", "command": "npx agentic-flow@alpha hooks intelligence stats --json"}]}
+    ],
+    "UserPromptSubmit": [
+      {"hooks": [{"type": "command", "timeout": 3000, "command": "npx agentic-flow@alpha hooks route \"$USER_PROMPT\" --json"}]}
+    ]
+  }
+}
+```
+
+### Learning Pipeline (4-Step Process)
+
+The hooks system uses a sophisticated 4-step learning pipeline:
+
+1. **RETRIEVE** - Top-k memory injection with MMR (Maximal Marginal Relevance) diversity
+2. **JUDGE** - LLM-as-judge trajectory evaluation for quality scoring
+3. **DISTILL** - Extract strategy memories from successful trajectories
+4. **CONSOLIDATE** - Deduplicate, detect contradictions, prune old patterns
+
+### Environment Variables
+
+Configure the hooks system with environment variables:
+
+```bash
+# Enable intelligence layer
+AGENTIC_FLOW_INTELLIGENCE=true
+
+# Learning rate for Q-learning (0.0-1.0)
+AGENTIC_FLOW_LEARNING_RATE=0.1
+
+# Exploration rate for ε-greedy routing (0.0-1.0)
+AGENTIC_FLOW_EPSILON=0.1
+
+# Memory backend (agentdb, sqlite, memory)
+AGENTIC_FLOW_MEMORY_BACKEND=agentdb
+
+# Enable workers system
+AGENTIC_FLOW_WORKERS_ENABLED=true
+AGENTIC_FLOW_MAX_WORKERS=10
+```
+
+---
+
+## ⚡ Background Workers System
+
+Agentic-Flow v2 includes a powerful **background workers system** that runs non-blocking analysis tasks silently in the background. Workers are triggered by keywords in your prompts and deposit their findings into memory for later retrieval.
+
+### Worker Triggers
+
+Workers are automatically dispatched when trigger keywords are detected in prompts:
+
+| Trigger | Description | Priority |
+|---------|-------------|----------|
+| `ultralearn` | Deep codebase learning and pattern extraction | high |
+| `optimize` | Performance analysis and optimization suggestions | medium |
+| `audit` | Security and code quality auditing | high |
+| `document` | Documentation generation and analysis | low |
+| `refactor` | Code refactoring analysis | medium |
+| `test` | Test coverage and quality analysis | medium |
+
+### Worker Commands
+
+#### Dispatch Workers
+Detect triggers in prompt and dispatch background workers:
+
+```bash
+npx agentic-flow@alpha workers dispatch "<prompt>"
+
+# Example
+npx agentic-flow@alpha workers dispatch "ultralearn how authentication works"
+# Output:
+# ⚡ Background Workers Spawned:
+#   • ultralearn: worker-1234
+#     Topic: "how authentication works"
+# Use 'workers status' to monitor progress
+```
+
+#### Monitor Status
+Get worker status and progress:
+
+```bash
+npx agentic-flow@alpha workers status [workerId]
+
+Options:
+  -s, --session <id>   Filter by session
+  -a, --active         Show only active workers
+  -j, --json           Output as JSON
+
+# Example - Dashboard view
+npx agentic-flow@alpha workers status
+# Output:
+# ┌─ Background Workers Dashboard ────────────┐
+# │ ✅ ultralearn: complete                    │
+# │   └─ pattern-storage                       │
+# │ 🔄 optimize: running (65%)                 │
+# │   └─ analysis-extraction                   │
+# ├───────────────────────────────────────────┤
+# │ Active: 1/10                               │
+# │ Memory: 128MB                              │
+# └───────────────────────────────────────────┘
+```
+
+#### View Results
+View worker analysis results:
+
+```bash
+npx agentic-flow@alpha workers results [workerId]
+
+Options:
+  -s, --session <id>    Filter by session
+  -t, --trigger <type>  Filter by trigger type
+  -j, --json            Output as JSON
+
+# Example
+npx agentic-flow@alpha workers results
+# Output:
+# 📊 Worker Analysis Results
+#   • ultralearn "authentication":
+#       42 files, 156 patterns, 234.5 KB
+#   • optimize:
+#       18 files, 23 patterns, 89.2 KB
+#   ──────────────────────────────────
+#   Total: 60 files, 179 patterns, 323.7 KB
+```
+
+#### List Triggers
+List all available trigger keywords:
+
+```bash
+npx agentic-flow@alpha workers triggers
+# Output:
+# ⚡ Available Background Worker Triggers:
+# ┌──────────────┬──────────┬────────────────────────────────────────┐
+# │ Trigger      │ Priority │ Description                            │
+# ├──────────────┼──────────┼────────────────────────────────────────┤
+# │ ultralearn   │ high     │ Deep codebase learning                 │
+# │ optimize     │ medium   │ Performance analysis                   │
+# │ audit        │ high     │ Security auditing                      │
+# │ document     │ low      │ Documentation generation               │
+# └──────────────┴──────────┴────────────────────────────────────────┘
+```
+
+#### Worker Statistics
+Get worker statistics:
+
+```bash
+npx agentic-flow@alpha workers stats [options]
+
+Options:
+  -t, --timeframe <period>   Timeframe: 1h, 24h, 7d (default: 24h)
+  -j, --json                 Output as JSON
+
+# Example
+npx agentic-flow@alpha workers stats --timeframe 7d
+# Output:
+# ⚡ Worker Statistics (7d)
+# Total Workers: 45
+# Average Duration: 12.3s
+#
+# By Status:
+#   ✅ complete: 42
+#   🔄 running: 2
+#   ❌ failed: 1
+#
+# By Trigger:
+#   • ultralearn: 25
+#   • optimize: 12
+#   • audit: 8
+```
+
+### Custom Workers
+
+Create and manage custom workers with specific analysis phases:
+
+#### List Presets
+```bash
+npx agentic-flow@alpha workers presets
+# Shows available worker presets: quick-scan, deep-analysis, security-audit, etc.
+```
+
+#### Create Custom Worker
+```bash
+npx agentic-flow@alpha workers create <name> [options]
+
+Options:
+  -p, --preset <preset>     Preset to use (default: quick-scan)
+  -t, --triggers <triggers> Comma-separated trigger keywords
+  -d, --description <desc>  Worker description
+
+# Example
+npx agentic-flow@alpha workers create security-check --preset security-audit --triggers "security,vuln"
+```
+
+#### Run Custom Worker
+```bash
+npx agentic-flow@alpha workers run <nameOrTrigger> [options]
+
+Options:
+  -t, --topic <topic>    Topic to analyze
+  -s, --session <id>     Session ID
+  -j, --json             Output as JSON
+
+# Example
+npx agentic-flow@alpha workers run security-check --topic "authentication flow"
+```
+
+### Native RuVector Workers
+
+Run native RuVector workers for advanced analysis:
+
+```bash
+npx agentic-flow@alpha workers native <type> [options]
+
+Types:
+  security   - Run security vulnerability scan
+  analysis   - Run full code analysis
+  learning   - Run learning and pattern extraction
+  phases     - List available native phases
+
+# Example
+npx agentic-flow@alpha workers native security
+# Output:
+# ⚡ Native Worker: security
+# ══════════════════════════════════════════════════
+# Status: ✅ Success
+# Phases: file-discovery → security-scan → report-generation
+#
+# 📊 Metrics:
+#   Files Analyzed:    342
+#   Patterns Found:    23
+#   Embeddings:        156
+#   Vectors Stored:    89
+#   Duration:          4521ms
+#
+# 🔒 Security Findings:
+#   High: 2 | Medium: 5 | Low: 12
+#
+#   Top Issues:
+#     • [high] sql-injection in db.ts:45
+#     • [high] xss in template.ts:123
+```
+
+### Worker Benchmarks
+
+Run performance benchmarks on the worker system:
+
+```bash
+npx agentic-flow@alpha workers benchmark [options]
+
+Options:
+  -t, --type <type>         Benchmark type: all, trigger-detection, registry,
+                            agent-selection, cache, concurrent, memory-keys
+  -i, --iterations <count>  Number of iterations (default: 1000)
+  -j, --json                Output as JSON
+
+# Example
+npx agentic-flow@alpha workers benchmark --type trigger-detection
+# Output:
+# ✅ Trigger Detection Benchmark
+#    Operation: detect triggers in prompts
+#    Count: 1,000
+#    Avg: 0.045ms | p95: 0.089ms
+#    Throughput: 22,222 ops/s
+#    Memory Δ: 0.12MB
+```
+
+### Worker Integration
+
+View worker-agent integration statistics:
+
+```bash
+npx agentic-flow@alpha workers integration
+# Output:
+# ⚡ Worker-Agent Integration Stats
+# ════════════════════════════════════════
+# Total Agents:       66
+# Tracked Agents:     45
+# Total Feedback:     1,247
+# Avg Quality Score:  0.89
+#
+# Model Cache Stats
+# ────────────────────
+# Hits:     12,456
+# Misses:   234
+# Hit Rate: 98.2%
+```
+
+#### Agent Recommendations
+Get recommended agents for a worker trigger:
+
+```bash
+npx agentic-flow@alpha workers agents <trigger>
+
+# Example
+npx agentic-flow@alpha workers agents ultralearn
+# Output:
+# ⚡ Agent Recommendations for "ultralearn"
+#
+# Primary Agents:  researcher, coder, analyst
+# Fallback Agents: reviewer, architect
+# Pipeline:        discovery → analysis → pattern-extraction → storage
+# Memory Pattern:  {trigger}/{topic}/{timestamp}
+#
+# 🎯 Best Selection:
+#   Agent:      researcher
+#   Confidence: 94%
+#   Reason:     Best match for learning tasks based on historical success
+```
+
+### Worker Configuration in settings.json
+
+Workers are automatically configured in `.claude/settings.json` via hooks:
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [{
+          "type": "command",
+          "timeout": 5000,
+          "background": true,
+          "command": "npx agentic-flow@alpha workers dispatch-prompt \"$USER_PROMPT\" --session \"$SESSION_ID\" --json"
+        }]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [{
+          "type": "command",
+          "command": "npx agentic-flow@alpha workers cleanup --age 24"
+        }]
+      }
+    ]
+  }
+}
 ```
 
 ---

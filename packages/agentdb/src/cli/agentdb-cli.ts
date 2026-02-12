@@ -28,6 +28,10 @@ import { statusCommand } from './commands/status.js';
 import { installEmbeddingsCommand } from './commands/install-embeddings.js';
 import { migrateCommand } from './commands/migrate.js';
 import { doctorCommand } from './commands/doctor.js';
+import { attentionCommand } from './commands/attention.js';
+import { learnCommand } from './commands/learn.js';
+import { routeCommand } from './commands/route.js';
+import { hyperbolicCommand } from './commands/hyperbolic.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as zlib from 'zlib';
@@ -1692,6 +1696,16 @@ class AgentDBCLI {
 // CLI Entry Point
 // ============================================================================
 
+/**
+ * Helper function to execute Commander-based commands
+ */
+async function handleCommanderCommand(command: any, args: string[]): Promise<void> {
+  const { Command } = await import('commander');
+  const program = new Command();
+  program.addCommand(command);
+  await program.parseAsync(['node', 'agentdb', ...args], { from: 'user' });
+}
+
 async function main() {
   const args = process.argv.slice(2);
 
@@ -1857,6 +1871,27 @@ async function main() {
 
   if (command === 'stats') {
     await handleStatsCommand(args.slice(1));
+    return;
+  }
+
+  // Handle advanced neural commands (WASM-accelerated when available)
+  if (command === 'attention') {
+    await handleCommanderCommand(attentionCommand, args.slice(1));
+    return;
+  }
+
+  if (command === 'learn') {
+    await handleCommanderCommand(learnCommand, args.slice(1));
+    return;
+  }
+
+  if (command === 'route') {
+    await handleCommanderCommand(routeCommand, args.slice(1));
+    return;
+  }
+
+  if (command === 'hyperbolic') {
+    await handleCommanderCommand(hyperbolicCommand, args.slice(1));
     return;
   }
 
@@ -3253,6 +3288,55 @@ ${colors.bright}QUIC SYNC COMMANDS:${colors.reset}
   agentdb sync status
     Show synchronization status, pending changes, and connected servers
     Example: agentdb sync status
+
+${colors.bright}ADVANCED NEURAL COMMANDS (WASM-ACCELERATED):${colors.reset}
+  agentdb attention <subcommand> [options]
+    Attention mechanism operations: flash, hyperbolic, sparse, MoE
+    Subcommands:
+      init --mechanism <type>         Initialize attention configuration
+      compute --query <text>          Compute attention for query-key-value
+      benchmark --all                 Benchmark all mechanisms
+      optimize --mechanism <type>     Optimize parameters
+    Example: agentdb attention benchmark --all --iterations 100
+
+  agentdb learn --mode <type> --data <file> [options]
+    Advanced learning: curriculum, contrastive loss, hard negative mining
+    Modes:
+      curriculum    Progressive difficulty training with cosine/linear schedules
+      contrastive   InfoNCE and local contrastive loss training
+      hard-negatives Hard negative mining for contrastive learning
+    Options:
+      --schedule <type>        Difficulty schedule: linear|cosine|exponential
+      --temperature <n>        InfoNCE temperature (default: 0.07)
+      --strategy <type>        Mining strategy: hard|semi-hard|distance-based
+    Example: agentdb learn --mode curriculum --data train.json --schedule cosine
+    Example: agentdb learn --mode contrastive --data pairs.json --epochs 15
+
+  agentdb route --prompt <text> [options]
+    LLM routing with FastGRNN model selection (haiku/sonnet/opus)
+    Options:
+      --prompt <text>          Prompt to route
+      --prompt-file <path>     File containing prompt
+      --context <json>         Conversation context (JSON)
+      --explain                Explain routing decision
+    Subcommands:
+      feedback --model <type> --outcome <result>    Record feedback for learning
+      stats                                          View routing statistics
+    Example: agentdb route --prompt "Explain quantum computing" --explain
+    Example: agentdb route feedback --model sonnet --outcome success
+
+  agentdb hyperbolic --op <type> [options]
+    Hyperbolic space operations: Poincaré ball geometry
+    Operations:
+      expmap       Exponential map (tangent -> manifold)
+      logmap       Logarithmic map (manifold -> tangent)
+      mobius-add   Möbius addition (hyperbolic addition)
+      distance     Poincaré distance between points
+      project      Project point to Poincaré ball
+      centroid     Compute hyperbolic centroid
+      dual-search  Hybrid Euclidean + Hyperbolic search
+    Example: agentdb hyperbolic --op distance --point-a "[0.3,0.4]" --point-b "[0.6,0.2]"
+    Example: agentdb hyperbolic --op dual-search --query "[0.5,0.5]" --points vectors.json
 
 ${colors.bright}CAUSAL COMMANDS:${colors.reset}
   agentdb causal add-edge <cause> <effect> <uplift> [confidence] [sample-size]
