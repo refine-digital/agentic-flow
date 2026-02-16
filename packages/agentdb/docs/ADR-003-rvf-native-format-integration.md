@@ -69,11 +69,11 @@ index.d.ts     -- RvfDatabase class + types
 - `@ruvector/rvf-node-win32-x64-msvc` -- scaffolded (no binary)
 - `@ruvector/rvf-node-linux-arm64-gnu` -- scaffolded (no binary)
 
-#### @ruvector/rvf-wasm@0.1.4 -- WASM Microkernel (BINARY WORKS, SDK GLUE ISSUE)
+#### @ruvector/rvf-wasm@0.1.5 -- WASM Microkernel (FULLY FUNCTIONAL)
 
 Binary: `rvf_wasm_bg.wasm` (42 KB). Contains 30+ C-ABI exports.
 
-**Raw WASM module works correctly** when loaded via buffer:
+**WASM module verified** (C-ABI operations):
 
 ```
 rvf_store_create(64, L2)  -> handle=1
@@ -84,22 +84,15 @@ rvf_store_query(k=3)      -> 3 results returned
 rvf_store_close()         -> OK
 ```
 
-**SDK wrapper (`WasmBackend`) fails in Node.js** due to:
-
-1. **CJS/ESM mismatch** -- SDK uses `require('@ruvector/rvf-wasm')` but the WASM package is ESM (`import.meta.url`)
-2. **`fetch()` on `file://` URLs** -- The WASM glue code's `init()` calls `fetch(new URL('rvf_wasm_bg.wasm', import.meta.url))` which fails in Node.js (`fetch` on `file://` returns "not implemented")
-
-**Workaround:** Load WASM binary manually via `fs.readFile` + `init(buffer)`. This bypasses the broken `fetch()` path.
-
 ### Summary: What Works Today
 
-| Package              | Version | Binary                     | SDK Wrapper                  | Direct Use         |
-| -------------------- | ------- | -------------------------- | ---------------------------- | ------------------ |
-| `@ruvector/rvf`      | 0.1.6   | N/A (pure JS)              | --                           | Fully functional   |
-| `@ruvector/rvf-node` | 0.1.4   | 1.3 MB `.node` (linux-x64) | All 12 ops pass              | N/A                |
-| `@ruvector/rvf-wasm` | 0.1.4   | 42 KB `.wasm`              | **Broken** (CJS/ESM + fetch) | All C-ABI ops work |
+| Package              | Version | Binary                     | SDK Wrapper      | Direct Use         |
+| -------------------- | ------- | -------------------------- | ---------------- | ------------------ |
+| `@ruvector/rvf`      | 0.1.6   | N/A (pure JS)              | --               | Fully functional   |
+| `@ruvector/rvf-node` | 0.1.4   | 1.3 MB `.node` (linux-x64) | All 12 ops pass  | N/A                |
+| `@ruvector/rvf-wasm` | 0.1.5   | 42 KB `.wasm`              | Fully functional | All C-ABI ops work |
 
-The N-API backend is production-ready on linux-x64. The WASM binary is functional but needs an SDK glue fix for Node.js (the browser path via `fetch()` + `WebAssembly.instantiateStreaming()` should work).
+The N-API backend is production-ready on linux-x64 (other 4 platforms CI-built, ready to publish). The WASM backend is fully functional.
 
 ### SDK API Surface (verified from types)
 
@@ -154,7 +147,7 @@ Current AgentDB vector persistence limitations:
 
 Integrate the `@ruvector/rvf` SDK as the RVF backend for AgentDB, targeting the N-API backend (`@ruvector/rvf-node`) for Node.js and the WASM backend (`@ruvector/rvf-wasm`) for browser/edge. Both backends implement the same `RvfBackend` interface with automatic fallback (`'auto'` mode).
 
-**Current state:** N-API backend is fully functional on linux-x64. WASM binary works but needs an SDK glue fix for Node.js (CJS/ESM mismatch and `fetch()` on `file://` URLs). Cross-platform N-API binaries (macOS, Windows, ARM) need CI builds.
+**Current state:** Both N-API and WASM backends are fully functional. N-API binary published for linux-x64-gnu; 4 other platform binaries (darwin-x64, darwin-arm64, win32-x64-msvc, linux-arm64-gnu) are CI-built and ready to publish.
 
 ### Architecture
 
@@ -179,20 +172,19 @@ As of 2026-02-16, upstream has published working binaries:
 
 1. **`@ruvector/rvf-node@0.1.4`** -- N-API bindings with real binary (1.3 MB linux-x64-gnu). All 12 operations verified. Loader, types, and platform binary published.
    - Published: `@ruvector/rvf-node-linux-x64-gnu@0.1.4` (1.3 MB)
-   - Scaffolded (need CI cross-compilation): darwin-x64, darwin-arm64, win32-x64-msvc, linux-arm64-gnu
+   - CI-built (all 5 platforms pass): darwin-x64, darwin-arm64, win32-x64-msvc, linux-arm64-gnu
    - `index.js` + `index.d.ts` included in base package
+   - `build-rvf-node.yml` workflow auto-builds on merge to main
 
-2. **`@ruvector/rvf-wasm@0.1.4`** -- WASM microkernel with pre-built binary (42 KB). All C-ABI operations verified via buffer loading.
+2. **`@ruvector/rvf-wasm@0.1.5`** -- WASM microkernel with pre-built binary (42 KB). All C-ABI operations verified.
    - Pre-built `pkg/rvf_wasm_bg.wasm` + `pkg/rvf_wasm.js` + type definitions included
    - No Rust/wasm-pack install required
-   - **Known issue:** SDK `WasmBackend` wrapper fails in Node.js (CJS/ESM mismatch + `fetch()` on `file://`). Raw WASM works via `fs.readFile` + `init(buffer)`.
 
 3. **`@ruvector/rvf@0.1.6`** -- SDK with corrected version pins (`^0.1.4` for both backends). Previous `0.1.5` -> `rvf-node@0.1.0` mismatch fixed.
 
-**Remaining upstream work:**
+**Remaining upstream work (P2):**
 
-- Cross-platform N-API binaries (macOS x64/arm64, Windows, Linux arm64/musl)
-- Fix WASM SDK glue for Node.js (`WasmBackend` CJS/ESM + `fetch()` path)
+- Publish 4 remaining platform binary packages (darwin-arm64, darwin-x64, linux-arm64-gnu, win32-x64-msvc) -- CI artifacts ready
 
 ### Phase 1: Core RVF Backend (Priority: Critical)
 
@@ -459,8 +451,7 @@ Expose 3-layer HNSW through `SearchOptions.quality` field. Requires N-API backen
 
 ### Negative
 
-- **Linux-x64 only** -- N-API binary currently ships only for `linux-x64-gnu`. macOS/Windows/ARM need CI cross-compilation.
-- **WASM SDK glue broken in Node.js** -- `WasmBackend` class fails due to CJS/ESM mismatch and `fetch()` on `file://` URLs. Raw WASM works via buffer loading.
+- **Cross-platform publishing pending** -- N-API binary published only for linux-x64-gnu; 4 other platforms are CI-built but not yet on npm.
 - **Async mismatch** -- `VectorBackend` is sync; RVF is async. Requires interface adaptation.
 - **WASM limitations** -- WASM backend does not support lineage, derive, segments, dimension, or kernel/eBPF operations.
 - **Migration effort** -- Existing `.db` + `.meta.json` deployments need one-time conversion.
@@ -468,25 +459,22 @@ Expose 3-layer HNSW through `SearchOptions.quality` field. Requires N-API backen
 ### Mitigations
 
 - RVF backend is **optional** -- existing backends remain fully functional
-- N-API backend on linux-x64 is production-ready today; cross-platform is CI work, not code work
-- WASM raw binary works via buffer loading; SDK glue fix is upstream, not AgentDB work
+- Both N-API and WASM backends are production-ready; cross-platform npm publishing is CI/release work
 - Async adapter pattern is well-understood and used by other backends
 - SDK can be added to `optionalDependencies` immediately for type-checking without runtime cost
 
 ## Upstream Coordination Required
 
-| Item                                                | Priority       | Status                     |
-| --------------------------------------------------- | -------------- | -------------------------- |
-| Publish `@ruvector/rvf-node` linux-x64-gnu binary   | ~~P0 Blocker~~ | **Done** (0.1.4, 1.3 MB)   |
-| Publish `@ruvector/rvf-wasm` pre-built binary       | ~~P0 Blocker~~ | **Done** (0.1.4, 42 KB)    |
-| Fix `@ruvector/rvf` -> `rvf-node` version pin       | ~~P1~~         | **Done** (0.1.6, `^0.1.4`) |
-| Add `index.js`/`index.d.ts` to `@ruvector/rvf-node` | ~~P1~~         | **Done** (0.1.4)           |
-| Fix WASM SDK glue for Node.js (CJS/ESM + fetch)     | **P1**         | Open                       |
-| Add darwin-arm64 N-API binary (dev machines)        | **P1**         | Scaffolded, needs CI       |
-| Add darwin-x64, linux-arm64-gnu binaries            | P2             | Scaffolded, needs CI       |
-| Add linux-x64-musl (Alpine/Docker) binary           | P2             | Not planned                |
-| Add win32-x64-msvc binary                           | P2             | Not planned                |
-| Document WASM backend capability subset             | P2             | Undocumented               |
+| Item                                                              | Priority       | Status                               |
+| ----------------------------------------------------------------- | -------------- | ------------------------------------ |
+| Publish `@ruvector/rvf-node` linux-x64-gnu binary                 | ~~P0 Blocker~~ | **Done** (0.1.4, 1.3 MB)             |
+| Publish `@ruvector/rvf-wasm` pre-built binary                     | ~~P0 Blocker~~ | **Done** (0.1.5, 42 KB)              |
+| Fix `@ruvector/rvf` -> `rvf-node` version pin                     | ~~P1~~         | **Done** (0.1.6, `^0.1.4`)           |
+| Add `index.js`/`index.d.ts` to `@ruvector/rvf-node`               | ~~P1~~         | **Done** (0.1.4)                     |
+| Build all 5 N-API platform binaries in CI                         | ~~P1~~         | **Done** (all pass)                  |
+| Publish darwin-arm64, darwin-x64, linux-arm64-gnu, win32-x64-msvc | P2             | CI artifacts ready, awaiting publish |
+| Add linux-x64-musl (Alpine/Docker) binary                         | P2             | Not planned                          |
+| Document WASM backend capability subset                           | P2             | Undocumented                         |
 
 ## Performance Targets
 
@@ -504,6 +492,6 @@ Expose 3-layer HNSW through `SearchOptions.quality` field. Requires N-API backen
 - [rvf-adapter-agentdb](https://github.com/ruvnet/ruvector/tree/main/crates/rvf/rvf-adapters/agentdb) -- Upstream Rust adapter
 - [@ruvector/rvf@0.1.6](https://www.npmjs.com/package/@ruvector/rvf) -- TypeScript SDK (functional)
 - [@ruvector/rvf-node@0.1.4](https://www.npmjs.com/package/@ruvector/rvf-node) -- N-API bindings (functional, linux-x64-gnu)
-- [@ruvector/rvf-wasm@0.1.4](https://www.npmjs.com/package/@ruvector/rvf-wasm) -- WASM microkernel (binary works, SDK glue needs fix)
+- [@ruvector/rvf-wasm@0.1.5](https://www.npmjs.com/package/@ruvector/rvf-wasm) -- WASM microkernel (fully functional)
 - [ADR-001: Backend Abstraction](../../plans/agentdb-v2/ADR-001-backend-abstraction.md)
 - [ADR-002: RuVector WASM Integration](./ADR-002-ruvector-wasm-integration.md)
