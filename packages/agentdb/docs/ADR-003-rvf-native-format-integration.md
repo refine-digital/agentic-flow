@@ -34,9 +34,9 @@ dist/
 - Typed filter expressions: discriminated union with 11 operators (`eq`/`ne`/`lt`/`le`/`gt`/`ge`/`in`/`range`/`and`/`or`/`not`)
 - Per-vector metadata: `Record<string, RvfFilterValue>` where `RvfFilterValue = number | string | boolean`
 
-#### @ruvector/rvf-node@0.1.5 -- N-API Bindings (FULLY FUNCTIONAL)
+#### @ruvector/rvf-node@0.1.6 -- N-API Bindings (FULLY FUNCTIONAL)
 
-**All 12 operations verified from clean `npm install`.** Published for 4 platforms (Windows not yet on npm).
+**All 12 operations verified from clean `npm install`.** All 5 platform binaries published.
 
 ```
 index.js       -- napi-rs loader
@@ -63,13 +63,13 @@ index.d.ts     -- RvfDatabase class + types
 
 **Platform binaries** (all pinned at 0.1.4 by rvf-node@0.1.5 optionalDependencies):
 
-| Package                              | Status                      | Size   |
-| ------------------------------------ | --------------------------- | ------ |
-| `@ruvector/rvf-node-linux-x64-gnu`   | Published                   | 1.2 MB |
-| `@ruvector/rvf-node-linux-arm64-gnu` | Published                   | 1.2 MB |
-| `@ruvector/rvf-node-darwin-arm64`    | Published (Apple Silicon)   | 3.0 MB |
-| `@ruvector/rvf-node-darwin-x64`      | Published (Intel Mac)       | 3.0 MB |
-| `@ruvector/rvf-node-win32-x64-msvc`  | **Not published** (npm 404) | --     |
+| Package                              | Status                    | Size   |
+| ------------------------------------ | ------------------------- | ------ |
+| `@ruvector/rvf-node-linux-x64-gnu`   | Published                 | 1.2 MB |
+| `@ruvector/rvf-node-linux-arm64-gnu` | Published                 | 1.2 MB |
+| `@ruvector/rvf-node-darwin-arm64`    | Published (Apple Silicon) | 3.0 MB |
+| `@ruvector/rvf-node-darwin-x64`      | Published (Intel Mac)     | 3.0 MB |
+| `@ruvector/rvf-node-win32-x64-msvc`  | Published                 | --     |
 
 #### @ruvector/rvf-wasm@0.1.5 -- WASM Microkernel (FULLY FUNCTIONAL)
 
@@ -88,13 +88,13 @@ rvf_store_close()         -> OK
 
 ### Summary: What Works Today
 
-| Package              | Version | Binary                       | SDK Wrapper      | Direct Use         |
-| -------------------- | ------- | ---------------------------- | ---------------- | ------------------ |
-| `@ruvector/rvf`      | 0.1.7   | N/A (pure JS)                | --               | Fully functional   |
-| `@ruvector/rvf-node` | 0.1.5   | 1.3 MB `.node` (4 platforms) | All 12 ops pass  | N/A                |
-| `@ruvector/rvf-wasm` | 0.1.5   | 42 KB `.wasm`                | Fully functional | All C-ABI ops work |
+| Package              | Version | Binary                | SDK Wrapper      | Direct Use         |
+| -------------------- | ------- | --------------------- | ---------------- | ------------------ |
+| `@ruvector/rvf`      | 0.1.7   | N/A (pure JS)         | --               | Fully functional   |
+| `@ruvector/rvf-node` | 0.1.6   | `.node` (5 platforms) | All 12 ops pass  | N/A                |
+| `@ruvector/rvf-wasm` | 0.1.5   | 42 KB `.wasm`         | Fully functional | All C-ABI ops work |
 
-The N-API backend is production-ready on 4 platforms (linux-x64, linux-arm64, macOS arm64, macOS x64). Windows x64 pending after PR #177. The WASM backend is fully functional.
+The N-API backend is production-ready on all 5 platforms (linux-x64, linux-arm64, macOS arm64, macOS x64, Windows x64). The WASM backend is fully functional.
 
 ### SDK API Surface (verified from types)
 
@@ -149,7 +149,7 @@ Current AgentDB vector persistence limitations:
 
 Integrate the `@ruvector/rvf` SDK as the RVF backend for AgentDB, targeting the N-API backend (`@ruvector/rvf-node`) for Node.js and the WASM backend (`@ruvector/rvf-wasm`) for browser/edge. Both backends implement the same `RvfBackend` interface with automatic fallback (`'auto'` mode).
 
-**Current state:** Both N-API and WASM backends are fully functional. N-API binaries published for linux-x64, linux-arm64, macOS arm64, macOS x64. Windows x64 pending after PR #177.
+**Current state:** Both N-API and WASM backends are fully functional. N-API binaries published for all 5 platforms (linux-x64, linux-arm64, macOS arm64, macOS x64, Windows x64). No upstream blockers remain.
 
 ### Architecture
 
@@ -172,9 +172,8 @@ The `@ruvector/rvf` SDK handles backend selection internally. AgentDB's `RvfBack
 
 As of 2026-02-16, upstream has published working binaries:
 
-1. **`@ruvector/rvf-node@0.1.5`** -- N-API bindings with platform binaries. All 12 operations verified.
-   - Published: linux-x64-gnu, linux-arm64-gnu, darwin-arm64, darwin-x64 (all at 0.1.4)
-   - Not published: win32-x64-msvc (CI fix in PR #177, commit 54fb864)
+1. **`@ruvector/rvf-node@0.1.6`** -- N-API bindings with all 5 platform binaries. All 12 operations verified.
+   - Published: linux-x64-gnu, linux-arm64-gnu, darwin-arm64, darwin-x64, win32-x64-msvc (all at 0.1.4)
    - `index.js` + `index.d.ts` included in base package
    - `build-rvf-node.yml` workflow auto-builds on merge to main
 
@@ -186,7 +185,6 @@ As of 2026-02-16, upstream has published working binaries:
 
 **Remaining upstream work (P2):**
 
-- Publish `@ruvector/rvf-node-win32-x64-msvc` (CI fix in PR #177, not yet on npm)
 - Add linux-x64-musl target for Alpine/Docker
 
 ### Phase 1: Core RVF Backend (Priority: Critical)
@@ -454,7 +452,6 @@ Expose 3-layer HNSW through `SearchOptions.quality` field. Requires N-API backen
 
 ### Negative
 
-- **Windows pending** -- N-API binary published for 4 platforms; win32-x64-msvc pending after PR #177 merge.
 - **Async mismatch** -- `VectorBackend` is sync; RVF is async. Requires interface adaptation.
 - **WASM limitations** -- WASM backend does not support lineage, derive, segments, dimension, or kernel/eBPF operations.
 - **Migration effort** -- Existing `.db` + `.meta.json` deployments need one-time conversion.
@@ -468,16 +465,16 @@ Expose 3-layer HNSW through `SearchOptions.quality` field. Requires N-API backen
 
 ## Upstream Coordination Required
 
-| Item                                                | Priority       | Status                                     |
-| --------------------------------------------------- | -------------- | ------------------------------------------ |
-| Publish `@ruvector/rvf-node` platform binaries      | ~~P0 Blocker~~ | **Done** (0.1.5, 4 platforms)              |
-| Publish `@ruvector/rvf-wasm` pre-built binary       | ~~P0 Blocker~~ | **Done** (0.1.5, 42 KB)                    |
-| Fix `@ruvector/rvf` -> `rvf-node` version pin       | ~~P1~~         | **Done** (0.1.7)                           |
-| Add `index.js`/`index.d.ts` to `@ruvector/rvf-node` | ~~P1~~         | **Done** (0.1.5)                           |
-| Build all 5 N-API platform binaries in CI           | ~~P1~~         | **Done** (all pass)                        |
-| Publish win32-x64-msvc binary                       | P2             | Not published (npm 404), CI fix in PR #177 |
-| Add linux-x64-musl (Alpine/Docker) binary           | P2             | Not planned                                |
-| Document WASM backend capability subset             | P2             | Undocumented                               |
+| Item                                                | Priority       | Status                            |
+| --------------------------------------------------- | -------------- | --------------------------------- |
+| Publish `@ruvector/rvf-node` platform binaries      | ~~P0 Blocker~~ | **Done** (0.1.6, all 5 platforms) |
+| Publish `@ruvector/rvf-wasm` pre-built binary       | ~~P0 Blocker~~ | **Done** (0.1.5, 42 KB)           |
+| Fix `@ruvector/rvf` -> `rvf-node` version pin       | ~~P1~~         | **Done** (0.1.7)                  |
+| Add `index.js`/`index.d.ts` to `@ruvector/rvf-node` | ~~P1~~         | **Done** (0.1.6)                  |
+| Build all 5 N-API platform binaries in CI           | ~~P1~~         | **Done** (all pass)               |
+| Publish win32-x64-msvc binary                       | ~~P2~~         | **Done** (0.1.4)                  |
+| Add linux-x64-musl (Alpine/Docker) binary           | P2             | Not planned                       |
+| Document WASM backend capability subset             | P2             | Undocumented                      |
 
 ## Performance Targets
 
@@ -494,7 +491,7 @@ Expose 3-layer HNSW through `SearchOptions.quality` field. Requires N-API backen
 - [RVF README](https://github.com/ruvnet/ruvector/blob/main/crates/rvf/README.md) -- Format specification
 - [rvf-adapter-agentdb](https://github.com/ruvnet/ruvector/tree/main/crates/rvf/rvf-adapters/agentdb) -- Upstream Rust adapter
 - [@ruvector/rvf@0.1.7](https://www.npmjs.com/package/@ruvector/rvf) -- TypeScript SDK (functional)
-- [@ruvector/rvf-node@0.1.5](https://www.npmjs.com/package/@ruvector/rvf-node) -- N-API bindings (4 platforms published)
+- [@ruvector/rvf-node@0.1.6](https://www.npmjs.com/package/@ruvector/rvf-node) -- N-API bindings (all 5 platforms published)
 - [@ruvector/rvf-wasm@0.1.5](https://www.npmjs.com/package/@ruvector/rvf-wasm) -- WASM microkernel (fully functional)
 - [ADR-001: Backend Abstraction](../../plans/agentdb-v2/ADR-001-backend-abstraction.md)
 - [ADR-002: RuVector WASM Integration](./ADR-002-ruvector-wasm-integration.md)
