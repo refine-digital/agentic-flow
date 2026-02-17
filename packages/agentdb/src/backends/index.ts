@@ -100,3 +100,11 @@ export type {
   SelfLearningConfig,
   LearningStats,
 } from './rvf/SelfLearningRvfBackend.js';
+
+// Native Accelerator Bridge (ADR-007 Phase 1)
+export { NativeAccelerator, getAccelerator, resetAccelerator } from './rvf/NativeAccelerator.js';
+export type {
+  AcceleratorStats,
+  WitnessVerifyResult,
+  SegmentVerifyResult,
+} from './rvf/NativeAccelerator.js';

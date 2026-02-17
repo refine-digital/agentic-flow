@@ -15,6 +15,7 @@ import { IndexHealthMonitor } from './AdaptiveIndexTuner.js';
 import type { ContrastiveTrainer, ContrastiveSample } from './ContrastiveTrainer.js';
 import type { FederatedSessionManager, SessionHandle } from './FederatedSessionManager.js';
 import type { AgentDBSolver, SolverPolicyState, SolverAcceptanceManifest, SolverAcceptanceOptions } from './RvfSolver.js';
+import type { NativeAccelerator, AcceleratorStats, WitnessVerifyResult } from './NativeAccelerator.js';
 
 export interface SelfLearningConfig extends RvfConfig {
   learning?: boolean;
@@ -69,6 +70,7 @@ export class SelfLearningRvfBackend implements VectorBackendAsync {
   private trainer: ContrastiveTrainer | null = null;
   private federated: FederatedSessionManager | null = null;
   private solver: AgentDBSolver | null = null;
+  private accelerator: NativeAccelerator | null = null;
   private config: SelfLearningConfig;
   private dim: number;
   private learningEnabled: boolean;
@@ -277,6 +279,23 @@ export class SelfLearningRvfBackend implements VectorBackendAsync {
   runAcceptance(options?: SolverAcceptanceOptions): SolverAcceptanceManifest | null { if (!this.solver) return null; try { return this.solver.acceptance(options); } catch { return null; } }
   getWitnessChain(): Uint8Array | null { if (!this.solver) return null; try { return this.solver.witnessChain(); } catch { return null; } }
 
+  /**
+   * Verify the witness chain using native WASM verification (ADR-007 Phase 1).
+   * Falls back to structural check if @ruvector/rvf-wasm is unavailable.
+   */
+  verifyWitnessChain(): WitnessVerifyResult | null {
+    const chain = this.getWitnessChain();
+    if (!chain) return null;
+    if (this.accelerator) return this.accelerator.verifyWitnessChain(chain);
+    return { valid: chain.length > 0 && chain.length % 73 === 0, entryCount: Math.floor(chain.length / 73) };
+  }
+
+  /** Get the native accelerator (ADR-007) */
+  getAccelerator(): NativeAccelerator | null { return this.accelerator; }
+
+  /** Get accelerator stats (ADR-007) */
+  getAcceleratorStats(): AcceleratorStats | null { return this.accelerator?.getStats() ?? null; }
+
   // ─── Stats & accessors ───
 
   getLearningStats(): LearningStats {
@@ -297,6 +316,7 @@ export class SelfLearningRvfBackend implements VectorBackendAsync {
     for (const [id, h] of this.activeSessions) { try { h.end(); } catch { /* skip */ } this.activeSessions.delete(id); }
     for (const [, t] of this.activeTrajectories) { if (this.sona) try { this.sona.endTrajectory(t.id, 0.5); } catch { /* skip */ } }
     this.activeTrajectories.clear();
+    this.accelerator = null;
     for (const c of [this.solver, this.federated, this.trainer, this.compressor, this.router, this.sona] as Array<{ destroy(): void } | null>) {
       if (c) try { c.destroy(); } catch { /* skip */ }
     }
@@ -311,6 +331,7 @@ export class SelfLearningRvfBackend implements VectorBackendAsync {
 
   private async initComponents(): Promise<void> {
     const dim = this.dim;
+    try { const { NativeAccelerator: N } = await import('./NativeAccelerator.js'); this.accelerator = new N(); await this.accelerator.initialize(); } catch { /* skip */ }
     try { const { SonaLearningBackend: S } = await import('./SonaLearningBackend.js'); if (await S.isAvailable()) this.sona = await S.create({ hiddenDim: this.config.learningDimension ?? dim }); } catch { /* skip */ }
     try { const { SemanticQueryRouter: R } = await import('./SemanticQueryRouter.js'); this.router = await R.create({ dimension: dim }); } catch { /* skip */ }
     try { const { TemporalCompressor: T } = await import('./AdaptiveIndexTuner.js'); this.compressor = await T.create(); } catch { /* skip */ }
