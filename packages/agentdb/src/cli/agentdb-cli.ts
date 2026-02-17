@@ -3065,7 +3065,7 @@ function printHelp() {
 ${colors.bright}${colors.cyan}█▀█ █▀▀ █▀▀ █▄░█ ▀█▀ █▀▄ █▄▄
 █▀█ █▄█ ██▄ █░▀█ ░█░ █▄▀ █▄█${colors.reset}
 
-${colors.bright}${colors.cyan}AgentDB v2 CLI - Vector Intelligence with Auto Backend Detection${colors.reset}
+${colors.bright}${colors.cyan}AgentDB v3 CLI - Intelligent Vector Database for AI Agents${colors.reset}
 
 ${colors.bright}CORE COMMANDS:${colors.reset}
   ${colors.cyan}init${colors.reset} [options]              Initialize database with backend detection
