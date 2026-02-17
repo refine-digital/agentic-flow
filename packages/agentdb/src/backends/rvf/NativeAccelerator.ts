@@ -81,6 +81,17 @@ export class NativeAccelerator {
   private _sonaContext: boolean = false;
   private _sonaBaseLora: boolean = false;
 
+  // @ruvector/graph-node transactions + batch
+  private _graphTx: boolean = false;
+  private _graphBatchInsert: boolean = false;
+  private _graphCypher: boolean = false;
+
+  // @ruvector/core batch operations
+  private _coreBatchInsert: boolean = false;
+
+  // @ruvector/ruvllm EWC manager
+  private _ewcManager: any = null;
+
   private _initialized = false;
 
   /**
@@ -97,6 +108,9 @@ export class NativeAccelerator {
       this.loadNativeTensorCompress(),
       this.loadRouterPersistence(),
       this.loadSonaExtended(),
+      this.loadGraphCapabilities(),
+      this.loadCoreBatch(),
+      this.loadEwcManager(),
     ]);
 
     this._initialized = true;
@@ -340,6 +354,84 @@ export class NativeAccelerator {
     return false;
   }
 
+  // ─── Graph Transactions (ADR-007 Phase 1) ───
+
+  get graphTxAvailable(): boolean { return this._graphTx; }
+  get graphBatchInsertAvailable(): boolean { return this._graphBatchInsert; }
+  get graphCypherAvailable(): boolean { return this._graphCypher; }
+
+  /**
+   * Execute a graph mutation within a transaction.
+   * Falls back to direct execution if transactions are unavailable.
+   */
+  async graphTransaction(db: any, fn: (tx: any) => void | Promise<void>): Promise<boolean> {
+    if (this._graphTx && db?.beginTransaction) {
+      const tx = db.beginTransaction();
+      try { await fn(tx); tx.commit(); return true; } catch { tx.rollback(); return false; }
+    }
+    // Fallback: execute without transaction
+    try { await fn(db); return true; } catch { return false; }
+  }
+
+  /**
+   * Batch insert nodes into graph database.
+   */
+  graphBatchInsertNodes(db: any, nodes: Array<{ id: string; data: Record<string, unknown> }>): boolean {
+    if (this._graphBatchInsert && db?.batchInsert) {
+      try { db.batchInsert(nodes); return true; } catch { /* fallback */ }
+    }
+    return false;
+  }
+
+  /**
+   * Execute a Cypher query against the graph database.
+   */
+  graphCypherQuery(db: any, query: string, params?: Record<string, unknown>): any[] | null {
+    if (this._graphCypher && db?.cypher) {
+      try { return db.cypher(query, params); } catch { /* fallback */ }
+    }
+    return null;
+  }
+
+  // ─── Core Batch Operations (ADR-007 Phase 1) ───
+
+  get coreBatchInsertAvailable(): boolean { return this._coreBatchInsert; }
+
+  /**
+   * Batch insert vectors into @ruvector/core VectorDb.
+   */
+  coreBatchInsert(vectorDb: any, items: Array<{ id: string; vector: Float32Array; metadata?: Record<string, unknown> }>): boolean {
+    if (this._coreBatchInsert && vectorDb?.batchInsert) {
+      try { vectorDb.batchInsert(items); return true; } catch { /* fallback */ }
+    }
+    return false;
+  }
+
+  // ─── EWC Memory Protection (ADR-007 Phase 1) ───
+
+  get ewcManagerAvailable(): boolean { return this._ewcManager !== null; }
+
+  /**
+   * Compute EWC regularization penalty for a set of parameters.
+   * Used by SelfLearningRvfBackend to prevent catastrophic forgetting.
+   */
+  ewcPenalty(params: Float32Array): number {
+    if (this._ewcManager) {
+      try { return this._ewcManager.computePenalty(Array.from(params)); } catch { /* fallback */ }
+    }
+    return 0;
+  }
+
+  /**
+   * Update EWC Fisher information matrix after a learning step.
+   */
+  ewcUpdateFisher(params: Float32Array, importance: number): boolean {
+    if (this._ewcManager) {
+      try { this._ewcManager.updateFisher(Array.from(params), importance); return true; } catch { /* fallback */ }
+    }
+    return false;
+  }
+
   // ─── Stats ───
 
   getStats(): AcceleratorStats {
@@ -351,6 +443,11 @@ export class NativeAccelerator {
     if (this._tensorCompress) capabilities.push('native-tensor-compress');
     if (this._routerSave) capabilities.push('router-persist');
     if (this._sonaFlush || this._sonaContext || this._sonaBaseLora) capabilities.push('sona-extended');
+    if (this._graphTx) capabilities.push('graph-tx');
+    if (this._graphBatchInsert) capabilities.push('graph-batch');
+    if (this._graphCypher) capabilities.push('graph-cypher');
+    if (this._coreBatchInsert) capabilities.push('core-batch');
+    if (this._ewcManager) capabilities.push('ewc-manager');
 
     return {
       simdAvailable: this._simd !== null,
@@ -414,6 +511,29 @@ export class NativeAccelerator {
       if (SonaEngine?.prototype?.flush) this._sonaFlush = true;
       if (SonaEngine?.prototype?.addTrajectoryContext) this._sonaContext = true;
       if (SonaEngine?.prototype?.applyBaseLora) this._sonaBaseLora = true;
+    } catch { /* not available */ }
+  }
+
+  private async loadGraphCapabilities(): Promise<void> {
+    try {
+      const { GraphDatabase } = await import('@ruvector/graph-node');
+      if (GraphDatabase?.prototype?.beginTransaction) this._graphTx = true;
+      if (GraphDatabase?.prototype?.batchInsert) this._graphBatchInsert = true;
+      if (GraphDatabase?.prototype?.cypher) this._graphCypher = true;
+    } catch { /* not available */ }
+  }
+
+  private async loadCoreBatch(): Promise<void> {
+    try {
+      const { VectorDb } = await import('@ruvector/core');
+      if (VectorDb?.prototype?.batchInsert) this._coreBatchInsert = true;
+    } catch { /* not available */ }
+  }
+
+  private async loadEwcManager(): Promise<void> {
+    try {
+      const { EwcManager } = await import('@ruvector/ruvllm');
+      if (EwcManager) this._ewcManager = new EwcManager();
     } catch { /* not available */ }
   }
 

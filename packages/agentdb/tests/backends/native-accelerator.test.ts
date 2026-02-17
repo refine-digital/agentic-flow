@@ -689,4 +689,57 @@ describe('ADR-007 NativeAccelerator', () => {
       }
     });
   });
+
+  describe('Graph Transaction APIs (Phase 1)', () => {
+    it('should report graph capabilities', () => {
+      expect(typeof accel.graphTxAvailable).toBe('boolean');
+      expect(typeof accel.graphBatchInsertAvailable).toBe('boolean');
+      expect(typeof accel.graphCypherAvailable).toBe('boolean');
+    });
+
+    it('should execute transaction fallback without native', async () => {
+      let executed = false;
+      const mockDb = {};
+      const result = await accel.graphTransaction(mockDb, () => { executed = true; });
+      expect(result).toBe(true);
+      expect(executed).toBe(true);
+    });
+
+    it('should handle transaction error gracefully', async () => {
+      const result = await accel.graphTransaction({}, () => { throw new Error('fail'); });
+      expect(result).toBe(false);
+    });
+
+    it('should return false for batch insert without native', () => {
+      expect(accel.graphBatchInsertNodes({}, [{ id: 'a', data: {} }])).toBe(false);
+    });
+
+    it('should return null for cypher query without native', () => {
+      expect(accel.graphCypherQuery({}, 'MATCH (n) RETURN n')).toBeNull();
+    });
+  });
+
+  describe('Core Batch Operations (Phase 1)', () => {
+    it('should report core batch capability', () => {
+      expect(typeof accel.coreBatchInsertAvailable).toBe('boolean');
+    });
+
+    it('should return false for batch insert without native', () => {
+      expect(accel.coreBatchInsert({}, [{ id: 'a', vector: new Float32Array(4) }])).toBe(false);
+    });
+  });
+
+  describe('EWC Manager (Phase 1)', () => {
+    it('should report EWC availability', () => {
+      expect(typeof accel.ewcManagerAvailable).toBe('boolean');
+    });
+
+    it('should return 0 penalty without native', () => {
+      expect(accel.ewcPenalty(new Float32Array(4))).toBe(0);
+    });
+
+    it('should return false for Fisher update without native', () => {
+      expect(accel.ewcUpdateFisher(new Float32Array(4), 1.0)).toBe(false);
+    });
+  });
 });
