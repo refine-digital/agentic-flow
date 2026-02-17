@@ -35,6 +35,8 @@ export interface RouterConfig {
   threshold?: number;
   /** Maximum number of intents (default: 1000) */
   maxIntents?: number;
+  /** Path for router state persistence (ADR-007 Phase 1) */
+  persistencePath?: string;
 }
 
 /** Router statistics */
@@ -50,6 +52,35 @@ const MAX_INTENTS = 10000;
 const MAX_INTENT_NAME_LENGTH = 256;
 const MAX_DIMENSION = 4096;
 const MAX_EXEMPLARS = 100;
+const MAX_PATH_LENGTH = 4096;
+
+const FORBIDDEN_PATH_PATTERNS = [
+  /\.\./,       // Path traversal
+  /^\/etc\//i,  // System config
+  /^\/proc\//i, // Process info
+  /^\/sys\//i,  // System info
+  /^\/dev\//i,  // Devices
+];
+
+function validatePath(inputPath: string): void {
+  if (!inputPath || typeof inputPath !== 'string') {
+    throw new Error('Path must be a non-empty string');
+  }
+  if (inputPath.length > MAX_PATH_LENGTH) {
+    throw new Error(`Path exceeds maximum length of ${MAX_PATH_LENGTH}`);
+  }
+  if (inputPath.includes('\0')) {
+    throw new Error('Path must not contain null bytes');
+  }
+  if (/\.\.[\\/]/.test(inputPath)) {
+    throw new Error('Path contains forbidden traversal pattern');
+  }
+  for (const pattern of FORBIDDEN_PATH_PATTERNS) {
+    if (pattern.test(inputPath)) {
+      throw new Error('Path contains forbidden pattern');
+    }
+  }
+}
 
 /**
  * SemanticQueryRouter - Route queries to intents via learned embeddings
@@ -69,12 +100,18 @@ export class SemanticQueryRouter {
   private _totalLatencyMs = 0;
   private _destroyed = false;
   private _useNative: boolean;
+  private _persistencePath: string | undefined;
+  private _persistTimer: ReturnType<typeof setTimeout> | null = null;
+  private _persistDebounceMs = 5000;
+  private _persistDirty = false;
 
   private constructor(config: RouterConfig) {
     this.dim = config.dimension;
     this.threshold = config.threshold ?? 0.0;
     this.maxIntents = Math.min(Math.max(1, config.maxIntents ?? 1000), MAX_INTENTS);
     this._useNative = false;
+    if (config.persistencePath) validatePath(config.persistencePath);
+    this._persistencePath = config.persistencePath;
   }
 
   /**
@@ -98,6 +135,14 @@ export class SemanticQueryRouter {
     } catch {
       // Fallback to built-in brute-force
       instance._useNative = false;
+    }
+
+    // ADR-007 Phase 1: attempt to restore persisted state
+    if (config.persistencePath) {
+      try {
+        const loaded = await instance.load(config.persistencePath);
+        if (loaded) instance._persistDirty = false;
+      } catch { /* fresh start if load fails */ }
     }
 
     return instance;
@@ -169,6 +214,8 @@ export class SemanticQueryRouter {
       norm = Math.sqrt(norm);
       this.fallbackIntents.set(config.name, { centroid, norm, metadata });
     }
+
+    this.schedulePersist();
   }
 
   /**
@@ -201,10 +248,14 @@ export class SemanticQueryRouter {
    */
   removeIntent(name: string): boolean {
     this.ensureAlive();
+    let removed: boolean;
     if (this._useNative && this.router) {
-      return this.router.removeIntent(name) as boolean;
+      removed = this.router.removeIntent(name) as boolean;
+    } else {
+      removed = this.fallbackIntents.delete(name);
     }
-    return this.fallbackIntents.delete(name);
+    if (removed) this.schedulePersist();
+    return removed;
   }
 
   /**
@@ -245,6 +296,7 @@ export class SemanticQueryRouter {
    */
   async save(path: string): Promise<boolean> {
     this.ensureAlive();
+    validatePath(path);
     if (this._useNative && this.router) {
       try {
         const { NativeAccelerator: N } = await import('./NativeAccelerator.js');
@@ -268,6 +320,7 @@ export class SemanticQueryRouter {
    */
   async load(path: string): Promise<boolean> {
     this.ensureAlive();
+    validatePath(path);
     if (this._useNative) {
       try {
         const { NativeAccelerator: N } = await import('./NativeAccelerator.js');
@@ -297,9 +350,25 @@ export class SemanticQueryRouter {
     return false;
   }
 
+  /** Whether a persistence path is configured */
+  get persistencePath(): string | undefined {
+    return this._persistencePath;
+  }
+
+  /**
+   * Persist router state immediately (ADR-007 Phase 1).
+   * Saves to the configured persistencePath using native or JSON fallback.
+   */
+  async persist(): Promise<boolean> {
+    if (!this._persistencePath || this._destroyed) return false;
+    this._persistDirty = false;
+    return this.save(this._persistencePath);
+  }
+
   /** Destroy the router */
   destroy(): void {
     if (!this._destroyed) {
+      if (this._persistTimer) { clearTimeout(this._persistTimer); this._persistTimer = null; }
       this.router = null;
       this.fallbackIntents.clear();
       this._destroyed = true;
@@ -363,6 +432,20 @@ export class SemanticQueryRouter {
     }
     heap.sort((a, b) => b.score - a.score);
     return heap;
+  }
+
+  /**
+   * Schedule a debounced persist (ADR-007 Phase 1).
+   * Coalesces rapid route changes into a single write after 5s of quiet.
+   */
+  private schedulePersist(): void {
+    if (!this._persistencePath || this._destroyed) return;
+    this._persistDirty = true;
+    if (this._persistTimer) clearTimeout(this._persistTimer);
+    this._persistTimer = setTimeout(() => {
+      this._persistTimer = null;
+      this.persist().catch(() => { /* non-blocking */ });
+    }, this._persistDebounceMs);
   }
 
   private ensureAlive(): void {

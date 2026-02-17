@@ -82,6 +82,13 @@ export class SonaLearningBackend {
   private dim: number;
   private activeTrajectories = new Map<number, { startedAt: number }>();
 
+  // ADR-007 Phase 1: context enrichment tracking
+  private _contextAddCount = 0;
+  private _contextFailCount = 0;
+  private _flushCount = 0;
+  private _tickCounter = 0;
+  private _flushInterval = 10;
+
   private constructor(dim: number) {
     this.dim = dim;
   }
@@ -182,6 +189,42 @@ export class SonaLearningBackend {
   }
 
   /**
+   * Add context metadata to an active trajectory (ADR-007 Phase 1).
+   * Uses NativeAccelerator's sonaAddContext if available, otherwise stores locally.
+   */
+  async addContext(trajectoryId: number, context: Record<string, unknown>): Promise<boolean> {
+    this.ensureAlive();
+    if (!this.activeTrajectories.has(trajectoryId)) return false;
+    try {
+      const { getAccelerator } = await import('./NativeAccelerator.js');
+      const accel = await getAccelerator();
+      if (accel.sonaExtendedAvailable) {
+        const ok = accel.sonaAddContext(this.engine, trajectoryId, context);
+        if (ok) { this._contextAddCount++; return true; }
+      }
+    } catch { /* skip */ }
+    // Fallback: context not persisted natively but we track the attempt
+    this._contextFailCount++;
+    return false;
+  }
+
+  /**
+   * Flush SONA engine state via NativeAccelerator (ADR-007 Phase 1).
+   */
+  async flushState(): Promise<boolean> {
+    this.ensureAlive();
+    try {
+      const { getAccelerator } = await import('./NativeAccelerator.js');
+      const accel = await getAccelerator();
+      if (accel.sonaExtendedAvailable) {
+        const ok = accel.sonaFlush(this.engine);
+        if (ok) { this._flushCount++; return true; }
+      }
+    } catch { /* skip */ }
+    return false;
+  }
+
+  /**
    * End a trajectory and submit for learning.
    * Quality should be in [0.0, 1.0].
    */
@@ -195,10 +238,16 @@ export class SonaLearningBackend {
   /**
    * Run background learning cycle if due.
    * Returns a status message if a cycle was executed, null otherwise.
+   * Periodically flushes SONA state via NativeAccelerator (every 10th tick).
    */
   tick(): string | null {
     this.ensureAlive();
-    return this.engine.tick() as string | null;
+    const result = this.engine.tick() as string | null;
+    this._tickCounter++;
+    if (this._tickCounter % this._flushInterval === 0) {
+      this.flushState().catch(() => { /* non-blocking */ });
+    }
+    return result;
   }
 
   /**
@@ -259,6 +308,18 @@ export class SonaLearningBackend {
         enabled: false,
       };
     }
+  }
+
+  /**
+   * Get context enrichment statistics (ADR-007 Phase 1).
+   */
+  getContextStats(): { contextAdded: number; contextFailed: number; flushCount: number; tickCount: number } {
+    return {
+      contextAdded: this._contextAddCount,
+      contextFailed: this._contextFailCount,
+      flushCount: this._flushCount,
+      tickCount: this._tickCounter,
+    };
   }
 
   /**

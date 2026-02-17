@@ -79,13 +79,21 @@ const SAVINGS_BY_TIER: Record<CompressionTier, number> = {
 export class TemporalCompressor {
   private entries = new Map<string, CompressedEntry>();
   private _destroyed = false;
+  // ADR-007 Phase 1: optional NativeAccelerator for native tensor compression
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private accel: any = null;
 
   /**
    * Create a new temporal compressor.
-   * Uses built-in quantization (no external dependencies).
+   * Lazy-loads NativeAccelerator for native compression when available.
    */
   static async create(): Promise<TemporalCompressor> {
-    return new TemporalCompressor();
+    const compressor = new TemporalCompressor();
+    try {
+      const { getAccelerator } = await import('./NativeAccelerator.js');
+      compressor.accel = await getAccelerator();
+    } catch { /* proceed without native compression */ }
+    return compressor;
   }
 
   /**
@@ -95,9 +103,15 @@ export class TemporalCompressor {
     return true;
   }
 
+  /** Whether native tensor compression is available (ADR-007 Phase 1) */
+  get nativeCompressAvailable(): boolean {
+    return this.accel?.nativeTensorCompressAvailable ?? false;
+  }
+
   /**
    * Compress a vector based on its access frequency.
    * Uses Matryoshka-style dimensional truncation for cold tiers (SOTA: MRL).
+   * ADR-007 Phase 1: delegates to NativeAccelerator tensorCompress when available.
    *
    * @param id - Unique identifier for this entry
    * @param embedding - The vector to compress
@@ -109,10 +123,23 @@ export class TemporalCompressor {
     const tier = this.frequencyToTier(freq);
 
     // Matryoshka truncation: for cold/frozen data, store only leading dimensions
-    // This preserves more information than scalar quantization at the same byte cost
     const truncDim = this.matryoshkaDim(embedding.length, tier);
     const vec = truncDim < embedding.length ? embedding.subarray(0, truncDim) : embedding;
-    const compressedJson = this.compressVector(vec, tier);
+
+    // ADR-007 Phase 1: try native tensor compression for non-trivial tiers
+    let compressedJson: string;
+    if (this.accel?.nativeTensorCompressAvailable && tier !== 'none') {
+      const level = this.tierToLevel(tier);
+      const native = this.accel.tensorCompress(vec, level);
+      if (native) {
+        // Store native compressed bytes as base64 JSON
+        compressedJson = JSON.stringify({ _native: true, b64: this.toBase64(native) });
+      } else {
+        compressedJson = this.compressVector(vec, tier);
+      }
+    } else {
+      compressedJson = this.compressVector(vec, tier);
+    }
 
     const entry: CompressedEntry = {
       id,
@@ -129,6 +156,61 @@ export class TemporalCompressor {
   }
 
   /**
+   * Batch compress multiple vectors (ADR-007 Phase 1).
+   * Uses NativeAccelerator.tensorBatchCompress when available.
+   */
+  compressBatch(
+    items: Array<{ id: string; embedding: Float32Array; accessFrequency: number }>,
+  ): CompressedEntry[] {
+    this.ensureAlive();
+    // Group by tier for batch native compression
+    if (this.accel?.nativeTensorCompressAvailable) {
+      const byTier = new Map<CompressionTier, Array<{ item: typeof items[0]; idx: number }>>();
+      for (let i = 0; i < items.length; i++) {
+        const freq = Math.min(Math.max(0, items[i].accessFrequency), 1);
+        const tier = this.frequencyToTier(freq);
+        if (!byTier.has(tier)) byTier.set(tier, []);
+        byTier.get(tier)!.push({ item: items[i], idx: i });
+      }
+
+      const results = new Array<CompressedEntry>(items.length);
+      for (const [tier, group] of byTier) {
+        if (tier !== 'none' && group.length > 1) {
+          const level = this.tierToLevel(tier);
+          const vecs = group.map(g => {
+            const truncDim = this.matryoshkaDim(g.item.embedding.length, tier);
+            return truncDim < g.item.embedding.length ? g.item.embedding.subarray(0, truncDim) : g.item.embedding;
+          });
+          const batchResult = this.accel.tensorBatchCompress(vecs, level);
+          if (batchResult) {
+            for (let j = 0; j < group.length; j++) {
+              const g = group[j];
+              const compressedJson = JSON.stringify({ _native: true, b64: this.toBase64(batchResult[j]) });
+              const truncDim = this.matryoshkaDim(g.item.embedding.length, tier);
+              results[g.idx] = {
+                id: g.item.id, compressedJson, tier,
+                originalDim: g.item.embedding.length,
+                accessFrequency: Math.min(Math.max(0, g.item.accessFrequency), 1),
+                lastAccessed: Date.now(),
+                truncatedDim: truncDim < g.item.embedding.length ? truncDim : undefined,
+              };
+              this.entries.set(g.item.id, results[g.idx]);
+            }
+            continue;
+          }
+        }
+        // Fallback: compress individually
+        for (const g of group) {
+          results[g.idx] = this.compress(g.item.id, g.item.embedding, g.item.accessFrequency);
+        }
+      }
+      return results;
+    }
+    // No native: compress individually
+    return items.map(item => this.compress(item.id, item.embedding, item.accessFrequency));
+  }
+
+  /**
    * Decompress a vector back to its original form.
    * Matryoshka-truncated vectors are zero-padded to original dimension.
    */
@@ -139,7 +221,17 @@ export class TemporalCompressor {
 
     entry.lastAccessed = Date.now();
     const storedDim = entry.truncatedDim ?? entry.originalDim;
-    const vec = this.decompressVector(entry.compressedJson, entry.tier, storedDim);
+
+    // ADR-007 Phase 1: try native tensor decompression first
+    let vec: Float32Array;
+    const parsed = JSON.parse(entry.compressedJson);
+    if (parsed._native && parsed.b64 && this.accel?.nativeTensorCompressAvailable) {
+      const compressed = this.fromBase64(parsed.b64);
+      const native = this.accel.tensorDecompress(compressed, storedDim);
+      vec = native ?? this.decompressVector(entry.compressedJson, entry.tier, storedDim);
+    } else {
+      vec = this.decompressVector(entry.compressedJson, entry.tier, storedDim);
+    }
 
     // Zero-pad if Matryoshka-truncated
     if (entry.truncatedDim && entry.truncatedDim < entry.originalDim) {
@@ -231,6 +323,41 @@ export class TemporalCompressor {
       this.entries.clear();
       this._destroyed = true;
     }
+  }
+
+  /** Map compression tier to native level (0-4) */
+  private tierToLevel(tier: CompressionTier): number {
+    switch (tier) {
+      case 'none': return 0;
+      case 'half': return 1;
+      case 'pq8': return 2;
+      case 'pq4': return 3;
+      case 'binary': return 4;
+      default: return 0;
+    }
+  }
+
+  /** Encode Uint8Array to base64 string */
+  private toBase64(data: Uint8Array): string {
+    if (typeof Buffer !== 'undefined') {
+      return Buffer.from(data).toString('base64');
+    }
+    // Browser fallback
+    let binary = '';
+    for (let i = 0; i < data.length; i++) binary += String.fromCharCode(data[i]);
+    return btoa(binary);
+  }
+
+  /** Decode base64 string to Uint8Array */
+  private fromBase64(b64: string): Uint8Array {
+    if (typeof Buffer !== 'undefined') {
+      return new Uint8Array(Buffer.from(b64, 'base64'));
+    }
+    // Browser fallback
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
   }
 
   private compressVector(vec: Float32Array, tier: CompressionTier): string {

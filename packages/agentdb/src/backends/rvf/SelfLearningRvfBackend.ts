@@ -31,6 +31,8 @@ export interface SelfLearningConfig extends RvfConfig {
   solverMaxDifficulty?: number;
   acceptanceIntervalTicks?: number;
   acceptanceHoldoutSize?: number;
+  /** Path for router state persistence (ADR-007 Phase 1) */
+  routerPersistencePath?: string;
 }
 
 interface ActiveTrajectory {
@@ -145,7 +147,17 @@ export class SelfLearningRvfBackend implements VectorBackendAsync {
       }
       if (this.sona) {
         try { enhanced = this.sona.enhance(query); this._searchesEnhanced++; } catch { enhanced = query; }
-        try { trajId = this.sona.beginTrajectory(enhanced); if (route) this.sona.setRoute(trajId, route); } catch { /* skip */ }
+        try {
+          trajId = this.sona.beginTrajectory(enhanced);
+          if (route) this.sona.setRoute(trajId, route);
+          // ADR-007 Phase 1: enrich trajectory with context metadata
+          this.sona.addContext(trajId, {
+            queryType: route ?? 'unknown',
+            intent: route,
+            timestamp: Date.now(),
+            searchK: k,
+          }).catch(() => { /* non-blocking */ });
+        } catch { /* skip */ }
       }
     }
 
@@ -310,9 +322,21 @@ export class SelfLearningRvfBackend implements VectorBackendAsync {
   get isAdaptiveEf(): boolean { return this.useAdaptiveEf; }
   get isDestroyed(): boolean { return this._destroyed; }
 
+  /**
+   * Persist router state on demand (ADR-007 Phase 1).
+   */
+  async persistRouter(): Promise<boolean> {
+    if (this.router) {
+      try { return await this.router.persist(); } catch { /* skip */ }
+    }
+    return false;
+  }
+
   destroy(): void {
     if (this._destroyed) return;
     this._destroyed = true;
+    // ADR-007 Phase 1: persist router state on graceful shutdown (fire-and-forget)
+    if (this.router) { this.router.persist().catch(() => { /* non-blocking */ }); }
     for (const [id, h] of this.activeSessions) { try { h.end(); } catch { /* skip */ } this.activeSessions.delete(id); }
     for (const [, t] of this.activeTrajectories) { if (this.sona) try { this.sona.endTrajectory(t.id, 0.5); } catch { /* skip */ } }
     this.activeTrajectories.clear();
@@ -333,7 +357,7 @@ export class SelfLearningRvfBackend implements VectorBackendAsync {
     const dim = this.dim;
     try { const { NativeAccelerator: N } = await import('./NativeAccelerator.js'); this.accelerator = new N(); await this.accelerator.initialize(); } catch { /* skip */ }
     try { const { SonaLearningBackend: S } = await import('./SonaLearningBackend.js'); if (await S.isAvailable()) this.sona = await S.create({ hiddenDim: this.config.learningDimension ?? dim }); } catch { /* skip */ }
-    try { const { SemanticQueryRouter: R } = await import('./SemanticQueryRouter.js'); this.router = await R.create({ dimension: dim }); } catch { /* skip */ }
+    try { const { SemanticQueryRouter: R } = await import('./SemanticQueryRouter.js'); this.router = await R.create({ dimension: dim, persistencePath: this.config.routerPersistencePath }); } catch { /* skip */ }
     try { const { TemporalCompressor: T } = await import('./AdaptiveIndexTuner.js'); this.compressor = await T.create(); } catch { /* skip */ }
     try { const { ContrastiveTrainer: C } = await import('./ContrastiveTrainer.js'); this.trainer = await C.create({ dimension: dim }); } catch { /* skip */ }
     if (this.config.federated) { try { const { FederatedSessionManager: F } = await import('./FederatedSessionManager.js'); if (await F.isAvailable()) this.federated = await F.create({ dimension: dim }); } catch { /* skip */ } }

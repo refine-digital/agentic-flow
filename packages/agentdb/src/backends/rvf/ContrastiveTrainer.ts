@@ -194,6 +194,13 @@ export class ContrastiveTrainer {
       const projAnchor = this.matVecMul(this.weights, sample.anchor, this.bias);
       const projPos = this.matVecMul(this.weights, sample.positive, this.bias);
 
+      // ADR-007 Phase 1: delegate to native InfoNCE when available
+      if (this.accel && this.accel.nativeInfoNceAvailable) {
+        const projNegs = sample.negatives.map(n => this.matVecMul(this.weights, n, this.bias));
+        totalLoss += this.accel.infoNceLoss(projAnchor, projPos, projNegs, this.temperature);
+        continue;
+      }
+
       const posSim = this.cosineSimilarity(projAnchor, projPos) / this.temperature;
 
       let logSumExp = Math.exp(posSim);
@@ -426,6 +433,13 @@ export class ContrastiveTrainer {
     scored.sort((a, b) => b.sim - a.sim);
 
     return scored.slice(0, n).map((s) => pool[s.idx]);
+  }
+
+  /**
+   * Get the NativeAccelerator instance (for testing/introspection).
+   */
+  getAccelerator(): NativeAccelerator | null {
+    return this.accel;
   }
 
   /**

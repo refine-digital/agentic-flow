@@ -28,6 +28,7 @@ import type {
   SearchOptions,
   VectorStats,
 } from '../VectorBackend.js';
+import { FilterBuilder, type RvfFilterExpr } from './FilterBuilder.js';
 
 // Security constants (aligned with RuVectorBackend)
 const MAX_VECTOR_DIMENSION = 4096;
@@ -115,7 +116,14 @@ export interface RvfConfig extends VectorConfig {
   batchThreshold?: number;
   /** Enable performance statistics tracking */
   enableStats?: boolean;
+  /** Compression profile: 'none' (fp32), 'scalar' (int8), 'product' (PQ) */
+  compression?: 'none' | 'scalar' | 'product';
+  /** Hardware profile: 0=Generic, 1=Core, 2=Hot, 3=Full */
+  hardwareProfile?: 0 | 1 | 2 | 3;
 }
+
+/** Re-export FilterBuilder for external use */
+export { FilterBuilder, type RvfFilterExpr } from './FilterBuilder.js';
 
 /** HNSW index statistics (AGI introspection) */
 export interface IndexStats {
@@ -214,16 +222,19 @@ export class RvfBackend implements VectorBackendAsync {
       if (fileExists) {
         this.db = await RvfDatabase.open(storagePath, rvfBackendType);
       } else {
-        this.db = await RvfDatabase.create(
-          storagePath,
-          {
-            dimensions: this.dim,
-            metric: rvfMetric,
-            m: this.config.M ?? 16,
-            efConstruction: this.config.efConstruction ?? 200,
-          },
-          rvfBackendType,
-        );
+        const createOpts: Record<string, unknown> = {
+          dimensions: this.dim,
+          metric: rvfMetric,
+          m: this.config.M ?? 16,
+          efConstruction: this.config.efConstruction ?? 200,
+        };
+        if (this.config.compression && this.config.compression !== 'none') {
+          createOpts.compression = this.config.compression;
+        }
+        if (this.config.hardwareProfile !== undefined) {
+          createOpts.profile = this.config.hardwareProfile;
+        }
+        this.db = await RvfDatabase.create(storagePath, createOpts, rvfBackendType);
       }
 
       // Get initial count
@@ -413,9 +424,14 @@ export class RvfBackend implements VectorBackendAsync {
 
     const start = this.config.enableStats !== false ? performance.now() : 0;
 
-    const rvfOpts: Record<string, number> = {};
+    const rvfOpts: Record<string, unknown> = {};
     if (options?.efSearch) rvfOpts.efSearch = options.efSearch;
     if (options?.threshold) rvfOpts.minScore = options.threshold;
+    // Wire filter expressions through to RVF query options
+    if (options?.filter && typeof options.filter === 'object') {
+      const builtFilter = FilterBuilder.buildFilter(options.filter as Record<string, unknown>);
+      if (builtFilter) rvfOpts.filter = builtFilter;
+    }
     const results = await this.db.query(queryVec, safeK, Object.keys(rvfOpts).length > 0 ? rvfOpts : undefined);
 
     if (this.config.enableStats !== false) {
@@ -639,6 +655,144 @@ export class RvfBackend implements VectorBackendAsync {
   freeze(): number {
     this.ensureInitialized();
     return this.db.freeze();
+  }
+
+  // ─── ADR-007 Phase 1: Extended RVF APIs ───
+
+  /**
+   * Open an existing RVF store for read-only access (no lock required).
+   * Enables concurrent reader patterns.
+   */
+  static async openReadonly(path: string, config?: Partial<RvfConfig>): Promise<RvfBackend> {
+    if (path !== ':memory:') {
+      validatePath(path);
+    }
+
+    const { RvfDatabase } = await import('@ruvector/rvf');
+    const backendType = config?.rvfBackend ?? 'auto';
+    const db = await RvfDatabase.openReadonly(path, backendType);
+
+    // Probe dimension from the store
+    let dim = config?.dimension ?? config?.dimensions ?? 0;
+    try {
+      dim = await db.dimension();
+    } catch {
+      if (!dim) throw new Error('Cannot determine dimension from read-only store');
+    }
+
+    const backend = new RvfBackend({
+      dimension: dim,
+      metric: config?.metric ?? 'cosine',
+      storagePath: path,
+      ...config,
+    });
+    backend.db = db;
+    backend.initialized = true;
+    try {
+      const status = await db.status();
+      backend.cachedCount = status.totalVectors ?? 0;
+    } catch {
+      backend.cachedCount = 0;
+    }
+    return backend;
+  }
+
+  /**
+   * Delete vectors matching a filter expression.
+   * @param filter - RvfFilterExpr or predicate DSL object
+   * @returns delete result with count and epoch
+   */
+  async deleteByFilter(
+    filter: RvfFilterExpr | Record<string, unknown>,
+  ): Promise<{ deleted: number; epoch: number }> {
+    this.ensureInitialized();
+
+    // Accept either a raw RvfFilterExpr or a predicate DSL object
+    let rvfFilter: RvfFilterExpr | null;
+    if ('op' in filter) {
+      rvfFilter = filter as RvfFilterExpr;
+    } else {
+      rvfFilter = FilterBuilder.buildFilter(filter as Record<string, unknown>);
+    }
+
+    if (!rvfFilter) {
+      throw new Error('Cannot build filter expression from provided predicates');
+    }
+
+    try {
+      const result = await this.db.deleteByFilter(rvfFilter);
+      if (result.deleted > 0) {
+        this.cachedCount = Math.max(0, this.cachedCount - result.deleted);
+      }
+      return { deleted: result.deleted ?? 0, epoch: result.epoch ?? 0 };
+    } catch (err) {
+      throw new Error(`deleteByFilter failed: ${(err as Error).message}`);
+    }
+  }
+
+  /**
+   * Embed a kernel image into the RVF store.
+   * @returns segment ID of the embedded kernel
+   */
+  async embedKernel(
+    arch: number,
+    kernelType: number,
+    flags: number,
+    image: Uint8Array,
+    apiPort: number,
+    cmdline?: string,
+  ): Promise<number> {
+    this.ensureInitialized();
+    try {
+      return await this.db.embedKernel(arch, kernelType, flags, image, apiPort, cmdline);
+    } catch (err) {
+      throw new Error(`embedKernel failed: ${(err as Error).message}`);
+    }
+  }
+
+  /**
+   * Extract the kernel image from the RVF store.
+   * @returns kernel data or null if not present
+   */
+  async extractKernel(): Promise<{ header: Uint8Array; image: Uint8Array } | null> {
+    this.ensureInitialized();
+    try {
+      return await this.db.extractKernel();
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Embed an eBPF program into the RVF store.
+   * @returns segment ID of the embedded program
+   */
+  async embedEbpf(
+    programType: number,
+    attachType: number,
+    maxDimension: number,
+    bytecode: Uint8Array,
+    btf?: Uint8Array,
+  ): Promise<number> {
+    this.ensureInitialized();
+    try {
+      return await this.db.embedEbpf(programType, attachType, maxDimension, bytecode, btf);
+    } catch (err) {
+      throw new Error(`embedEbpf failed: ${(err as Error).message}`);
+    }
+  }
+
+  /**
+   * Extract the eBPF program from the RVF store.
+   * @returns eBPF data or null if not present
+   */
+  async extractEbpf(): Promise<{ header: Uint8Array; payload: Uint8Array } | null> {
+    this.ensureInitialized();
+    try {
+      return await this.db.extractEbpf();
+    } catch {
+      return null;
+    }
   }
 
   // ─── Private helpers ───
