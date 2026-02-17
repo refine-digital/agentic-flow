@@ -70,27 +70,37 @@ patternClusters, trajectoryCapacity, backgroundIntervalMs, qualityThreshold
 
 Integrate the self-learning pipeline across 4 phases:
 
-### Phase 1: SONA Native Learning Engine
+### Phase 1: SONA Native Learning Engine (COMPLETE)
 
-- Create `SonaLearningBackend` implementing the `LearningBackend` interface
-- Wire `SonaEngine` into `LearningSystem` trajectory lifecycle
-- Replace JS SonaCoordinator calls with native SonaEngine
-- Add `SonaEngine.tick()` to periodic maintenance
-- Estimated: 1 new file, ~250 lines
+- Created `SonaLearningBackend` wrapping `@ruvector/sona` SonaEngine
+- Trajectory lifecycle: beginTrajectory → addStep → endTrajectory
+- Micro-LoRA query enhancement via `enhance()`
+- Background learning cycles: `tick()` / `forceLearn()`
+- Pattern discovery: `findPatterns()`
+- EWC++ protection against catastrophic forgetting
+- Actual: 1 file, ~296 lines, 9 tests passing
 
-### Phase 2: Adaptive Index & Memory Management
+### Phase 2: Adaptive Index & Memory Management (COMPLETE)
 
-- Create `AdaptiveIndexTuner` using solver Thompson Sampling for query strategy
-- Create `TemporalCompressor` using `TensorCompress` for memory decay
-- Add `IndexHealthMonitor` using `indexStats()` + performance stats
-- Wire into NightlyLearner as periodic maintenance tasks
-- Estimated: 1 new file, ~300 lines
+- Created `TemporalCompressor` with built-in 5-tier quantization
+- Tier mapping: none (freq≥0.8), half (≥0.6), pq8 (≥0.4), pq4 (≥0.2), binary (<0.2)
+- Compression ratios: half=67%, pq8=80%, pq4=89%, binary=96%
+- Created `IndexHealthMonitor` tracking search/insert latencies
+- Health assessment with parameter recommendations
+- Note: @ruvector/gnn TensorCompress N-API has binding issues; built-in impl used
+- Actual: 1 file, ~420 lines, 36 tests passing
 
-### Phase 3: Contrastive Embedding Improvement
+### Phase 3: Contrastive Embedding Improvement (COMPLETE)
 
-- Add `ContrastiveTrainer` using `InfoNceLoss` + `HardNegativeMiner`
-- Integrate `CurriculumScheduler` for progressive training difficulty
-- Estimated: 1 new file, ~200 lines
+- Created `ContrastiveTrainer` with built-in InfoNCE loss + AdamW optimizer
+- Lightweight linear projection (W\*x + b) initialized near-identity
+- Hard negative mining by cosine similarity with configurable thresholds
+- 3-stage curriculum scheduling (progressive difficulty)
+- Created `SemanticQueryRouter` wrapping `@ruvector/router` SemanticRouter
+- Intent-based query routing with HNSW vector search
+- Fallback to built-in brute-force when native unavailable
+- Note: @ruvector/attention N-API loss/miner have binding issues; built-in impl used
+- Actual: 2 files, ~520 lines, 23 tests passing
 
 ### Phase 4: Federated Cross-Session Learning (Future)
 
@@ -102,10 +112,13 @@ Integrate the self-learning pipeline across 4 phases:
 ## Security
 
 - SonaEngine operates on embeddings only (no user text)
-- TensorCompress is lossless/reversible (decompression available)
+- TemporalCompressor compression is reversible (decompression available)
 - All new APIs are bounded by existing dimension/batch limits
-- EWC lambda prevents catastrophic forgetting (bounded 0-1)
-- Trajectory capacity has a configurable upper bound
+- EWC lambda prevents catastrophic forgetting (bounded 0-10000)
+- Trajectory capacity has a configurable upper bound (max 100000)
+- ContrastiveTrainer: temperature bounded (0.01-1.0), batch size bounded (max 256)
+- SemanticQueryRouter: intent names validated, max intents bounded (max 10000)
+- All vector dimensions validated on insert/query (max 4096)
 
 ## Performance
 

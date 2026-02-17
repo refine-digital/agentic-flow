@@ -63,3 +63,22 @@ export type {
   IndexHealth,
   CompressionStats,
 } from './rvf/AdaptiveIndexTuner.js';
+
+// Contrastive Embedding Improvement (ADR-005 Phase 3)
+export { ContrastiveTrainer } from './rvf/ContrastiveTrainer.js';
+export type {
+  ContrastiveSample,
+  TrainBatchResult,
+  TrainingStats,
+  CurriculumStage,
+  ContrastiveConfig,
+} from './rvf/ContrastiveTrainer.js';
+
+// Semantic Query Router (ADR-005 Phase 3)
+export { SemanticQueryRouter } from './rvf/SemanticQueryRouter.js';
+export type {
+  RouteMatch,
+  IntentConfig,
+  RouterConfig,
+  RouterStats,
+} from './rvf/SemanticQueryRouter.js';
