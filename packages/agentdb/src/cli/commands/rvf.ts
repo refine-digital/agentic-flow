@@ -402,7 +402,8 @@ export const rvfCommand = new Command('rvf')
             seed?: string;
             json?: boolean;
           }) => {
-            let solver: { train: (o: unknown) => unknown; destroy: () => void } | null = null;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let solver: any = null;
             try {
               const { AgentDBSolver } = await import('../../backends/rvf/RvfSolver.js');
               solver = await AgentDBSolver.create();
@@ -447,7 +448,8 @@ export const rvfCommand = new Command('rvf')
             seed?: string;
             json?: boolean;
           }) => {
-            let solver: { acceptance: (o: unknown) => unknown; destroy: () => void } | null = null;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let solver: any = null;
             try {
               const { AgentDBSolver } = await import('../../backends/rvf/RvfSolver.js');
               solver = await AgentDBSolver.create();

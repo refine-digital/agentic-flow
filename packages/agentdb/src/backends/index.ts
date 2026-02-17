@@ -45,3 +45,21 @@ export type {
   SolverAcceptanceOptions,
   SolverPolicyState,
 } from './rvf/RvfSolver.js';
+
+// SONA Learning Backend (ADR-005)
+export { SonaLearningBackend } from './rvf/SonaLearningBackend.js';
+export type {
+  SonaConfig,
+  LearnedPattern,
+  SonaStats,
+  SonaTrainingSample,
+} from './rvf/SonaLearningBackend.js';
+
+// Adaptive Index & Memory Management (ADR-005)
+export { TemporalCompressor, IndexHealthMonitor } from './rvf/AdaptiveIndexTuner.js';
+export type {
+  CompressionTier,
+  CompressedEntry,
+  IndexHealth,
+  CompressionStats,
+} from './rvf/AdaptiveIndexTuner.js';
