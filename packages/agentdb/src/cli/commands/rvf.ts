@@ -16,6 +16,7 @@
 
 import { Command } from 'commander';
 import * as fs from 'fs';
+import * as path from 'path';
 
 const colors = {
   reset: '\x1b[0m',
@@ -33,14 +34,51 @@ function log(msg: string): void {
 }
 
 /**
+ * Parse an integer from CLI input with NaN guard
+ */
+function safeParseInt(value: string, name: string): number {
+  const n = parseInt(value, 10);
+  if (Number.isNaN(n)) {
+    throw new Error(`Invalid value for ${name}: "${value}" (expected integer)`);
+  }
+  return n;
+}
+
+/**
+ * Validate a CLI-supplied store path against traversal and dangerous patterns.
+ * Resolves to absolute path and checks against denylist.
+ */
+function validateStorePath(inputPath: string): string {
+  if (!inputPath || typeof inputPath !== 'string') {
+    throw new Error('Store path must be a non-empty string');
+  }
+  if (inputPath.includes('\0')) {
+    throw new Error('Store path must not contain null bytes');
+  }
+
+  const resolved = path.resolve(inputPath);
+  const dangerous = ['/etc/', '/proc/', '/sys/', '/dev/', '/boot/', '/root/'];
+  for (const prefix of dangerous) {
+    if (resolved.startsWith(prefix)) {
+      throw new Error(`Store path must not be inside ${prefix}`);
+    }
+  }
+  if (/\.\.[\\/]/.test(inputPath)) {
+    throw new Error('Store path must not contain path traversal');
+  }
+  return resolved;
+}
+
+/**
  * Load RVF backend lazily
  */
 async function loadRvfBackend(storePath: string, options: { backend?: string } = {}) {
+  const validPath = validateStorePath(storePath);
   const { RvfBackend } = await import('../../backends/rvf/RvfBackend.js');
   const backend = new RvfBackend({
     dimension: 384, // Will be overridden on load
     metric: 'cosine',
-    storagePath: storePath,
+    storagePath: validPath,
     rvfBackend: (options.backend as 'auto' | 'node' | 'wasm') ?? 'auto',
   });
   // RvfBackend has initialize() but it's not in the VectorBackend interface
@@ -141,14 +179,15 @@ export const rvfCommand = new Command('rvf')
       .argument('<child>', 'Path for new child .rvf store')
       .action(async (parent: string, child: string) => {
         try {
-          if (fs.existsSync(child)) {
-            console.error(`${colors.red}Error: Child path already exists: ${child}${colors.reset}`);
+          const validChild = validateStorePath(child);
+          if (fs.existsSync(validChild)) {
+            console.error(`${colors.red}Error: Child path already exists: ${validChild}${colors.reset}`);
             process.exit(1);
           }
 
           const backend = await loadRvfBackend(parent);
           log(`\nDeriving branch from ${parent}...`);
-          const childBackend = await backend.derive(child);
+          const childBackend = await backend.derive(validChild);
           const childId = await childBackend.fileId();
           const parentId = await childBackend.parentId();
 
@@ -363,16 +402,17 @@ export const rvfCommand = new Command('rvf')
             seed?: string;
             json?: boolean;
           }) => {
+            let solver: { train: (o: unknown) => unknown; destroy: () => void } | null = null;
             try {
               const { AgentDBSolver } = await import('../../backends/rvf/RvfSolver.js');
-              const solver = await AgentDBSolver.create();
+              solver = await AgentDBSolver.create();
 
               const result = solver.train({
-                count: parseInt(opts.count, 10),
-                minDifficulty: parseInt(opts.minDifficulty, 10),
-                maxDifficulty: parseInt(opts.maxDifficulty, 10),
-                seed: opts.seed ? parseInt(opts.seed, 10) : undefined,
-              });
+                count: safeParseInt(opts.count, 'count'),
+                minDifficulty: safeParseInt(opts.minDifficulty, 'min-difficulty'),
+                maxDifficulty: safeParseInt(opts.maxDifficulty, 'max-difficulty'),
+                seed: opts.seed ? safeParseInt(opts.seed, 'seed') : undefined,
+              }) as { trained: number; correct: number; accuracy: number; patternsLearned: number };
 
               if (opts.json) {
                 console.log(JSON.stringify(result, null, 2));
@@ -384,11 +424,11 @@ export const rvfCommand = new Command('rvf')
                 log(`  Patterns Learned: ${colors.blue}${result.patternsLearned}${colors.reset}`);
                 log('');
               }
-
-              solver.destroy();
             } catch (error) {
               console.error(`${colors.red}Error: ${(error as Error).message}${colors.reset}`);
               process.exit(1);
+            } finally {
+              solver?.destroy();
             }
           })
       )
@@ -407,16 +447,24 @@ export const rvfCommand = new Command('rvf')
             seed?: string;
             json?: boolean;
           }) => {
+            let solver: { acceptance: (o: unknown) => unknown; destroy: () => void } | null = null;
             try {
               const { AgentDBSolver } = await import('../../backends/rvf/RvfSolver.js');
-              const solver = await AgentDBSolver.create();
+              solver = await AgentDBSolver.create();
 
               const manifest = solver.acceptance({
-                cycles: parseInt(opts.cycles, 10),
-                holdoutSize: parseInt(opts.holdout, 10),
-                trainingPerCycle: parseInt(opts.training, 10),
-                seed: opts.seed ? parseInt(opts.seed, 10) : undefined,
-              });
+                cycles: safeParseInt(opts.cycles, 'cycles'),
+                holdoutSize: safeParseInt(opts.holdout, 'holdout'),
+                trainingPerCycle: safeParseInt(opts.training, 'training'),
+                seed: opts.seed ? safeParseInt(opts.seed, 'seed') : undefined,
+              }) as {
+                modeA: { passed: boolean; finalAccuracy: number; cycles: { cycle: number; accuracy: number; costPerSolve: number }[] };
+                modeB: { passed: boolean; finalAccuracy: number; cycles: { cycle: number; accuracy: number; costPerSolve: number }[] };
+                modeC: { passed: boolean; finalAccuracy: number; cycles: { cycle: number; accuracy: number; costPerSolve: number }[] };
+                allPassed: boolean;
+                witnessEntries: number;
+                witnessChainBytes: number;
+              };
 
               if (opts.json) {
                 console.log(JSON.stringify(manifest, null, 2));
@@ -440,11 +488,11 @@ export const rvfCommand = new Command('rvf')
                 log(`  Witness:  ${manifest.witnessEntries} entries (${manifest.witnessChainBytes} bytes)`);
                 log('');
               }
-
-              solver.destroy();
             } catch (error) {
               console.error(`${colors.red}Error: ${(error as Error).message}${colors.reset}`);
               process.exit(1);
+            } finally {
+              solver?.destroy();
             }
           })
       )

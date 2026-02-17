@@ -273,8 +273,8 @@ async function checkHnswlib(): Promise<boolean> {
     // Try to import hnswlib-node
     await import('hnswlib-node');
     return true;
-  } catch (error) {
-    console.warn('[AgentDB] HNSWLib not available:', error);
+  } catch {
+    // HNSWLib not available
     return false;
   }
 }

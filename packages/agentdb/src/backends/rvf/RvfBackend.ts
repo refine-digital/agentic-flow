@@ -35,6 +35,9 @@ const MAX_BATCH_SIZE = 10000;
 const MAX_PATH_LENGTH = 4096;
 const DEFAULT_BATCH_THRESHOLD = 100;
 const MAX_PENDING_WRITES = 50000;
+const MAX_METADATA_BYTES = 65536;
+const MAX_ID_LENGTH = 1024;
+const MAX_SEARCH_K = 10000;
 
 const FORBIDDEN_PATH_PATTERNS = [
   /\.\./,       // Path traversal
@@ -51,11 +54,49 @@ function validatePath(inputPath: string): void {
   if (inputPath.length > MAX_PATH_LENGTH) {
     throw new Error(`Path exceeds maximum length of ${MAX_PATH_LENGTH}`);
   }
+  if (inputPath.includes('\0')) {
+    throw new Error('Path must not contain null bytes');
+  }
+  // Check both forward-slash and backslash traversal
+  if (/\.\.[\\/]/.test(inputPath)) {
+    throw new Error('Path contains forbidden traversal pattern');
+  }
   for (const pattern of FORBIDDEN_PATH_PATTERNS) {
     if (pattern.test(inputPath)) {
       throw new Error('Path contains forbidden pattern');
     }
   }
+}
+
+function validateId(id: string): void {
+  if (!id || typeof id !== 'string') {
+    throw new Error('Vector ID must be a non-empty string');
+  }
+  if (id.length > MAX_ID_LENGTH) {
+    throw new Error(`Vector ID exceeds maximum length of ${MAX_ID_LENGTH}`);
+  }
+  if (id.includes('\0')) {
+    throw new Error('Vector ID must not contain null bytes');
+  }
+}
+
+function validateMetadata(metadata: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  if (!metadata) return metadata;
+  const json = JSON.stringify(metadata);
+  if (json.length > MAX_METADATA_BYTES) {
+    throw new Error(`Metadata exceeds maximum size of ${MAX_METADATA_BYTES} bytes`);
+  }
+  // Strip prototype-pollution keys
+  if ('__proto__' in metadata || 'constructor' in metadata || 'prototype' in metadata) {
+    const clean: Record<string, unknown> = Object.create(null);
+    for (const key of Object.keys(metadata)) {
+      if (key !== '__proto__' && key !== 'constructor' && key !== 'prototype') {
+        clean[key] = metadata[key];
+      }
+    }
+    return clean;
+  }
+  return metadata;
 }
 
 function validateDimension(dimension: number): void {
@@ -208,8 +249,9 @@ export class RvfBackend implements VectorBackendAsync {
 
   insert(id: string, embedding: Float32Array, metadata?: Record<string, unknown>): void {
     this.ensureInitialized();
-    if (!id || typeof id !== 'string') {
-      throw new Error('Vector ID must be a non-empty string');
+    validateId(id);
+    if (embedding.length !== this.dim) {
+      throw new Error(`Vector dimension ${embedding.length} does not match expected ${this.dim}`);
     }
     if (this.pending.length >= MAX_PENDING_WRITES) {
       throw new Error(`Pending write queue full (${MAX_PENDING_WRITES}). Call flush() first.`);
@@ -218,7 +260,7 @@ export class RvfBackend implements VectorBackendAsync {
     this.pending.push({
       id,
       vector: embedding instanceof Float32Array ? embedding : new Float32Array(embedding),
-      metadata,
+      metadata: validateMetadata(metadata),
     });
 
     if (this.pending.length >= this.batchThreshold) {
@@ -250,8 +292,11 @@ export class RvfBackend implements VectorBackendAsync {
   remove(id: string): boolean {
     // Queue a delete -- sync interface cannot await
     this.ensureInitialized();
-    // Fire-and-forget
-    this.db.delete([id]).catch(() => {});
+    validateId(id);
+    // Fire-and-forget with error logging
+    this.db.delete([id]).catch((err: Error) => {
+      console.error('[RvfBackend] Delete failed:', err.message);
+    });
     return true;
   }
 
@@ -287,7 +332,9 @@ export class RvfBackend implements VectorBackendAsync {
 
   close(): void {
     if (this.db) {
-      this.db.close().catch(() => {});
+      this.db.close().catch((err: Error) => {
+        console.warn('[RvfBackend] Close error:', err.message);
+      });
       this.db = null;
     }
     this.pending = [];
@@ -299,15 +346,16 @@ export class RvfBackend implements VectorBackendAsync {
 
   async insertAsync(id: string, embedding: Float32Array, metadata?: Record<string, unknown>): Promise<void> {
     this.ensureInitialized();
-    if (!id || typeof id !== 'string') {
-      throw new Error('Vector ID must be a non-empty string');
+    validateId(id);
+    if (embedding.length !== this.dim) {
+      throw new Error(`Vector dimension ${embedding.length} does not match expected ${this.dim}`);
     }
     const start = this.config.enableStats !== false ? performance.now() : 0;
 
     await this.db.ingestBatch([{
       id,
       vector: embedding instanceof Float32Array ? embedding : new Float32Array(embedding),
-      metadata,
+      metadata: validateMetadata(metadata),
     }]);
     this.cachedCount++;
 
@@ -349,6 +397,14 @@ export class RvfBackend implements VectorBackendAsync {
 
   async searchAsync(query: Float32Array, k: number, options?: SearchOptions): Promise<SearchResult[]> {
     this.ensureInitialized();
+    if (!Number.isFinite(k) || k < 1) {
+      throw new Error('k must be a positive finite integer');
+    }
+    const safeK = Math.min(Math.floor(k), MAX_SEARCH_K);
+    const queryVec = query instanceof Float32Array ? query : new Float32Array(query);
+    if (queryVec.length !== this.dim) {
+      throw new Error(`Query dimension ${queryVec.length} does not match expected ${this.dim}`);
+    }
 
     // Flush pending writes before searching so results are current
     if (this.pending.length > 0) {
@@ -360,9 +416,7 @@ export class RvfBackend implements VectorBackendAsync {
     const rvfOpts: Record<string, number> = {};
     if (options?.efSearch) rvfOpts.efSearch = options.efSearch;
     if (options?.threshold) rvfOpts.minScore = options.threshold;
-
-    const queryVec = query instanceof Float32Array ? query : new Float32Array(query);
-    const results = await this.db.query(queryVec, k, Object.keys(rvfOpts).length > 0 ? rvfOpts : undefined);
+    const results = await this.db.query(queryVec, safeK, Object.keys(rvfOpts).length > 0 ? rvfOpts : undefined);
 
     if (this.config.enableStats !== false) {
       this.stats.searchCount++;
@@ -387,6 +441,7 @@ export class RvfBackend implements VectorBackendAsync {
   async removeAsync(id: string): Promise<boolean> {
     this.ensureInitialized();
     if (!id || typeof id !== 'string') return false;
+    validateId(id);
     const result = await this.db.delete([id]);
     if (result.deleted > 0) {
       this.cachedCount = Math.max(0, this.cachedCount - result.deleted);
