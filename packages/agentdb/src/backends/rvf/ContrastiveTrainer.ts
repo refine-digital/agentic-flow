@@ -64,6 +64,8 @@ export interface ContrastiveConfig {
   stages?: CurriculumStage[];
 }
 
+import type { NativeAccelerator } from './NativeAccelerator.js';
+
 // Bounds
 const MIN_TEMPERATURE = 0.01;
 const MAX_TEMPERATURE = 1.0;
@@ -77,6 +79,9 @@ const MAX_DIMENSION = 4096;
  * Uses InfoNCE loss to train a lightweight projection that improves
  * embedding quality over time. Hard negative mining ensures the model
  * focuses on the most informative training signals.
+ *
+ * Automatically uses NativeAccelerator (ADR-007) for SIMD-accelerated
+ * cosine similarity and native AdamW when available.
  */
 export class ContrastiveTrainer {
   private dim: number;
@@ -98,6 +103,9 @@ export class ContrastiveTrainer {
   private mB: Float32Array;
   private vB: Float32Array;
   private step = 0;
+
+  // Native accelerator (ADR-007) — optional SIMD + native ops
+  private accel: NativeAccelerator | null = null;
 
   // Stats
   private _totalBatches = 0;
@@ -150,7 +158,14 @@ export class ContrastiveTrainer {
     if (!Number.isFinite(config.dimension) || config.dimension < 1 || config.dimension > MAX_DIMENSION) {
       throw new Error(`dimension must be between 1 and ${MAX_DIMENSION}`);
     }
-    return new ContrastiveTrainer(config);
+    const trainer = new ContrastiveTrainer(config);
+    // Lazy-load NativeAccelerator for SIMD cosine + native AdamW (ADR-007)
+    try {
+      const { NativeAccelerator: N } = await import('./NativeAccelerator.js');
+      trainer.accel = new N();
+      await trainer.accel.initialize();
+    } catch { /* proceed without acceleration */ }
+    return trainer;
   }
 
   /**
@@ -367,25 +382,44 @@ export class ContrastiveTrainer {
   /**
    * Mine hard negatives from a pool of embeddings.
    * Returns negatives that are similar to anchor but from different classes.
+   *
+   * SOTA: Positive-aware filtering (NV-Retriever, 2024). Rejects candidates
+   * with high similarity to known positives to eliminate false negatives,
+   * which constitute ~70% of naively mined hard negatives.
    */
   mineHardNegatives(
     anchor: Float32Array,
     pool: Float32Array[],
     excludeIndices: Set<number>,
     count?: number,
+    positives?: Float32Array[],
   ): Float32Array[] {
     this.ensureAlive();
     const stage = this.stages[Math.min(this.currentStage, this.stages.length - 1)];
     const n = Math.min(count ?? stage.negativeCount, MAX_NEGATIVES, pool.length);
+    const falseNegThreshold = 0.85; // NV-Retriever recommended threshold
 
     // Score all candidates by similarity to anchor
     const scored: Array<{ idx: number; sim: number }> = [];
     for (let i = 0; i < pool.length; i++) {
       if (excludeIndices.has(i)) continue;
       const sim = this.cosineSimilarity(anchor, pool[i]);
-      if (sim >= stage.hardNegativeThreshold) {
-        scored.push({ idx: i, sim });
+      if (sim < stage.hardNegativeThreshold) continue;
+
+      // SOTA: Positive-aware false negative filtering
+      // Skip candidates too similar to any known positive (likely false negatives)
+      if (positives && positives.length > 0) {
+        let isFalseNeg = false;
+        for (const pos of positives) {
+          if (this.cosineSimilarity(pool[i], pos) > falseNegThreshold) {
+            isFalseNeg = true;
+            break;
+          }
+        }
+        if (isFalseNeg) continue;
       }
+
+      scored.push({ idx: i, sim });
     }
 
     // Sort by similarity descending (hardest negatives first)
@@ -449,6 +483,8 @@ export class ContrastiveTrainer {
   }
 
   private cosineSimilarity(a: Float32Array, b: Float32Array): number {
+    // Delegate to NativeAccelerator for SIMD-accelerated cosine when available
+    if (this.accel) return this.accel.cosineSimilarity(a, b);
     let dot = 0, normA = 0, normB = 0;
     for (let i = 0; i < a.length; i++) {
       dot += a[i] * b[i];
@@ -471,6 +507,12 @@ export class ContrastiveTrainer {
     m: Float32Array,
     v: Float32Array,
   ): void {
+    // Delegate to NativeAccelerator when available (ADR-007)
+    if (this.accel) {
+      this.accel.adamWStep(params, grads, m, v, this.step, this.learningRate, this.weightDecay);
+      return;
+    }
+
     const beta1 = 0.9;
     const beta2 = 0.999;
     const eps = 1e-8;

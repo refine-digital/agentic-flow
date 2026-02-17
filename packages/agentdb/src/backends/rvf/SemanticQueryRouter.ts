@@ -239,6 +239,64 @@ export class SemanticQueryRouter {
     return this._destroyed;
   }
 
+  /**
+   * Save router state to disk (ADR-007 Phase 1 persistence).
+   * Requires @ruvector/router native save support or falls back to JSON.
+   */
+  async save(path: string): Promise<boolean> {
+    this.ensureAlive();
+    if (this._useNative && this.router) {
+      try {
+        const { NativeAccelerator: N } = await import('./NativeAccelerator.js');
+        const accel = new N();
+        await accel.initialize();
+        if (accel.routerPersistAvailable) return accel.routerSave(this.router, path);
+      } catch { /* fall through to JSON */ }
+    }
+    // JSON fallback for fallback intents
+    const { writeFile } = await import('node:fs/promises');
+    const data: Array<{ name: string; centroid: number[]; metadata: Record<string, unknown> }> = [];
+    for (const [name, { centroid, metadata }] of this.fallbackIntents) {
+      data.push({ name, centroid: Array.from(centroid), metadata });
+    }
+    await writeFile(path, JSON.stringify({ dim: this.dim, threshold: this.threshold, intents: data }));
+    return true;
+  }
+
+  /**
+   * Load router state from disk (ADR-007 Phase 1 persistence).
+   */
+  async load(path: string): Promise<boolean> {
+    this.ensureAlive();
+    if (this._useNative) {
+      try {
+        const { NativeAccelerator: N } = await import('./NativeAccelerator.js');
+        const accel = new N();
+        await accel.initialize();
+        if (accel.routerPersistAvailable) {
+          const loaded = await accel.routerLoad(path);
+          if (loaded) { this.router = loaded; return true; }
+        }
+      } catch { /* fall through to JSON */ }
+    }
+    // JSON fallback
+    try {
+      const { readFile } = await import('node:fs/promises');
+      const raw = JSON.parse(await readFile(path, 'utf-8'));
+      if (raw.intents && Array.isArray(raw.intents)) {
+        for (const intent of raw.intents) {
+          const centroid = new Float32Array(intent.centroid);
+          let norm = 0;
+          for (let i = 0; i < centroid.length; i++) norm += centroid[i] * centroid[i];
+          norm = Math.sqrt(norm);
+          this.fallbackIntents.set(intent.name, { centroid, norm, metadata: intent.metadata ?? {} });
+        }
+        return true;
+      }
+    } catch { /* path not found or invalid */ }
+    return false;
+  }
+
   /** Destroy the router */
   destroy(): void {
     if (!this._destroyed) {

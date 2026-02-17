@@ -175,6 +175,46 @@ describe('ADR-007 NativeAccelerator', () => {
     });
   });
 
+  // ─── Hamming Distance (SOTA: binary quantization) ───
+
+  describe('Hamming Distance', () => {
+    it('should return 0 for identical binary vectors', () => {
+      const a = new Uint8Array([0xFF, 0x00, 0xAA]);
+      expect(accel.hammingDistance(a, a)).toBe(0);
+    });
+
+    it('should compute correct hamming distance', () => {
+      const a = new Uint8Array([0b11110000]);
+      const b = new Uint8Array([0b11001100]);
+      // XOR = 0b00111100, popcount = 4
+      expect(accel.hammingDistance(a, b)).toBe(4);
+    });
+
+    it('should return max distance for inverse vectors', () => {
+      const a = new Uint8Array([0xFF]);
+      const b = new Uint8Array([0x00]);
+      expect(accel.hammingDistance(a, b)).toBe(8);
+    });
+
+    it('should handle multi-byte vectors', () => {
+      const a = new Uint8Array(128).fill(0xFF);
+      const b = new Uint8Array(128).fill(0x00);
+      expect(accel.hammingDistance(a, b)).toBe(1024); // 128 * 8
+    });
+
+    it('should throw on length mismatch', () => {
+      expect(() => accel.hammingDistance(new Uint8Array(4), new Uint8Array(8))).toThrow('Length mismatch');
+    });
+
+    it('should complete 10K hamming distances (128B) in <30ms', () => {
+      const a = new Uint8Array(128); const b = new Uint8Array(128);
+      for (let i = 0; i < 128; i++) { a[i] = i; b[i] = 255 - i; }
+      const start = performance.now();
+      for (let i = 0; i < 10_000; i++) accel.hammingDistance(a, b);
+      expect(performance.now() - start).toBeLessThan(30);
+    });
+  });
+
   // ─── WASM Verification (JS fallbacks) ───
 
   describe('Witness Chain Verification', () => {
@@ -264,27 +304,34 @@ describe('ADR-007 NativeAccelerator', () => {
       expect(loss2).toBeGreaterThan(loss1);
     });
 
-    it('should increase with more hard negatives', () => {
-      const anchor = normalize(randomVec(64));
-      const positive = normalize(randomVec(64));
-      const neg1 = [randomVec(64)];
-      const neg3 = [randomVec(64), randomVec(64), randomVec(64)];
+    it('should increase with more hard negatives (deterministic)', () => {
+      // Use deterministic vectors: anchor=[1,0,...], positive=[0.9,0.1,...], negatives close to anchor
+      const dim = 64;
+      const anchor = new Float32Array(dim); anchor[0] = 1;
+      const positive = new Float32Array(dim); positive[0] = 0.9; positive[1] = 0.1;
+      const hardNeg = new Float32Array(dim); hardNeg[0] = 0.8; hardNeg[1] = -0.2;
+      const neg1 = [hardNeg];
+      const neg3 = [hardNeg, new Float32Array(dim).fill(0.1), new Float32Array(dim).fill(-0.1)];
 
       const loss1 = accel.infoNceLoss(anchor, positive, neg1, 0.07);
       const loss3 = accel.infoNceLoss(anchor, positive, neg3, 0.07);
-      // More negatives = higher denominator = higher loss (usually)
-      expect(loss3).toBeGreaterThanOrEqual(loss1 - 0.1);
+      // More negatives in denominator strictly increases loss with deterministic vectors
+      expect(loss3).toBeGreaterThanOrEqual(loss1);
     });
 
-    it('should be lower with higher temperature', () => {
-      const anchor = normalize(randomVec(64));
-      const positive = normalize(randomVec(64));
-      const negatives = [randomVec(64), randomVec(64)];
+    it('low temperature should give lower loss than high temperature when positive is similar', () => {
+      // With aligned anchor-positive, low temp makes positive dominate softmax → loss near 0
+      // High temp makes distribution uniform → loss near log(N+1)
+      const anchor = new Float32Array(64); anchor[0] = 1;
+      const positive = new Float32Array(64); positive[0] = 0.95; positive[1] = 0.05;
+      const negatives = [new Float32Array(64), new Float32Array(64)];
+      negatives[0][32] = 1; negatives[1][48] = 1; // orthogonal
 
       const lossLow = accel.infoNceLoss(anchor, positive, negatives, 0.01);
       const lossHigh = accel.infoNceLoss(anchor, positive, negatives, 1.0);
-      // Higher temp = smoother distribution = lower loss magnitude
-      expect(Math.abs(lossHigh)).toBeLessThan(Math.abs(lossLow) + 1);
+      // Low temp: positive dominates → loss ≈ 0
+      // High temp: uniform-ish → loss ≈ log(3) ≈ 1.1
+      expect(lossLow).toBeLessThan(lossHigh);
     });
 
     it('should handle empty negatives', () => {
@@ -579,6 +626,38 @@ describe('ADR-007 NativeAccelerator', () => {
       const chain = new Uint8Array(73 * 1000);
       const result = accel.verifyWitnessChain(chain);
       expect(result.entryCount).toBe(1000);
+    });
+  });
+
+  // ─── SOTA: Benchmark unrolled ops vs baseline ───
+
+  describe('Optimization benchmarks', () => {
+    it('should complete 100K cosine similarity (dim=384) in <80ms (unrolled)', () => {
+      const a = randomVec(384);
+      const b = randomVec(384);
+      const start = performance.now();
+      for (let i = 0; i < 100_000; i++) accel.cosineSimilarity(a, b);
+      const elapsed = performance.now() - start;
+      expect(elapsed).toBeLessThan(80);
+    });
+
+    it('should complete 100K dot products (dim=384) in <60ms (unrolled)', () => {
+      const a = randomVec(384);
+      const b = randomVec(384);
+      const start = performance.now();
+      for (let i = 0; i < 100_000; i++) accel.dotProduct(a, b);
+      const elapsed = performance.now() - start;
+      expect(elapsed).toBeLessThan(60);
+    });
+
+    it('should complete 100K CRC32C (64B) in <50ms (table-lookup)', () => {
+      const data = new Uint8Array(64);
+      for (let i = 0; i < data.length; i++) data[i] = i & 0xFF;
+      data[0] = 0x52; data[1] = 0x56; data[2] = 0x46; // RVF magic
+      const start = performance.now();
+      for (let i = 0; i < 100_000; i++) accel.verifySegmentHeader(data);
+      const elapsed = performance.now() - start;
+      expect(elapsed).toBeLessThan(50);
     });
   });
 

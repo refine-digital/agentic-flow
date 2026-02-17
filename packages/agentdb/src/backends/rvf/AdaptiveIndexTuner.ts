@@ -25,6 +25,8 @@ export interface CompressedEntry {
   originalDim: number;
   accessFrequency: number;
   lastAccessed: number;
+  /** Matryoshka truncated dimension (SOTA: MRL truncation) */
+  truncatedDim?: number;
 }
 
 /** Index health assessment */
@@ -95,6 +97,7 @@ export class TemporalCompressor {
 
   /**
    * Compress a vector based on its access frequency.
+   * Uses Matryoshka-style dimensional truncation for cold tiers (SOTA: MRL).
    *
    * @param id - Unique identifier for this entry
    * @param embedding - The vector to compress
@@ -104,7 +107,12 @@ export class TemporalCompressor {
     this.ensureAlive();
     const freq = Math.min(Math.max(0, accessFrequency), 1);
     const tier = this.frequencyToTier(freq);
-    const compressedJson = this.compressVector(embedding, tier);
+
+    // Matryoshka truncation: for cold/frozen data, store only leading dimensions
+    // This preserves more information than scalar quantization at the same byte cost
+    const truncDim = this.matryoshkaDim(embedding.length, tier);
+    const vec = truncDim < embedding.length ? embedding.subarray(0, truncDim) : embedding;
+    const compressedJson = this.compressVector(vec, tier);
 
     const entry: CompressedEntry = {
       id,
@@ -113,6 +121,7 @@ export class TemporalCompressor {
       originalDim: embedding.length,
       accessFrequency: freq,
       lastAccessed: Date.now(),
+      truncatedDim: truncDim < embedding.length ? truncDim : undefined,
     };
 
     this.entries.set(id, entry);
@@ -121,6 +130,7 @@ export class TemporalCompressor {
 
   /**
    * Decompress a vector back to its original form.
+   * Matryoshka-truncated vectors are zero-padded to original dimension.
    */
   decompress(id: string): Float32Array | null {
     this.ensureAlive();
@@ -128,7 +138,16 @@ export class TemporalCompressor {
     if (!entry) return null;
 
     entry.lastAccessed = Date.now();
-    return this.decompressVector(entry.compressedJson, entry.tier, entry.originalDim);
+    const storedDim = entry.truncatedDim ?? entry.originalDim;
+    const vec = this.decompressVector(entry.compressedJson, entry.tier, storedDim);
+
+    // Zero-pad if Matryoshka-truncated
+    if (entry.truncatedDim && entry.truncatedDim < entry.originalDim) {
+      const full = new Float32Array(entry.originalDim);
+      full.set(vec);
+      return full;
+    }
+    return vec;
   }
 
   /**
@@ -338,6 +357,30 @@ export class TemporalCompressor {
     if (freq >= 0.4) return 'pq8';
     if (freq >= 0.2) return 'pq4';
     return 'binary';
+  }
+
+  /**
+   * Matryoshka-style dimensional truncation (SOTA: MRL).
+   * For cold tiers, store only leading dimensions. Matryoshka-trained
+   * embeddings concentrate information in early dimensions, so truncation
+   * preserves more semantic content than quantization at equal byte cost.
+   *
+   * Truncation ratios: none=100%, half=100%, pq8=75%, pq4=50%, binary=25%
+   */
+  private matryoshkaDim(originalDim: number, tier: CompressionTier): number {
+    switch (tier) {
+      case 'none':
+      case 'half':
+        return originalDim; // Hot/warm data: keep full dimensionality
+      case 'pq8':
+        return Math.max(8, Math.floor(originalDim * 0.75)); // 75%
+      case 'pq4':
+        return Math.max(8, Math.floor(originalDim * 0.5));  // 50%
+      case 'binary':
+        return Math.max(8, Math.floor(originalDim * 0.25)); // 25%
+      default:
+        return originalDim;
+    }
   }
 
   private ensureAlive(): void {
