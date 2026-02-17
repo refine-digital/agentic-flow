@@ -52,6 +52,8 @@ It combines six cognitive memory patterns (how humans learn), latent space simul
 | **Auto-optimization** | Yes             | No         | No     | No        | No       |
 | **Browser support**   | WASM fallback   | No         | No     | No        | No       |
 
+> **Note:** AgentDB uses `@ruvector/rvf` exclusively for vector storage and search (see ADR-006). pgvector is shown above for competitive comparison only — it is not used as a backend.
+
 ### Backend Performance
 
 | Backend                    | Latency | Recall@10 | Native | Best For                     |

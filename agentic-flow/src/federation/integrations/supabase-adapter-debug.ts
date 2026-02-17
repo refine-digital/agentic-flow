@@ -5,6 +5,7 @@
  * debug logging and performance tracking.
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { DebugStream, DebugLevel, createDebugStream } from '../debug/debug-stream.js';
 
@@ -12,7 +13,7 @@ export interface SupabaseConfigDebug {
   url: string;
   anonKey: string;
   serviceRoleKey?: string;
-  vectorBackend?: 'pgvector' | 'agentdb' | 'hybrid';
+  vectorBackend?: 'ruvector' | 'agentdb' | 'hybrid';
   syncInterval?: number;
   debug?: {
     enabled?: boolean;
@@ -80,8 +81,8 @@ export class SupabaseFederationAdapterDebug {
       // Check if tables exist
       await this.ensureTables();
 
-      if (this.config.vectorBackend === 'pgvector') {
-        await this.ensureVectorExtension();
+      if (this.config.vectorBackend === 'ruvector') {
+        await this.ensureRuvectorBackend();
       }
 
       const duration = Date.now() - startTime;
@@ -107,7 +108,7 @@ export class SupabaseFederationAdapterDebug {
       const tableStart = Date.now();
 
       try {
-        const { data, error } = await this.client
+        const { error } = await this.client
           .from(table)
           .select('id')
           .limit(1);
@@ -135,29 +136,27 @@ export class SupabaseFederationAdapterDebug {
   }
 
   /**
-   * Ensure pgvector extension is enabled
+   * Ensure @ruvector/rvf backend is available for vector operations.
+   * Vector search uses @ruvector/rvf (NOT pgvector) per ADR-006.
    */
-  private async ensureVectorExtension(): Promise<void> {
+  private async ensureRuvectorBackend(): Promise<void> {
     const startTime = Date.now();
-    this.debug.logTrace('checking_pgvector');
+    this.debug.logTrace('checking_ruvector');
 
     try {
-      const { error } = await this.client.rpc('exec_sql', {
-        sql: 'CREATE EXTENSION IF NOT EXISTS vector;'
-      });
-
+      const { RvfDatabase } = await import('@ruvector/rvf');
       const duration = Date.now() - startTime;
 
-      if (error) {
-        this.debug.logDatabase('pgvector_check_failed', {
-          message: error.message,
-        }, duration, error as any);
+      if (RvfDatabase) {
+        this.debug.logDatabase('ruvector_ready', {}, duration);
       } else {
-        this.debug.logDatabase('pgvector_ready', {}, duration);
+        this.debug.logDatabase('ruvector_check_failed', {
+          message: '@ruvector/rvf loaded but RvfDatabase not found',
+        }, duration);
       }
     } catch (err) {
       const duration = Date.now() - startTime;
-      this.debug.logDatabase('pgvector_error', {}, duration, err as Error);
+      this.debug.logDatabase('ruvector_error', {}, duration, err as Error);
     }
   }
 
@@ -259,7 +258,9 @@ export class SupabaseFederationAdapterDebug {
   }
 
   /**
-   * Semantic search using pgvector
+   * Semantic search using @ruvector/rvf (NOT pgvector — see ADR-006).
+   * Vector search is delegated to AgentDB's RVF backend which uses
+   * @ruvector/rvf-node (N-API) or @ruvector/rvf-wasm for HNSW search.
    */
   async semanticSearch(
     embedding: number[],
@@ -273,11 +274,11 @@ export class SupabaseFederationAdapterDebug {
       limit,
     });
 
-    if (this.config.vectorBackend !== 'pgvector') {
+    if (this.config.vectorBackend !== 'ruvector') {
       this.debug.logMemory('semantic_search_disabled', undefined, tenantId, {
         backend: this.config.vectorBackend,
       });
-      throw new Error('pgvector backend not enabled');
+      throw new Error('@ruvector backend not enabled — set vectorBackend: "ruvector"');
     }
 
     try {
