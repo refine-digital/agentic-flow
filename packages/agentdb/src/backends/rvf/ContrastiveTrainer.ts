@@ -196,49 +196,146 @@ export class ContrastiveTrainer {
 
   /**
    * Train on a batch of contrastive samples.
-   * Uses numerical gradient approximation for simplicity.
+   * Uses analytical backpropagation through the InfoNCE loss.
    */
   trainBatch(samples: ContrastiveSample[]): TrainBatchResult {
     this.ensureAlive();
     const batchSize = Math.min(samples.length, this.maxBatchSize);
     const batch = samples.slice(0, batchSize);
+    const d = this.dim;
 
+    // Forward pass: compute loss
     const loss = this.computeLoss(batch);
-    const epsilon = 1e-4;
+
+    // Backward pass: analytical gradients via chain rule
+    const wGrad = new Float32Array(d * d);
+    const bGrad = new Float32Array(d);
+
+    for (const sample of batch) {
+      // Forward: project all vectors
+      const aProj = this.matVecMul(this.weights, sample.anchor, this.bias);
+      const pProj = this.matVecMul(this.weights, sample.positive, this.bias);
+
+      const aNorm = this.vecNorm(aProj);
+      const pNorm = this.vecNorm(pProj);
+      if (aNorm < 1e-10 || pNorm < 1e-10) continue;
+
+      // Normalized anchor and positive
+      const invAN = 1 / aNorm;
+      const invPN = 1 / pNorm;
+      const aHat = new Float32Array(d);
+      const pHat = new Float32Array(d);
+      for (let i = 0; i < d; i++) {
+        aHat[i] = aProj[i] * invAN;
+        pHat[i] = pProj[i] * invPN;
+      }
+
+      // Positive cosine similarity
+      let cosPos = 0;
+      for (let i = 0; i < d; i++) cosPos += aHat[i] * pHat[i];
+      const sPos = cosPos / this.temperature;
+
+      // Project and normalize negatives, compute cosine similarities
+      const negHats: Float32Array[] = [];
+      const negNorms: number[] = [];
+      const negCos: number[] = [];
+      let Z = Math.exp(sPos);
+
+      for (const neg of sample.negatives) {
+        const nProj = this.matVecMul(this.weights, neg, this.bias);
+        const nNorm = this.vecNorm(nProj);
+        negNorms.push(nNorm);
+
+        const nHat = new Float32Array(d);
+        if (nNorm > 1e-10) {
+          const invNN = 1 / nNorm;
+          for (let i = 0; i < d; i++) nHat[i] = nProj[i] * invNN;
+        }
+        negHats.push(nHat);
+
+        let cosN = 0;
+        for (let i = 0; i < d; i++) cosN += aHat[i] * nHat[i];
+        negCos.push(cosN);
+        Z += Math.exp(cosN / this.temperature);
+      }
+
+      // Gradient of loss w.r.t. cosine similarities
+      // dL/d(cos_pos) = (-1 + exp(s_pos)/Z) / τ
+      const dLdCosPos = (-1 + Math.exp(sPos) / Z) / this.temperature;
+
+      // Accumulate dL/da' from positive + all negatives
+      // d(cos(â,b̂))/da' = (b̂ - cos*â) / ||a'||
+      const dLda = new Float32Array(d);
+      for (let i = 0; i < d; i++) {
+        dLda[i] = dLdCosPos * (pHat[i] - cosPos * aHat[i]) * invAN;
+      }
+
+      // dL/dp' = dLdCosPos * (â - cos*p̂) / ||p'||
+      const dLdp = new Float32Array(d);
+      for (let i = 0; i < d; i++) {
+        dLdp[i] = dLdCosPos * (aHat[i] - cosPos * pHat[i]) * invPN;
+      }
+
+      // Process negatives
+      const dLdn: Float32Array[] = [];
+      for (let n = 0; n < negHats.length; n++) {
+        const dLdCosNeg = Math.exp(negCos[n] / this.temperature) / (this.temperature * Z);
+        const nNorm = negNorms[n];
+
+        // Accumulate anchor gradient from this negative
+        if (nNorm > 1e-10) {
+          const invNN = 1 / nNorm;
+          for (let i = 0; i < d; i++) {
+            dLda[i] += dLdCosNeg * (negHats[n][i] - negCos[n] * aHat[i]) * invAN;
+          }
+
+          // Gradient w.r.t. negative projection
+          const g = new Float32Array(d);
+          for (let i = 0; i < d; i++) {
+            g[i] = dLdCosNeg * (aHat[i] - negCos[n] * negHats[n][i]) * invNN;
+          }
+          dLdn.push(g);
+        } else {
+          dLdn.push(new Float32Array(d));
+        }
+      }
+
+      // Accumulate weight and bias gradients via outer products
+      // dL/dW += outer(dL/da', anchor) + outer(dL/dp', positive) + sum(outer(dL/dn_i', neg_i))
+      for (let i = 0; i < d; i++) {
+        const rowOff = i * d;
+        const dLda_i = dLda[i];
+        const dLdp_i = dLdp[i];
+        for (let j = 0; j < d; j++) {
+          wGrad[rowOff + j] += dLda_i * sample.anchor[j] + dLdp_i * sample.positive[j];
+        }
+        bGrad[i] += dLda_i + dLdp_i;
+      }
+
+      // Negative outer products
+      for (let n = 0; n < sample.negatives.length; n++) {
+        for (let i = 0; i < d; i++) {
+          const rowOff = i * d;
+          const g_i = dLdn[n][i];
+          for (let j = 0; j < d; j++) {
+            wGrad[rowOff + j] += g_i * sample.negatives[n][j];
+          }
+          bGrad[i] += g_i;
+        }
+      }
+    }
+
+    // Average over batch
+    const invN = 1 / batchSize;
     let totalGradNorm = 0;
-
-    // Compute gradients for weights via finite differences
-    const wGrad = new Float32Array(this.weights.length);
-    // Sample a subset of weights for efficiency (stochastic gradient)
-    const sampleRate = Math.min(1.0, 100 / this.weights.length);
-    for (let i = 0; i < this.weights.length; i++) {
-      if (Math.random() > sampleRate) continue;
-
-      const original = this.weights[i];
-      this.weights[i] = original + epsilon;
-      const lossPlus = this.computeLoss(batch);
-      this.weights[i] = original - epsilon;
-      const lossMinus = this.computeLoss(batch);
-      this.weights[i] = original;
-
-      wGrad[i] = (lossPlus - lossMinus) / (2 * epsilon) / sampleRate;
+    for (let i = 0; i < wGrad.length; i++) {
+      wGrad[i] *= invN;
       totalGradNorm += wGrad[i] * wGrad[i];
     }
-
-    // Compute gradients for bias
-    const bGrad = new Float32Array(this.bias.length);
-    for (let i = 0; i < this.bias.length; i++) {
-      const original = this.bias[i];
-      this.bias[i] = original + epsilon;
-      const lossPlus = this.computeLoss(batch);
-      this.bias[i] = original - epsilon;
-      const lossMinus = this.computeLoss(batch);
-      this.bias[i] = original;
-
-      bGrad[i] = (lossPlus - lossMinus) / (2 * epsilon);
+    for (let i = 0; i < bGrad.length; i++) {
+      bGrad[i] *= invN;
       totalGradNorm += bGrad[i] * bGrad[i];
     }
-
     totalGradNorm = Math.sqrt(totalGradNorm);
 
     // AdamW update
@@ -358,8 +455,14 @@ export class ContrastiveTrainer {
       normA += a[i] * a[i];
       normB += b[i] * b[i];
     }
-    const denom = Math.sqrt(normA) * Math.sqrt(normB);
+    const denom = Math.sqrt(normA * normB);
     return denom > 0 ? dot / denom : 0;
+  }
+
+  private vecNorm(v: Float32Array): number {
+    let sum = 0;
+    for (let i = 0; i < v.length; i++) sum += v[i] * v[i];
+    return Math.sqrt(sum);
   }
 
   private adamWUpdate(

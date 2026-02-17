@@ -64,7 +64,7 @@ export class SemanticQueryRouter {
   private maxIntents: number;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private router: any = null;
-  private fallbackIntents = new Map<string, { centroid: Float32Array; metadata: Record<string, unknown> }>();
+  private fallbackIntents = new Map<string, { centroid: Float32Array; norm: number; metadata: Record<string, unknown> }>();
   private _totalQueries = 0;
   private _totalLatencyMs = 0;
   private _destroyed = false;
@@ -164,7 +164,10 @@ export class SemanticQueryRouter {
         metadata,
       });
     } else {
-      this.fallbackIntents.set(config.name, { centroid, metadata });
+      let norm = 0;
+      for (let i = 0; i < this.dim; i++) norm += centroid[i] * centroid[i];
+      norm = Math.sqrt(norm);
+      this.fallbackIntents.set(config.name, { centroid, norm, metadata });
     }
   }
 
@@ -248,26 +251,60 @@ export class SemanticQueryRouter {
   // --- Private helpers ---
 
   private fallbackRoute(query: Float32Array, k: number): RouteMatch[] {
+    // Pre-compute query norm once
+    let qNorm = 0;
+    for (let i = 0; i < query.length; i++) qNorm += query[i] * query[i];
+    qNorm = Math.sqrt(qNorm);
+    if (qNorm < 1e-10) return [];
+
     const scored: RouteMatch[] = [];
-    for (const [name, { centroid, metadata }] of this.fallbackIntents) {
-      const sim = this.cosineSimilarity(query, centroid);
+    for (const [name, { centroid, norm, metadata }] of this.fallbackIntents) {
+      if (norm < 1e-10) continue;
+      // Cosine similarity with pre-computed centroid norm
+      let dot = 0;
+      for (let i = 0; i < query.length; i++) dot += query[i] * centroid[i];
+      const sim = dot / (qNorm * norm);
       if (sim >= this.threshold) {
         scored.push({ intent: name, score: sim, metadata });
       }
+    }
+
+    // For small k, use partial sort (selection) instead of full sort
+    if (k < scored.length / 4) {
+      return this.topK(scored, k);
     }
     scored.sort((a, b) => b.score - a.score);
     return scored.slice(0, k);
   }
 
-  private cosineSimilarity(a: Float32Array, b: Float32Array): number {
-    let dot = 0, normA = 0, normB = 0;
-    for (let i = 0; i < a.length; i++) {
-      dot += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
+  private topK(items: RouteMatch[], k: number): RouteMatch[] {
+    // Min-heap for top-k selection: O(n*log(k)) vs O(n*log(n)) for full sort
+    const heap: RouteMatch[] = [];
+    for (const item of items) {
+      if (heap.length < k) {
+        heap.push(item);
+        if (heap.length === k) heap.sort((a, b) => a.score - b.score);
+      } else if (item.score > heap[0].score) {
+        heap[0] = item;
+        // Bubble down to maintain min-heap property
+        let i = 0;
+        let settled = false;
+        while (!settled) {
+          const l = 2 * i + 1, r = 2 * i + 2;
+          let smallest = i;
+          if (l < k && heap[l].score < heap[smallest].score) smallest = l;
+          if (r < k && heap[r].score < heap[smallest].score) smallest = r;
+          if (smallest === i) {
+            settled = true;
+          } else {
+            [heap[i], heap[smallest]] = [heap[smallest], heap[i]];
+            i = smallest;
+          }
+        }
+      }
     }
-    const denom = Math.sqrt(normA) * Math.sqrt(normB);
-    return denom > 0 ? dot / denom : 0;
+    heap.sort((a, b) => b.score - a.score);
+    return heap;
   }
 
   private ensureAlive(): void {
