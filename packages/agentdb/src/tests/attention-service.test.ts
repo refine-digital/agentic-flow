@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { AttentionService } from '../controllers/AttentionService.js';
-import type { AttentionConfig, AttentionResult } from '../controllers/AttentionService.js';
+import type { AttentionConfig } from '../controllers/AttentionService.js';
 
 describe('AttentionService', () => {
   let service: AttentionService;

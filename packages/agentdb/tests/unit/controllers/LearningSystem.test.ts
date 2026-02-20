@@ -9,7 +9,6 @@ import Database from 'better-sqlite3';
 import { LearningSystem, ActionFeedback } from '../../../src/controllers/LearningSystem.js';
 import { EmbeddingService } from '../../../src/controllers/EmbeddingService.js';
 import * as fs from 'fs';
-import * as path from 'path';
 
 const TEST_DB_PATH = './tests/fixtures/test-learning.db';
 
@@ -107,7 +106,7 @@ describe('LearningSystem', () => {
 
       await learning.endSession(sessionId);
 
-      const session = db.prepare('SELECT * FROM learning_sessions WHERE id = ?').get(sessionId) as any;
+      const session = db.prepare('SELECT * FROM learning_sessions WHERE id = ?').get(sessionId) as Record<string, unknown>;
 
       expect(session.status).toBe('completed');
       expect(session.end_time).toBeDefined();

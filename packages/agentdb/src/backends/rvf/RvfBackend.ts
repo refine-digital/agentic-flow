@@ -38,9 +38,6 @@ import {
   MAX_PENDING_WRITES,
   MAX_SEARCH_K,
   DEFAULT_BATCH_THRESHOLD,
-  MAX_ID_LENGTH,
-  MAX_METADATA_BYTES,
-  MAX_VECTOR_DIMENSION,
 } from './validation.js';
 
 /** RVF-specific configuration options */
@@ -159,7 +156,8 @@ export class RvfBackend implements VectorBackendAsync {
       if (fileExists) {
         this.db = await RvfDatabase.open(storagePath, rvfBackendType);
       } else {
-        const createOpts: any = {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const createOpts: any = {
           dimensions: this.dim,
           metric: rvfMetric,
           m: this.config.M ?? 16,
@@ -366,7 +364,7 @@ export class RvfBackend implements VectorBackendAsync {
     if (options?.threshold) rvfOpts.minScore = options.threshold;
     // Wire filter expressions through to RVF query options
     if (options?.filter && typeof options.filter === 'object') {
-      const builtFilter = FilterBuilder.buildFilter(options.filter as any);
+      const builtFilter = FilterBuilder.buildFilter(options.filter as Parameters<typeof FilterBuilder.buildFilter>[0]);
       if (builtFilter) rvfOpts.filter = builtFilter;
     }
     const results = await this.db.query(queryVec, safeK, Object.keys(rvfOpts).length > 0 ? rvfOpts : undefined);
@@ -649,7 +647,7 @@ export class RvfBackend implements VectorBackendAsync {
     if ('op' in filter) {
       rvfFilter = filter as RvfFilterExpr;
     } else {
-      rvfFilter = FilterBuilder.buildFilter(filter as any);
+      rvfFilter = FilterBuilder.buildFilter(filter as Parameters<typeof FilterBuilder.buildFilter>[0]);
     }
 
     if (!rvfFilter) {

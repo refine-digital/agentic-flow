@@ -13,8 +13,10 @@ import * as path from 'path';
 export default {
   description: 'Multi-agent swarm with concurrent database access',
 
-  async run(config: any) {
-    const { verbosity = 2, size = 5, parallel = true } = config;
+  async run(config: Record<string, unknown>) {
+    const verbosity = (config.verbosity ?? 2) as number;
+    const size = (config.size ?? 5) as number;
+    const parallel = (config.parallel ?? true) as boolean;
 
     if (verbosity >= 2) {
       console.log(`   🤖 Initializing ${size}-Agent Swarm Simulation`);
@@ -46,18 +48,18 @@ export default {
     // Simulate agent tasks
     const agentTask = async (agentId: number) => {
       const reflexion = new ReflexionMemory(
-        db.getGraphDatabase() as any,
+        db.getGraphDatabase(),
         embedder,
         undefined,
         undefined,
-        db.getGraphDatabase() as any
+        db.getGraphDatabase()
       );
 
       const skills = new SkillLibrary(
-        db.getGraphDatabase() as any,
+        db.getGraphDatabase(),
         embedder,
         undefined,  // vectorBackend
-        db.getGraphDatabase() as any  // graphBackend
+        db.getGraphDatabase()  // graphBackend
       );
 
       const taskStart = performance.now();
@@ -105,7 +107,7 @@ export default {
     };
 
     // Execute agent tasks
-    let taskResults: any[];
+    let taskResults: { agentId: number; duration: number; success: boolean; error?: unknown }[];
     if (parallel) {
       // Parallel execution
       taskResults = await Promise.all(

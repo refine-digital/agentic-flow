@@ -3,7 +3,7 @@
  * Tests all cryptographic operations for security and correctness
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   generateSecureRandom,
   generateSecureRandomHex,
@@ -100,7 +100,7 @@ describe('Crypto Utils', () => {
     });
 
     it('should throw error for non-string password', async () => {
-      await expect(hashPassword(null as any)).rejects.toThrow('non-empty string');
+      await expect(hashPassword(null as unknown as string)).rejects.toThrow('non-empty string');
     });
   });
 
@@ -176,7 +176,7 @@ describe('Crypto Utils', () => {
     });
 
     it('should throw error for non-string key', () => {
-      expect(() => hashApiKey(null as any)).toThrow('non-empty string');
+      expect(() => hashApiKey(null as unknown as string)).toThrow('non-empty string');
     });
   });
 

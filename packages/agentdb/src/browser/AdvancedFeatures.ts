@@ -149,7 +149,7 @@ export class GraphNeuralNetwork {
   private computeAttentionScore(
     features1: Float32Array,
     features2: Float32Array,
-    head: number
+    _head: number
   ): number {
     // Simple dot-product attention
     let score = 0;

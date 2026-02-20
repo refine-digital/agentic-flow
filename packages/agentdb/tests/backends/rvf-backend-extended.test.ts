@@ -8,7 +8,7 @@
  * we mock the RvfDatabase class to validate the wiring logic.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { FilterBuilder, type RvfFilterExpr } from '../../src/backends/rvf/FilterBuilder.js';
+import { FilterBuilder, type RvfFilterExpr, type FilterPredicate } from '../../src/backends/rvf/FilterBuilder.js';
 
 // ─── Mock @ruvector/rvf ───
 
@@ -258,7 +258,7 @@ describe('ADR-007 Phase 1: RvfBackend Extended APIs', () => {
     });
 
     it('should return null for null input', () => {
-      expect(FilterBuilder.buildFilter(null as any)).toBeNull();
+      expect(FilterBuilder.buildFilter(null as unknown as FilterPredicate)).toBeNull();
     });
 
     it('should skip null/undefined values', () => {

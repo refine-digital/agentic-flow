@@ -8,6 +8,7 @@
  */
 
 // Dynamic GNN import with graceful degradation
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- GNN native module has no TypeScript types
 const gnn: any = await (async () => {
   try {
     const module = await import('@ruvector/gnn');
@@ -54,8 +55,8 @@ export function differentiableSearch(
       indices: Array.from(result.indices),
       weights: Array.from(result.weights)
     };
-  } catch (error: any) {
-    throw new Error(`GNN differentiableSearch failed: ${error.message}`);
+  } catch (error: unknown) {
+    throw new Error(`GNN differentiableSearch failed: ${(error as Error).message}`);
   }
 }
 
@@ -198,7 +199,7 @@ export class TensorCompress {
 
   constructor(config: string | CompressionConfig) {
     if (typeof config === 'string') {
-      this.config = { levelType: config as any };
+      this.config = { levelType: config as CompressionConfig['levelType'] };
     } else {
       this.config = config;
     }
@@ -209,13 +210,14 @@ export class TensorCompress {
       case 'none':
         return tensor;
 
-      case 'half':
+      case 'half': {
         // 16-bit float compression (approximate with scale)
         const scale = this.config.scale || 1.0;
         return tensor.map(v => Math.round(v / scale) * scale);
+      }
 
       case 'pq8':
-      case 'pq4':
+      case 'pq4': {
         // Product quantization (simplified)
         const bits = this.config.levelType === 'pq8' ? 8 : 4;
         const levels = Math.pow(2, bits);
@@ -226,11 +228,13 @@ export class TensorCompress {
           const quantized = Math.round(((v - min) / range) * (levels - 1));
           return (quantized / (levels - 1)) * range + min;
         });
+      }
 
-      case 'binary':
+      case 'binary': {
         // Binary quantization
         const threshold = this.config.threshold || 0;
         return tensor.map(v => (v > threshold ? 1 : 0));
+      }
 
       default:
         return tensor;

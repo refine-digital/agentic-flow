@@ -18,8 +18,7 @@
  * - 100% backward compatible with fallback to standard consolidation
  */
 
-// Database type from db-fallback
-type Database = any;
+import type { IDatabaseConnection } from '../types/database.types.js';
 import { CausalMemoryGraph, CausalEdge } from './CausalMemoryGraph.js';
 import { ReflexionMemory } from './ReflexionMemory.js';
 import { SkillLibrary } from './SkillLibrary.js';
@@ -58,7 +57,7 @@ export interface LearnerReport {
 }
 
 export class NightlyLearner {
-  private db: Database;
+  private db: IDatabaseConnection;
   private causalGraph: CausalMemoryGraph;
   private reflexion: ReflexionMemory;
   private skillLibrary: SkillLibrary;
@@ -67,7 +66,7 @@ export class NightlyLearner {
   private bandit: SolverBandit | null = null;
 
   constructor(
-    db: Database,
+    db: IDatabaseConnection,
     embedder: EmbeddingService,
     private config: LearnerConfig = {
       minSimilarity: 0.7,
@@ -185,7 +184,7 @@ export class NightlyLearner {
     dryRun?: boolean;
   }): Promise<CausalEdge[]> {
     const edges: CausalEdge[] = [];
-    const count = await this.discoverCausalEdges();
+    await this.discoverCausalEdges();
 
     // If dryRun, return empty array since we didn't actually create edges
     if (config.dryRun) {
@@ -230,12 +229,12 @@ export class NightlyLearner {
           SELECT id, task, output, reward FROM episodes
           WHERE session_id = ?
           ORDER BY ts ASC
-        `).all(sessionId) as any[]
+        `).all(sessionId) as Array<{ id: number; task: string; output: string; reward: number }>
       : this.db.prepare(`
           SELECT id, task, output, reward FROM episodes
           ORDER BY ts ASC
           LIMIT 1000
-        `).all() as any[];
+        `).all() as Array<{ id: number; task: string; output: string; reward: number }>;
 
     if (episodes.length === 0) {
       return { edgesDiscovered: 0, episodesProcessed: 0 };
@@ -351,7 +350,7 @@ export class NightlyLearner {
         AND e2.ts - e1.ts < 3600 -- Within 1 hour
       ORDER BY e1.id, e2.ts
       LIMIT 1000
-    `).all() as any[];
+    `).all() as Array<{ from_id: number; from_task: string; from_reward: number; to_id: number; to_task: string; to_reward: number; time_diff: number }>;
 
     // Better-sqlite3 best practice: Prepare statements OUTSIDE loops for better performance
     const checkExistingStmt = this.db.prepare(`
@@ -414,7 +413,8 @@ export class NightlyLearner {
    * Calculate propensity score e(x) - probability of treatment given context
    */
   private calculatePropensity(episodeId: number): number {
-    const episode = this.db.prepare('SELECT task, session_id FROM episodes WHERE id = ?').get(episodeId) as any;
+    const episode = this.db.prepare('SELECT task, session_id FROM episodes WHERE id = ?').get(episodeId) as { task: string; session_id: string } | undefined;
+    if (!episode) return 0.5;
 
     // Count occurrences of this task type in session
     const counts = this.db.prepare(`
@@ -423,7 +423,8 @@ export class NightlyLearner {
         SUM(CASE WHEN task = ? THEN 1 ELSE 0 END) as task_count
       FROM episodes
       WHERE session_id = ?
-    `).get(episode.task, episode.session_id) as any;
+    `).get(episode.task, episode.session_id) as { total: number; task_count: number } | undefined;
+    if (!counts) return 0.5;
 
     const propensity = counts.task_count / Math.max(counts.total, 1);
 
@@ -445,7 +446,7 @@ export class NightlyLearner {
           AND e2.task = ?
           AND e2.ts < episodes.ts
       )
-    `).get(task) as any;
+    `).get(task) as { avg_reward: number | null } | undefined;
 
     return avgReward?.avg_reward || 0.5;
   }
@@ -458,9 +459,9 @@ export class NightlyLearner {
       SELECT COUNT(*) as count
       FROM episodes
       WHERE task = ?
-    `).get(task) as any;
+    `).get(task) as { count: number } | undefined;
 
-    return count.count;
+    return count?.count || 0;
   }
 
   /**
@@ -486,7 +487,7 @@ export class NightlyLearner {
       FROM causal_experiments
       WHERE status = 'running'
         AND sample_size >= ?
-    `).all(this.config.minSampleSize) as any[];
+    `).all(this.config.minSampleSize) as Array<{ id: number; start_time: number; sample_size: number }>;
 
     let completed = 0;
 
@@ -510,9 +511,9 @@ export class NightlyLearner {
       SELECT COUNT(*) as count
       FROM causal_experiments
       WHERE status = 'running'
-    `).get() as any;
+    `).get() as { count: number } | undefined;
 
-    const available = this.config.experimentBudget - currentExperiments.count;
+    const available = this.config.experimentBudget - (currentExperiments?.count || 0);
     if (available <= 0) {
       return 0;
     }
@@ -534,20 +535,20 @@ export class NightlyLearner {
       HAVING COUNT(e2.id) >= ?
       ORDER BY COUNT(e2.id) DESC
       LIMIT ?
-    `).all(this.config.minSampleSize, available) as any[];
+    `).all(this.config.minSampleSize, available) as Array<{ treatment_task: string; treatment_id: number; potential_outcomes: number }>;
 
     // ADR-010: Bandit-guided experiment prioritization
     if (this.bandit && candidates.length > 1) {
-      const armKeys = candidates.map((c: any) => c.treatment_task as string);
+      const armKeys = candidates.map((c) => c.treatment_task);
       const ranked = this.bandit.rerank('experiment', armKeys);
-      const byTask = new Map(candidates.map((c: any) => [c.treatment_task as string, c]));
+      const byTask = new Map(candidates.map((c) => [c.treatment_task, c]));
       candidates = ranked.map(k => byTask.get(k)!).filter(Boolean);
     }
 
     let created = 0;
 
     for (const candidate of candidates) {
-      const expId = this.causalGraph.createExperiment({
+      this.causalGraph.createExperiment({
         name: `Auto: ${candidate.treatment_task} Impact`,
         hypothesis: `${candidate.treatment_task} affects downstream outcomes`,
         treatmentId: candidate.treatment_id,
@@ -593,7 +594,7 @@ export class NightlyLearner {
         AVG(confidence) as avg_confidence
       FROM causal_edges
       WHERE uplift IS NOT NULL
-    `).get() as any;
+    `).get() as { avg_uplift: number | null; avg_confidence: number | null } | undefined;
 
     return {
       avgUplift: stats?.avg_uplift || 0,

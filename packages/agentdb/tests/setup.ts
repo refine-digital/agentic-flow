@@ -2,7 +2,7 @@
  * Global test setup for AgentDB test suite
  */
 
-import { beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+import { beforeAll, afterAll, beforeEach } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 

@@ -4,8 +4,7 @@
  */
 
 import { ConfigValidator, type SimulationConfig } from './config-validator.js';
-import { fileURLToPath } from 'url';
-import { dirname, join, resolve } from 'path';
+import { join, resolve } from 'path';
 import { existsSync } from 'fs';
 
 // Scenario interface matching simulation/types.ts
@@ -13,8 +12,8 @@ interface ScenarioModule {
   id?: string;
   name?: string;
   description?: string;
-  config?: any;
-  run(config: any): Promise<any>;
+  config?: Record<string, unknown>;
+  run(config: Record<string, unknown>): Promise<unknown>;
 }
 
 // Scenario registry for dynamic loading
@@ -31,7 +30,7 @@ export interface IterationResult {
     recallAtK?: { k10: number; k50: number; k100: number };
     qps?: number;
     memoryMB?: number;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   success: boolean;
   error?: string;
@@ -289,8 +288,8 @@ export class SimulationRunner {
         metrics,
         success: true,
       };
-    } catch (error: any) {
-      console.error(`[SimulationRunner] Iteration ${iteration} failed:`, error.message);
+    } catch (error: unknown) {
+      console.error(`[SimulationRunner] Iteration ${iteration} failed:`, (error as Error).message);
 
       return {
         iteration,
@@ -298,7 +297,7 @@ export class SimulationRunner {
         duration: Date.now() - startTime,
         metrics: {},
         success: false,
-        error: error.message,
+        error: (error as Error).message,
       };
     }
   }
@@ -320,8 +319,8 @@ export class SimulationRunner {
         const scenario = await loader();
         this.scenarioCache.set(scenarioId, scenario);
         return scenario;
-      } catch (error: any) {
-        console.warn(`[SimulationRunner] Failed to load scenario '${scenarioId}': ${error.message}`);
+      } catch (error: unknown) {
+        console.warn(`[SimulationRunner] Failed to load scenario '${scenarioId}': ${(error as Error).message}`);
         console.warn(`[SimulationRunner] Falling back to mock scenario`);
         return this.createMockScenario(scenarioId);
       }
@@ -333,8 +332,8 @@ export class SimulationRunner {
         const scenario = await this.importScenario(scenarioId);
         this.scenarioCache.set(scenarioId, scenario);
         return scenario;
-      } catch (error: any) {
-        console.warn(`[SimulationRunner] Failed to load custom scenario '${scenarioId}': ${error.message}`);
+      } catch (error: unknown) {
+        console.warn(`[SimulationRunner] Failed to load custom scenario '${scenarioId}': ${(error as Error).message}`);
       }
     }
 
@@ -366,7 +365,8 @@ export class SimulationRunner {
    * Extract unified metrics from scenario results
    * Normalizes different scenario output formats to a common metrics structure
    */
-  private extractUnifiedMetrics(scenarioResult: any, scenarioId: string, config: SimulationConfig): any {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private extractUnifiedMetrics(scenarioResult: any, scenarioId: string, config: SimulationConfig): Record<string, unknown> {
     // If the scenario returned metrics directly
     if (scenarioResult?.metrics) {
       return this.normalizeMetrics(scenarioResult.metrics, scenarioId, config);
@@ -384,9 +384,9 @@ export class SimulationRunner {
           p99: 150 + Math.random() * 40,
         },
         recallAtK: summary.recallAtK || {
-          k10: detailed.recallAtK?.find((r: any) => r.k === 10)?.recall || 0.95,
-          k50: detailed.recallAtK?.find((r: any) => r.k === 50)?.recall || 0.92,
-          k100: detailed.recallAtK?.find((r: any) => r.k === 100)?.recall || 0.88,
+          k10: detailed.recallAtK?.find((r: { k: number; recall: number }) => r.k === 10)?.recall || 0.95,
+          k50: detailed.recallAtK?.find((r: { k: number; recall: number }) => r.k === 50)?.recall || 0.92,
+          k100: detailed.recallAtK?.find((r: { k: number; recall: number }) => r.k === 100)?.recall || 0.88,
         },
         qps: summary.qps || detailed.qps || 15000,
         memoryMB: summary.memoryMB || (detailed.graphMetrics?.memoryUsageBytes || 0) / (1024 * 1024) || 256,
@@ -406,7 +406,8 @@ export class SimulationRunner {
   /**
    * Normalize metrics from various formats to unified structure
    */
-  private normalizeMetrics(metrics: any, scenarioId: string, config: SimulationConfig): any {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private normalizeMetrics(metrics: any, scenarioId: string, config: SimulationConfig): Record<string, unknown> {
     return {
       latencyUs: metrics.latencyUs || {
         p50: 50,
@@ -427,8 +428,9 @@ export class SimulationRunner {
   /**
    * Get scenario-specific metrics adjustments based on scenario type and config
    */
-  private getScenarioSpecificMetrics(result: any, scenarioId: string, config: SimulationConfig): any {
-    const extras: any = {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private getScenarioSpecificMetrics(result: any, scenarioId: string, _config: SimulationConfig): Record<string, unknown> {
+    const extras: Record<string, unknown> = {};
 
     // Attention scenario specifics
     if (scenarioId.includes('attention') && result?.metrics?.queryEnhancement) {
@@ -455,7 +457,7 @@ export class SimulationRunner {
    * Get mock metrics for testing or when actual scenario fails
    * Used as fallback when scenario files cannot be loaded
    */
-  private getMockMetrics(scenarioId: string, config: SimulationConfig): any {
+  private getMockMetrics(scenarioId: string, config: SimulationConfig): Record<string, unknown> {
     const baseMetrics = {
       latencyUs: {
         p50: 50 + Math.random() * 20,

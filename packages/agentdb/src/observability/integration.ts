@@ -4,7 +4,6 @@
  * Provides integration utilities for adding telemetry to AgentDB components.
  */
 
-import { Span } from '@opentelemetry/api';
 import { TelemetryManager, recordMetric, withSpan } from './telemetry';
 
 /**
@@ -16,7 +15,6 @@ export async function withTelemetry<T>(
   operation: () => Promise<T>
 ): Promise<T> {
   const startTime = Date.now();
-  const telemetry = TelemetryManager.getInstance();
 
   return withSpan(
     `agentdb.${operationType}`,
@@ -119,8 +117,6 @@ export async function withBatchTelemetry<T>(
 
       return result;
     } catch (error) {
-      const latency = Date.now() - startTime;
-
       recordMetric('error', {
         errorType: error instanceof Error ? error.name : 'UnknownError',
         operation: `batch_${operationType}`,
@@ -149,11 +145,11 @@ export function recordCacheAccess(key: string, hit: boolean): void {
 export function createSpanAttributes(context: {
   operation?: string;
   table?: string;
-  filters?: Record<string, any>;
+  filters?: Record<string, unknown>;
   limit?: number;
   offset?: number;
-}): Record<string, any> {
-  const attributes: Record<string, any> = {};
+}): Record<string, unknown> {
+  const attributes: Record<string, unknown> = {};
 
   if (context.operation) {
     attributes['db.operation'] = context.operation;
@@ -180,7 +176,7 @@ export function createSpanAttributes(context: {
 export function recordErrorWithContext(
   error: Error,
   operation: string,
-  context?: Record<string, any>
+  context?: Record<string, unknown>
 ): void {
   recordMetric('error', {
     errorType: error.name,

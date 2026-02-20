@@ -8,6 +8,7 @@
 import { EmbeddingService, EmbeddingConfig } from './EmbeddingService.js';
 import { WASMVectorSearch } from './WASMVectorSearch.js';
 import { cosineSimilarity } from '../utils/similarity.js';
+import type { IDatabaseConnection } from '../types/database.types.js';
 
 export interface EnhancedEmbeddingConfig extends EmbeddingConfig {
   enableWASM?: boolean;
@@ -42,7 +43,7 @@ export class EnhancedEmbeddingService extends EmbeddingService {
       exec: () => {},
     };
 
-    this.wasmSearch = new WASMVectorSearch(mockDb, {
+    this.wasmSearch = new WASMVectorSearch(mockDb as unknown as IDatabaseConnection, {
       enableWASM: true,
       batchSize: this.enhancedConfig.batchSize || 100,
     });
@@ -134,7 +135,8 @@ export class EnhancedEmbeddingService extends EmbeddingService {
     const wasmStats = this.wasmSearch?.getStats();
 
     return {
-      cacheSize: (this as any).cache.size,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accessing parent's private cache property
+      cacheSize: (this as unknown as { cache: Map<string, unknown> }).cache.size,
       wasmEnabled: wasmStats?.wasmAvailable ?? false,
       simdEnabled: wasmStats?.simdAvailable ?? false,
     };

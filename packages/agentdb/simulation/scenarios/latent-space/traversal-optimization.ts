@@ -76,6 +76,51 @@ export interface SearchStrategy {
   };
 }
 
+// Internal interfaces for type safety
+interface TraversalGraph {
+  vectors: number[][];
+  layers: TraversalGraphLayer[];
+  entryPoint: number;
+}
+
+interface TraversalGraphLayer {
+  edges: Map<number, number[]>;
+  size: number;
+}
+
+interface QueryEntry {
+  id: number;
+  vector: number[];
+  groundTruth: null;
+}
+
+interface SearchResult {
+  neighbors: number[];
+  hops: number;
+  distanceComputations: number;
+  adaptiveK?: number;
+}
+
+interface SearchResultEntry {
+  queryId: number;
+  latencyMs: number;
+  neighbors: number[];
+  hops: number;
+  distanceComputations: number;
+  adaptiveK?: number;
+}
+
+interface TraversalResultEntry {
+  iteration: number;
+  strategy: string;
+  parameters: SearchStrategy['parameters'];
+  graphSize: number;
+  dimension: number;
+  queryDistribution: string;
+  totalTimeMs: number;
+  metrics: TraversalMetrics & { tradeoffCurve?: unknown[] };
+}
+
 /**
  * Dynamic-k Search Implementation
  * Adapts k based on query complexity and graph density
@@ -88,7 +133,7 @@ class DynamicKSearch {
   /**
    * Calculate adaptive k based on query and graph characteristics
    */
-  adaptiveK(query: Float32Array, graph: any, currentNode: number): number {
+  adaptiveK(query: Float32Array, graph: TraversalGraph, currentNode: number): number {
     const complexity = this.calculateQueryComplexity(query);
     const density = this.calculateGraphDensity(graph, currentNode);
 
@@ -116,7 +161,7 @@ class DynamicKSearch {
   /**
    * Calculate local graph density around a node
    */
-  private calculateGraphDensity(graph: any, nodeId: number): number {
+  private calculateGraphDensity(graph: TraversalGraph, nodeId: number): number {
     const neighbors = graph.layers[0].edges.get(nodeId) || [];
     const expectedDegree = 16; // Standard M value
 
@@ -129,17 +174,17 @@ class DynamicKSearch {
    */
   async beamSearch(
     query: Float32Array,
-    graph: any,
+    graph: TraversalGraph,
     k: number,
     beamWidth: number
   ): Promise<{ neighbors: number[]; hops: number; distanceComputations: number }> {
-    let candidates = [{ idx: graph.entryPoint, dist: 0 }];
+    let candidates: { idx: number; dist: number }[] = [{ idx: graph.entryPoint, dist: 0 }];
     let hops = 0;
     let distanceComputations = 0;
     const visited = new Set<number>();
 
     for (let layer = graph.layers.length - 1; layer >= 0; layer--) {
-      const layerCandidates: any[] = [];
+      const layerCandidates: { idx: number; dist: number }[] = [];
 
       for (const candidate of candidates) {
         const neighbors = graph.layers[layer].edges.get(candidate.idx) || [];
@@ -226,22 +271,22 @@ export const traversalOptimizationScenario: SimulationScenario = {
   },
 
   async run(config: typeof traversalOptimizationScenario.config): Promise<SimulationReport> {
-    const results: any[] = [];
+    const results: TraversalResultEntry[] = [];
     const startTime = Date.now();
 
     console.log('🎯 Starting Traversal Optimization (Empirically Optimized)...\n');
     console.log(`✅ Using Beam-5 (94.8% recall) + Dynamic-k (71μs latency)\n`);
 
     // Run multiple iterations for coherence validation
-    for (let iter = 0; iter < config.iterations; iter++) {
+    for (let iter = 0; iter < (config.iterations as number); iter++) {
       console.log(`\n📊 Iteration ${iter + 1}/${config.iterations}`);
 
-      for (const strategy of config.strategies) {
+      for (const strategy of config.strategies as SearchStrategy[]) {
         console.log(`\n🔍 Testing strategy: ${strategy.name}`);
 
-        for (const graphSize of config.graphSizes) {
-          for (const dim of config.dimensions) {
-            for (const queryDist of config.queryDistributions) {
+        for (const graphSize of config.graphSizes as number[]) {
+          for (const dim of config.dimensions as number[]) {
+            for (const queryDist of config.queryDistributions as string[]) {
               console.log(`  └─ ${graphSize} nodes, ${dim}d, ${queryDist} queries`);
 
               // Build HNSW-like graph
@@ -279,8 +324,8 @@ export const traversalOptimizationScenario: SimulationScenario = {
                 totalTimeMs: strategyTime,
                 metrics: {
                   ...metrics,
-                  ...tradeoff,
-                },
+                  ...(tradeoff as Record<string, unknown>),
+                } as TraversalResultEntry['metrics'],
               });
             }
           }
@@ -301,8 +346,8 @@ export const traversalOptimizationScenario: SimulationScenario = {
 
       summary: {
         totalTests: results.length,
-        iterations: config.iterations,
-        strategies: config.strategies.length,
+        iterations: config.iterations as number,
+        strategies: (config.strategies as SearchStrategy[]).length,
         bestStrategy: findBestStrategy(results),
         avgRecall: averageRecall(results),
         avgLatency: averageLatency(results),
@@ -339,13 +384,13 @@ export const traversalOptimizationScenario: SimulationScenario = {
 /**
  * Build HNSW-like hierarchical graph
  */
-async function buildHNSWGraph(size: number, dim: number): Promise<any> {
+async function buildHNSWGraph(size: number, dim: number): Promise<TraversalGraph> {
   const vectors = Array(size).fill(0).map(() => generateRandomVector(dim));
 
   // Optimized HNSW construction with M=16 (standard)
-  const graph = {
+  const graph: TraversalGraph = {
     vectors,
-    layers: [] as any[],
+    layers: [],
     entryPoint: 0,
   };
 
@@ -384,8 +429,8 @@ function findNearestNeighbors(
 /**
  * Generate query set with different distributions
  */
-function generateQueries(count: number, dim: number, distribution: string): any[] {
-  const queries: any[] = [];
+function generateQueries(count: number, dim: number, distribution: string): QueryEntry[] {
+  const queries: QueryEntry[] = [];
 
   for (let i = 0; i < count; i++) {
     let vector: number[];
@@ -394,11 +439,12 @@ function generateQueries(count: number, dim: number, distribution: string): any[
       case 'uniform':
         vector = generateRandomVector(dim);
         break;
-      case 'clustered':
+      case 'clustered': {
         const center = i < count / 2 ? generateRandomVector(dim) : generateRandomVector(dim);
         const noise = generateRandomVector(dim).map(x => x * 0.1);
         vector = normalizeVector(center.map((c, j) => c + noise[j]));
         break;
+      }
       case 'outliers':
         vector = i % 10 === 0
           ? generateRandomVector(dim).map(x => x * 3) // Outlier
@@ -426,16 +472,16 @@ function generateQueries(count: number, dim: number, distribution: string): any[
  * Run search strategy - OPTIMIZED
  */
 async function runSearchStrategy(
-  graph: any,
-  queries: any[],
+  graph: TraversalGraph,
+  queries: QueryEntry[],
   strategy: SearchStrategy
-): Promise<any[]> {
-  const results: any[] = [];
+): Promise<SearchResultEntry[]> {
+  const results: SearchResultEntry[] = [];
   const dynamicKSearch = new DynamicKSearch(OPTIMAL_TRAVERSAL_CONFIG.dynamicK);
 
   for (const query of queries) {
     const start = Date.now();
-    let result: any;
+    let result: SearchResult;
     const queryVector = new Float32Array(query.vector);
 
     switch (strategy.name) {
@@ -453,12 +499,12 @@ async function runSearchStrategy(
         );
         break;
 
-      case 'dynamic-k':
+      case 'dynamic-k': {
         // Use adaptive k selection
         const adaptiveK = dynamicKSearch.adaptiveK(queryVector, graph, graph.entryPoint);
-        result = greedySearch(graph, query.vector, adaptiveK);
-        result.adaptiveK = adaptiveK;
+        result = { ...greedySearch(graph, query.vector, adaptiveK), adaptiveK };
         break;
+      }
 
       default:
         result = greedySearch(graph, query.vector, 10);
@@ -480,7 +526,7 @@ async function runSearchStrategy(
 /**
  * Greedy search (baseline)
  */
-function greedySearch(graph: any, query: number[], k: number): any {
+function greedySearch(graph: TraversalGraph, query: number[], k: number): SearchResult {
   let current = graph.entryPoint;
   let hops = 0;
   let distanceComputations = 0;
@@ -517,11 +563,11 @@ function greedySearch(graph: any, query: number[], k: number): any {
       idx,
       dist: euclideanDistance(query, graph.vectors[idx]),
     }))
-    .sort((a: any, b: any) => a.dist - b.dist)
+    .sort((a: { idx: number; dist: number }, b: { idx: number; dist: number }) => a.dist - b.dist)
     .slice(0, k);
 
   return {
-    neighbors: results.map((r: any) => r.idx),
+    neighbors: results.map((r: { idx: number; dist: number }) => r.idx),
     hops,
     distanceComputations,
   };
@@ -531,8 +577,8 @@ function greedySearch(graph: any, query: number[], k: number): any {
  * Calculate traversal metrics - ENHANCED
  */
 async function calculateTraversalMetrics(
-  results: any[],
-  _queries: any[],
+  results: SearchResultEntry[],
+  _queries: QueryEntry[],
   strategy: SearchStrategy
 ): Promise<TraversalMetrics> {
   const avgHops = results.reduce((sum, r) => sum + r.hops, 0) / results.length;
@@ -575,9 +621,9 @@ async function calculateTraversalMetrics(
 /**
  * Calculate coherence across iterations
  */
-function calculateCoherence(results: any[]): number {
+function calculateCoherence(results: TraversalResultEntry[]): number {
   // Group by configuration
-  const groups = new Map<string, any[]>();
+  const groups = new Map<string, TraversalResultEntry[]>();
 
   for (const result of results) {
     const key = `${result.strategy}-${result.graphSize}-${result.dimension}`;
@@ -607,11 +653,11 @@ function calculateCoherence(results: any[]): number {
  * Analyze recall-latency trade-off
  */
 async function analyzeRecallLatencyTradeoff(
-  graph: any,
-  queries: any[],
+  graph: TraversalGraph,
+  queries: QueryEntry[],
   strategy: SearchStrategy
-): Promise<any> {
-  const points: any[] = [];
+): Promise<Record<string, unknown>> {
+  const points: unknown[] = [];
   const kValues = [5, 10, 20, 50, 100];
 
   for (const k of kValues) {
@@ -645,22 +691,22 @@ function euclideanDistance(a: number[], b: number[]): number {
   return Math.sqrt(a.reduce((sum, x, i) => sum + (x - b[i]) ** 2, 0));
 }
 
-function findBestStrategy(results: any[]): any {
+function findBestStrategy(results: TraversalResultEntry[]): TraversalResultEntry {
   return results.reduce((best, current) =>
     current.metrics.f1Score > best.metrics.f1Score ? current : best
   );
 }
 
-function averageRecall(results: any[]): number {
+function averageRecall(results: TraversalResultEntry[]): number {
   return results.reduce((sum, r) => sum + r.metrics.recall, 0) / results.length;
 }
 
-function averageLatency(results: any[]): number {
+function averageLatency(results: TraversalResultEntry[]): number {
   return results.reduce((sum, r) => sum + r.metrics.latencyMs, 0) / results.length;
 }
 
-function aggregateStrategyMetrics(results: any[]) {
-  const byStrategy = new Map<string, any[]>();
+function aggregateStrategyMetrics(results: TraversalResultEntry[]) {
+  const byStrategy = new Map<string, TraversalResultEntry[]>();
 
   for (const result of results) {
     const key = result.strategy;
@@ -670,7 +716,7 @@ function aggregateStrategyMetrics(results: any[]) {
     byStrategy.get(key)!.push(result);
   }
 
-  const comparison: any[] = [];
+  const comparison: unknown[] = [];
   for (const [strategy, strategyResults] of byStrategy.entries()) {
     comparison.push({
       strategy,
@@ -683,7 +729,7 @@ function aggregateStrategyMetrics(results: any[]) {
   return comparison;
 }
 
-function computeParetoFrontier(results: any[]): any[] {
+function computeParetoFrontier(results: TraversalResultEntry[]): unknown[] {
   const points = results.map(r => ({
     recall: r.metrics.recall,
     latency: r.metrics.latencyMs,
@@ -695,7 +741,7 @@ function computeParetoFrontier(results: any[]): any[] {
     .slice(0, 5);
 }
 
-function analyzeDynamicK(results: any[]): any {
+function analyzeDynamicK(results: TraversalResultEntry[]): unknown {
   const dynamicKResults = results.filter(r => r.strategy === 'dynamic-k');
 
   if (dynamicKResults.length === 0) {
@@ -711,14 +757,14 @@ function analyzeDynamicK(results: any[]): any {
   };
 }
 
-function analyzeAttentionGuidance(_results: any[]): any {
+function analyzeAttentionGuidance(_results: TraversalResultEntry[]): unknown {
   return {
     efficiency: 0.85,
     pathPruning: 0.28,
   };
 }
 
-function generateTraversalAnalysis(results: any[], coherence: number): string {
+function generateTraversalAnalysis(results: TraversalResultEntry[], coherence: number): string {
   const best = findBestStrategy(results);
 
   return `
@@ -747,7 +793,7 @@ function generateTraversalAnalysis(results: any[], coherence: number): string {
   `.trim();
 }
 
-function generateTraversalRecommendations(results: any[]): string[] {
+function generateTraversalRecommendations(_results: TraversalResultEntry[]): string[] {
   return [
     'Use Beam-5 for production (94.8% recall, 112μs latency) ✅',
     'Enable dynamic-k (5-20) for -18.4% latency reduction',
@@ -756,14 +802,14 @@ function generateTraversalRecommendations(results: any[]): string[] {
   ];
 }
 
-async function generateRecallLatencyPlots(_results: any[]) {
+async function generateRecallLatencyPlots(_results: TraversalResultEntry[]) {
   return {
     frontier: 'recall-latency-frontier-optimized.png',
     strategyComparison: 'strategy-recall-latency-optimized.png',
   };
 }
 
-async function generateStrategyCharts(_results: any[]) {
+async function generateStrategyCharts(_results: TraversalResultEntry[]) {
   return {
     recallComparison: 'strategy-recall-comparison-optimized.png',
     latencyComparison: 'strategy-latency-comparison-optimized.png',
@@ -771,7 +817,7 @@ async function generateStrategyCharts(_results: any[]) {
   };
 }
 
-async function generateEfficiencyCurves(_results: any[]) {
+async function generateEfficiencyCurves(_results: TraversalResultEntry[]) {
   return {
     efficiencyVsK: 'efficiency-vs-k-optimized.png',
     beamWidthAnalysis: 'beam-width-analysis-optimized.png',

@@ -6,7 +6,6 @@
  */
 
 import type {
-  APIVersion,
   V1Config,
   V2Config,
   CompatibilityConfig,
@@ -44,8 +43,8 @@ export class VersionDetector {
    * Detect API version from configuration object
    */
   static detect(
-    config: V1Config | V2Config | CompatibilityConfig | any,
-    context?: string
+    config: V1Config | V2Config | CompatibilityConfig | Record<string, unknown>,
+    _context?: string
   ): VersionDetectionResult {
     const indicators: string[] = [];
     let confidence = 0.5; // Default neutral confidence
@@ -75,7 +74,7 @@ export class VersionDetector {
 
     if ('memory' in config && typeof config.memory === 'object') {
       const memoryConfig = config.memory;
-      if ('backend' in memoryConfig || 'enableHNSW' in memoryConfig || 'enableQuantization' in memoryConfig) {
+      if (memoryConfig && ('backend' in (memoryConfig as object) || 'enableHNSW' in (memoryConfig as object) || 'enableQuantization' in (memoryConfig as object))) {
         indicators.push('v2_memory_structure');
         confidence += 0.3;
       }
@@ -93,7 +92,7 @@ export class VersionDetector {
 
     if ('swarm' in config && typeof config.swarm === 'object') {
       const swarmConfig = config.swarm;
-      if ('strategy' in swarmConfig && typeof swarmConfig.strategy === 'string') {
+      if (swarmConfig && 'strategy' in (swarmConfig as object) && typeof (swarmConfig as Record<string, unknown>).strategy === 'string') {
         indicators.push('v2_swarm_structure');
         confidence += 0.2;
       }

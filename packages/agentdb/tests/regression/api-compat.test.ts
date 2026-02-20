@@ -487,7 +487,7 @@ describe('API Backward Compatibility', () => {
         skillLibrary.updateSkillStats(skillId, true, 0.9, 90);
 
         // Verify update
-        const updated = db.prepare('SELECT * FROM skills WHERE id = ?').get(skillId) as any;
+        const updated = db.prepare('SELECT * FROM skills WHERE id = ?').get(skillId) as { uses: number };
         expect(updated.uses).toBe(11);
       });
     });
@@ -693,7 +693,7 @@ describe('API Backward Compatibility', () => {
 
     describe('removeVector - v1 signature', () => {
       beforeEach(async () => {
-        const patternId = await reasoningBank.storePattern({
+        await reasoningBank.storePattern({
           taskType: 'to_remove',
           approach: 'Pattern to remove',
           successRate: 0.8,

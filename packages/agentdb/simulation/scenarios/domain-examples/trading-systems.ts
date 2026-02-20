@@ -50,9 +50,9 @@ export interface TradingSignal {
 // Example: Pattern matching for trading strategies
 export async function matchTradingPattern(
   marketData: Float32Array,
-  strategyDatabase: any, // HNSWGraph type
+  strategyDatabase: unknown, // HNSWGraph type
   getCurrentVolatility: () => number,
-  applyAttention: (data: Float32Array, config: any) => Promise<Float32Array>,
+  applyAttention: (data: Float32Array, config: unknown) => Promise<Float32Array>,
   adaptKToVolatility: (volatility: number) => number
 ): Promise<TradingSignal[]> {
   const config = TRADING_ATTENTION_CONFIG;
@@ -64,13 +64,16 @@ export async function matchTradingPattern(
   const k = adaptKToVolatility(getCurrentVolatility());
 
   // Search for matching strategies
-  const matches = await strategyDatabase.search(enhanced, k);
+  const matches = await (strategyDatabase as { search: (query: Float32Array, k: number) => Promise<unknown[]> }).search(enhanced, k);
 
-  return matches.map((m: any) => ({
-    strategy: m.id,
-    confidence: m.score,
-    executionTimeUs: m.latencyUs  // Track latency for each match
-  }));
+  return matches.map((m: unknown) => {
+    const match = m as { id: string; score: number; latencyUs: number };
+    return {
+      strategy: match.id,
+      confidence: match.score,
+      executionTimeUs: match.latencyUs  // Track latency for each match
+    };
+  });
 }
 
 // Performance targets for trading

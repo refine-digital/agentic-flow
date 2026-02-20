@@ -10,13 +10,13 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { createDatabase } from '../../src/db-fallback';
 import { BatchOperations } from '../../src/optimizations/BatchOperations';
-import { EmbeddingService } from '../../src/controllers/EmbeddingService';
+// EmbeddingService not needed directly in tests
 import { ValidationError } from '../../src/security/input-validation';
 import * as fs from 'fs';
 import * as path from 'path';
 
 describe('Integration Security Tests', () => {
-  let db: any;
+  let db: Awaited<ReturnType<typeof createDatabase>>;
   let batchOps: BatchOperations;
   const testDbPath = path.join(__dirname, 'test-security.db');
 
@@ -56,7 +56,7 @@ describe('Integration Security Tests', () => {
     const mockEmbedder = {
       embed: async () => new Float32Array(384),
       embedBatch: async (texts: string[]) => texts.map(() => new Float32Array(384)),
-    } as any;
+    } as unknown as ConstructorParameters<typeof BatchOperations>[1];
 
     batchOps = new BatchOperations(db, mockEmbedder);
   });
@@ -261,7 +261,7 @@ describe('Error Message Security', () => {
   it('should not leak database structure in errors', () => {
     try {
       const db = { prepare: () => { throw new Error('SQLITE_ERROR: no such table: users'); } };
-      const batchOps = new BatchOperations(db as any, {} as any);
+      const batchOps = new BatchOperations(db as unknown as ConstructorParameters<typeof BatchOperations>[0], {} as unknown as ConstructorParameters<typeof BatchOperations>[1]);
       batchOps.bulkDelete('invalid_table', { id: 1 });
     } catch (error) {
       // Error should be caught and sanitized
@@ -272,7 +272,7 @@ describe('Error Message Security', () => {
   it('should provide safe validation error messages', () => {
     try {
       const db = { prepare: () => ({}) };
-      const batchOps = new BatchOperations(db as any, {} as any);
+      const batchOps = new BatchOperations(db as unknown as ConstructorParameters<typeof BatchOperations>[0], {} as unknown as ConstructorParameters<typeof BatchOperations>[1]);
       batchOps.bulkDelete("users'; DROP TABLE episodes--", { id: 1 });
     } catch (error) {
       expect(error).toBeInstanceOf(ValidationError);

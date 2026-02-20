@@ -14,6 +14,10 @@ import { BatchOperations } from '../../src/optimizations/BatchOperations.js';
 import { EmbeddingService } from '../../src/controllers/EmbeddingService.js';
 import { ValidationError } from '../../src/security/input-validation.js';
 
+interface CountResult { count: number }
+interface TaskRow { task: string }
+interface TableRow { name: string }
+
 describe('BatchOperations Security Tests', () => {
   let db: Database.Database;
   let embedder: EmbeddingService;
@@ -224,7 +228,7 @@ describe('BatchOperations Security Tests', () => {
       expect(deleted).toBe(0); // No match, so no deletions
 
       // Verify table still exists
-      const count = db.prepare('SELECT COUNT(*) as count FROM episodes').get() as any;
+      const count = db.prepare('SELECT COUNT(*) as count FROM episodes').get() as CountResult;
       expect(count.count).toBe(1);
     });
 
@@ -293,11 +297,11 @@ describe('BatchOperations Security Tests', () => {
       expect(updated).toBe(1);
 
       // Verify the value was stored correctly (not executed)
-      const row = db.prepare('SELECT task FROM episodes WHERE id = 1').get() as any;
+      const row = db.prepare('SELECT task FROM episodes WHERE id = 1').get() as TaskRow;
       expect(row.task).toBe("'; DROP TABLE episodes--");
 
       // Verify table still exists
-      const count = db.prepare('SELECT COUNT(*) as count FROM episodes').get() as any;
+      const count = db.prepare('SELECT COUNT(*) as count FROM episodes').get() as CountResult;
       expect(count.count).toBe(1);
     });
   });
@@ -317,11 +321,11 @@ describe('BatchOperations Security Tests', () => {
 
     it('should reject null or undefined inputs', () => {
       expect(() => {
-        batchOps.bulkDelete('episodes', null as any);
+        batchOps.bulkDelete('episodes', null as unknown as Record<string, unknown>);
       }).toThrow(ValidationError);
 
       expect(() => {
-        batchOps.bulkUpdate('episodes', undefined as any, { id: 1 });
+        batchOps.bulkUpdate('episodes', undefined as unknown as Record<string, unknown>, { id: 1 });
       }).toThrow(ValidationError);
     });
   });
@@ -344,7 +348,7 @@ describe('BatchOperations Security Tests', () => {
       // Verify all tables still exist
       const tables = db.prepare(`
         SELECT name FROM sqlite_master WHERE type='table'
-      `).all() as any[];
+      `).all() as TableRow[];
 
       expect(tables.length).toBeGreaterThan(0);
       expect(tables.some(t => t.name === 'episodes')).toBe(true);
@@ -414,7 +418,7 @@ describe('BatchOperations Security Tests', () => {
         VALUES (?, ?, ?, ?)
       `).run('session-1', 'task-1', 0.5, 1);
 
-      const countBefore = db.prepare('SELECT COUNT(*) as count FROM episodes').get() as any;
+      const countBefore = db.prepare('SELECT COUNT(*) as count FROM episodes').get() as CountResult;
 
       try {
         // This should fail validation
@@ -428,14 +432,14 @@ describe('BatchOperations Security Tests', () => {
       }
 
       // Count should remain the same (no partial updates)
-      const countAfter = db.prepare('SELECT COUNT(*) as count FROM episodes').get() as any;
+      const countAfter = db.prepare('SELECT COUNT(*) as count FROM episodes').get() as CountResult;
       expect(countAfter.count).toBe(countBefore.count);
     });
   });
 
   describe('Performance - No DoS via Complex Queries', () => {
     it('should handle large condition sets efficiently', () => {
-      const largeConditions: Record<string, any> = {};
+      const largeConditions: Record<string, string> = {};
 
       // Try to create extremely complex WHERE clause
       for (let i = 0; i < 100; i++) {

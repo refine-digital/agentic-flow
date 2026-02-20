@@ -102,7 +102,7 @@ function detectRuntime(): RuntimeEnvironment {
 
   // Check for browser (with proper type guards)
   if (typeof globalThis !== 'undefined') {
-    const global = globalThis as any;
+    const global = globalThis as Record<string, unknown>;
     if (typeof global.window !== 'undefined' && typeof global.document !== 'undefined') {
       return 'browser';
     }
@@ -117,7 +117,9 @@ function detectRuntime(): RuntimeEnvironment {
 export class AttentionService {
   private config: AttentionConfig;
   private runtime: RuntimeEnvironment;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- optional native NAPI dependency
   private napiModule: any = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- optional WASM dependency
   private wasmModule: any = null;
   private initialized: boolean = false;
 
@@ -186,7 +188,6 @@ export class AttentionService {
   private async loadNAPIModule(): Promise<void> {
     try {
       // Try to import @ruvector/attention (NAPI bindings)
-      // @ts-ignore - Optional dependency
       this.napiModule = await import('@ruvector/attention');
       console.log('✅ Loaded @ruvector/attention NAPI module');
     } catch (error) {
@@ -203,7 +204,6 @@ export class AttentionService {
   private async loadWASMModule(): Promise<void> {
     try {
       // Try to import ruvector-attention-wasm
-      // @ts-ignore - Optional dependency
       this.wasmModule = await import('ruvector-attention-wasm');
       await this.wasmModule.default(); // Initialize WASM
       console.log('✅ Loaded ruvector-attention-wasm module');
@@ -235,7 +235,6 @@ export class AttentionService {
     }
 
     performance.mark('mha-start');
-    const startTime = Date.now();
 
     try {
       let output: Float32Array;
@@ -623,9 +622,8 @@ export class AttentionService {
     value: Float32Array,
     mask?: Float32Array
   ): { output: Float32Array; weights?: Float32Array } {
-    const { numHeads, headDim, embedDim } = this.config;
+    const { headDim, embedDim } = this.config;
     const seqLen = Math.floor(query.length / embedDim);
-    const batchSize = 1; // Simplified for fallback
 
     // Simple scaled dot-product attention
     const scale = 1.0 / Math.sqrt(headDim);

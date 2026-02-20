@@ -12,6 +12,10 @@ import { Episode } from '../../../src/controllers/ReflexionMemory.js';
 import * as fs from 'fs';
 import * as path from 'path';
 
+interface CountResult { count: number }
+interface EpisodeRow { task: string; input: string; output: string; critique: string; success: number }
+interface DataRow { tags?: string; metadata?: string }
+
 const TEST_DB_PATH = './tests/fixtures/test-batch.db';
 
 describe('BatchOperations', () => {
@@ -74,11 +78,11 @@ describe('BatchOperations', () => {
       expect(count).toBe(25);
 
       // Verify episodes were inserted
-      const dbCount = db.prepare('SELECT COUNT(*) as count FROM episodes').get() as any;
+      const dbCount = db.prepare('SELECT COUNT(*) as count FROM episodes').get() as CountResult;
       expect(dbCount.count).toBe(25);
 
       // Verify embeddings were generated
-      const embCount = db.prepare('SELECT COUNT(*) as count FROM episode_embeddings').get() as any;
+      const embCount = db.prepare('SELECT COUNT(*) as count FROM episode_embeddings').get() as CountResult;
       expect(embCount.count).toBe(25);
     }, 10000);
 
@@ -95,7 +99,7 @@ describe('BatchOperations', () => {
       const customBatchOps = new BatchOperations(db, embedder, {
         batchSize: 10,
         parallelism: 4,
-        progressCallback: (completed, total) => {
+        progressCallback: (completed, _total) => {
           progressUpdates.push(completed);
         },
       });
@@ -144,7 +148,7 @@ describe('BatchOperations', () => {
       // Verify all fields were saved
       const saved = db
         .prepare('SELECT * FROM episodes WHERE session_id = ?')
-        .get('full-episode') as any;
+        .get('full-episode') as EpisodeRow;
       expect(saved.task).toBe('comprehensive task');
       expect(saved.input).toBe('test input');
       expect(saved.output).toBe('test output');
@@ -171,7 +175,7 @@ describe('BatchOperations', () => {
       expect(count).toBe(20);
 
       // Verify embeddings were created
-      const embCount = db.prepare('SELECT COUNT(*) as count FROM episode_embeddings').get() as any;
+      const embCount = db.prepare('SELECT COUNT(*) as count FROM episode_embeddings').get() as CountResult;
       expect(embCount.count).toBe(20);
     }, 10000);
 
@@ -231,7 +235,7 @@ describe('BatchOperations', () => {
       // Verify deletions
       const remaining = db
         .prepare('SELECT COUNT(*) as count FROM episodes WHERE success = 0')
-        .get() as any;
+        .get() as CountResult;
       expect(remaining.count).toBe(0);
     });
   });
@@ -257,7 +261,7 @@ describe('BatchOperations', () => {
       // Verify update
       const record = db
         .prepare('SELECT * FROM episodes WHERE session_id = ?')
-        .get('session-5') as any;
+        .get('session-5') as EpisodeRow;
       expect(record.success).toBe(0);
     });
   });
@@ -351,7 +355,7 @@ describe('BatchOperations', () => {
       expect(result.duration).toBeGreaterThan(0);
 
       // Verify data was inserted
-      const count = db.prepare('SELECT COUNT(*) as count FROM episodes').get() as any;
+      const count = db.prepare('SELECT COUNT(*) as count FROM episodes').get() as CountResult;
       expect(count.count).toBe(3000);
     }, 20000);
 
@@ -416,7 +420,7 @@ describe('BatchOperations', () => {
 
       // Add one invalid row to cause error (invalid column value)
       data[500] = {
-        session_id: null as any, // session_id is required
+        session_id: null as unknown as string, // session_id is required
         task: 'task 500',
         reward: 0.5,
         success: 1,
@@ -436,7 +440,7 @@ describe('BatchOperations', () => {
 
       // Verify that other chunks may have been inserted (depends on timing)
       // But the failed chunk should be fully rolled back
-      const count = db.prepare('SELECT COUNT(*) as count FROM episodes').get() as any;
+      const count = db.prepare('SELECT COUNT(*) as count FROM episodes').get() as CountResult;
       // Should be less than 1000 since one chunk failed
       expect(count.count).toBeLessThan(1000);
     }, 20000);
@@ -477,7 +481,7 @@ describe('BatchOperations', () => {
       expect(result.totalInserted).toBe(100);
 
       // Verify JSON data was stored correctly
-      const row = db.prepare('SELECT tags, metadata FROM episodes LIMIT 1').get() as any;
+      const row = db.prepare('SELECT tags, metadata FROM episodes LIMIT 1').get() as DataRow;
       expect(row.tags).toBeDefined();
       expect(row.metadata).toBeDefined();
     });
@@ -494,7 +498,7 @@ describe('BatchOperations', () => {
       const progressBatchOps = new BatchOperations(db, embedder, {
         batchSize: 100,
         parallelism: 4,
-        progressCallback: (completed, total) => {
+        progressCallback: (completed, _total) => {
           progressUpdates.push(completed);
         },
       });

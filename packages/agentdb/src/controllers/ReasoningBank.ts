@@ -35,7 +35,7 @@ export interface ReasoningPattern {
   uses?: number;
   avgReward?: number;
   tags?: string[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   createdAt?: number;
   similarity?: number; // Cosine similarity score (for search results)
 }
@@ -91,7 +91,7 @@ export interface LearningBackend {
 export class ReasoningBank {
   private db: IDatabaseConnection;
   private embedder: EmbeddingService;
-  private cache: Map<string, any>;
+  private cache: Map<string, unknown>;
 
   // v2: Optional vector backend (uses legacy if not provided)
   private vectorBackend?: VectorBackend;
@@ -237,9 +237,6 @@ export class ReasoningBank {
    * v2 + GNN: Optionally enhances query with learned patterns
    */
   async searchPatterns(query: PatternSearchQuery): Promise<ReasoningPattern[]> {
-    const k = query.k || 10;
-    const threshold = query.threshold || 0.0;
-
     // Generate embedding if task string provided (v1 API compatibility)
     let queryEmbedding: Float32Array;
     if (query.task && !query.taskEmbedding) {
@@ -306,7 +303,7 @@ export class ReasoningBank {
 
     // Build WHERE clause for filters
     const conditions: string[] = [];
-    const params: any[] = [];
+    const params: Array<string | number> = [];
 
     if (query.filters?.taskType) {
       conditions.push('rp.task_type = ?');
@@ -400,7 +397,7 @@ export class ReasoningBank {
         throw new Error(`VectorBackend result missing patternId: ${result.id}`);
       }
 
-      const row = stmt.get(patternId) as any;
+      const row = stmt.get(patternId) as { id: number; ts: number; task_type: string; approach: string; success_rate: number; uses: number; avg_reward: number; tags: string | null; metadata: string | null } | undefined;
 
       if (!row) {
         throw new Error(`Pattern ${patternId} not found in database`);
@@ -477,7 +474,7 @@ export class ReasoningBank {
     // Check cache first
     const cacheKey = 'pattern_stats';
     if (this.cache.has(cacheKey)) {
-      return this.cache.get(cacheKey);
+      return this.cache.get(cacheKey) as PatternStats;
     }
 
     // Total patterns
@@ -502,21 +499,21 @@ export class ReasoningBank {
       GROUP BY task_type
       ORDER BY count DESC
       LIMIT 10
-    `).all() as any[];
+    `).all() as Array<{ task_type: string; count: number }>;
 
     // Recent patterns (last 7 days)
     const recentRow = this.db.prepare(`
       SELECT COUNT(*) as count
       FROM reasoning_patterns
       WHERE ts >= strftime('%s', 'now', '-7 days')
-    `).get() as any;
+    `).get() as { count: number } | undefined;
 
     // High performing patterns (success_rate >= 0.8)
     const highPerfRow = this.db.prepare(`
       SELECT COUNT(*) as count
       FROM reasoning_patterns
       WHERE success_rate >= 0.8
-    `).get() as any;
+    `).get() as { count: number } | undefined;
 
     const stats: PatternStats = {
       totalPatterns: totalRow?.count ?? 0,
@@ -633,7 +630,7 @@ export class ReasoningBank {
       WHERE rp.id = ?
     `);
 
-    const row = stmt.get(patternId) as any;
+    const row = stmt.get(patternId) as { id: number; ts: number; task_type: string; approach: string; success_rate: number; uses: number; avg_reward: number; tags: string | null; metadata: string | null; embedding: Buffer | null } | undefined;
     if (!row) return null;
 
     return {

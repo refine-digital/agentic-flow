@@ -9,7 +9,7 @@
  * - Query plan analysis
  */
 
-// Database type from db-fallback
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- sql.js Database from db-fallback (dynamic)
 type Database = any;
 
 export interface CacheConfig {
@@ -29,7 +29,7 @@ export interface QueryStats {
 
 export class QueryOptimizer {
   private db: Database;
-  private cache: Map<string, { result: any; timestamp: number }>;
+  private cache: Map<string, { result: unknown; timestamp: number }>;
   private stats: Map<string, QueryStats>;
   private config: CacheConfig;
 
@@ -48,7 +48,8 @@ export class QueryOptimizer {
   /**
    * Execute query with caching
    */
-  query<T = any>(sql: string, params: any[] = [], cacheKey?: string): T {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic default for consumer flexibility
+  query<T = any>(sql: string, params: unknown[] = [], cacheKey?: string): T {
     const key = cacheKey || this.generateCacheKey(sql, params);
     const startTime = Date.now();
 
@@ -57,7 +58,7 @@ export class QueryOptimizer {
       const cached = this.cache.get(key)!;
       if (Date.now() - cached.timestamp < this.config.ttl) {
         this.recordStats(sql, Date.now() - startTime, true);
-        return cached.result;
+        return cached.result as T;
       } else {
         this.cache.delete(key);
       }
@@ -65,7 +66,7 @@ export class QueryOptimizer {
 
     // Execute query
     const stmt = this.db.prepare(sql);
-    const result = params.length > 0 ? stmt.all(...params) : stmt.all();
+    const result = (params.length > 0 ? stmt.all(...params) : stmt.all()) as unknown;
 
     const executionTime = Date.now() - startTime;
     this.recordStats(sql, executionTime, false);
@@ -81,7 +82,8 @@ export class QueryOptimizer {
   /**
    * Execute query that returns single row
    */
-  queryOne<T = any>(sql: string, params: any[] = [], cacheKey?: string): T | undefined {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic default for consumer flexibility
+  queryOne<T = any>(sql: string, params: unknown[] = [], cacheKey?: string): T | undefined {
     const results = this.query<T[]>(sql, params, cacheKey);
     return results[0];
   }
@@ -89,7 +91,7 @@ export class QueryOptimizer {
   /**
    * Execute write operation (no caching)
    */
-  execute(sql: string, params: any[] = []): any {
+  execute(sql: string, params: unknown[] = []): unknown {
     const startTime = Date.now();
     const stmt = this.db.prepare(sql);
     const result = params.length > 0 ? stmt.run(...params) : stmt.run();
@@ -105,11 +107,11 @@ export class QueryOptimizer {
   /**
    * Batch insert optimization
    */
-  batchInsert(table: string, columns: string[], rows: any[][]): void {
+  batchInsert(table: string, columns: string[], rows: unknown[][]): void {
     const placeholders = columns.map(() => '?').join(', ');
     const sql = `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`;
 
-    const transaction = this.db.transaction((rows: any[][]) => {
+    const transaction = this.db.transaction((rows: unknown[][]) => {
       const stmt = this.db.prepare(sql);
       for (const row of rows) {
         stmt.run(...row);
@@ -130,7 +132,7 @@ export class QueryOptimizer {
     estimatedCost: number;
   } {
     const plan = this.db.prepare(`EXPLAIN QUERY PLAN ${sql}`).all();
-    const planText = plan.map((row: any) => row.detail).join(' ');
+    const planText = plan.map((row: Record<string, unknown>) => row.detail).join(' ');
 
     const usesIndex = planText.toLowerCase().includes('index');
     const hasFullScan = planText.toLowerCase().includes('scan');
@@ -228,11 +230,11 @@ export class QueryOptimizer {
   // Private Methods
   // ========================================================================
 
-  private generateCacheKey(sql: string, params: any[]): string {
+  private generateCacheKey(sql: string, params: unknown[]): string {
     return `${sql}:${JSON.stringify(params)}`;
   }
 
-  private cacheResult(key: string, result: any): void {
+  private cacheResult(key: string, result: unknown): void {
     if (this.cache.size >= this.config.maxSize) {
       // Simple LRU: remove oldest entry
       const oldestKey = this.cache.keys().next().value as string | undefined;

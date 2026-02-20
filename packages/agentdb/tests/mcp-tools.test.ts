@@ -17,7 +17,7 @@
  * - Performance benchmarks
  */
 
-import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import Database from 'better-sqlite3';
 import { ReflexionMemory, Episode, ReflexionQuery } from '../src/controllers/ReflexionMemory.js';
 import { SkillLibrary, Skill, SkillQuery } from '../src/controllers/SkillLibrary.js';
@@ -59,9 +59,9 @@ function addSimpleCausalEdge(ctx: TestContext, params: {
 }): number {
   const edge: CausalEdge = {
     fromMemoryId: 1, // Use actual ID instead of 0
-    fromMemoryType: params.cause as any,
+    fromMemoryType: params.cause as CausalEdge['fromMemoryType'],
     toMemoryId: 2, // Use actual ID instead of 0
-    toMemoryType: params.effect as any,
+    toMemoryType: params.effect as CausalEdge['toMemoryType'],
     similarity: 0.9,
     uplift: params.uplift,
     confidence: params.confidence,
@@ -113,8 +113,8 @@ async function setupTestContext(): Promise<TestContext> {
   const skills = new SkillLibrary(db, embedder);
   const causalGraph = new CausalMemoryGraph(db);
   const explainableRecall = new ExplainableRecall(db);
-  const causalRecall = new CausalRecall(db, embedder, causalGraph as any, explainableRecall as any);
-  const nightlyLearner = new NightlyLearner(db, embedder, causalGraph as any);
+  const causalRecall = new CausalRecall(db, embedder, causalGraph as unknown as ConstructorParameters<typeof CausalRecall>[2], explainableRecall as unknown as ConstructorParameters<typeof CausalRecall>[3]);
+  const nightlyLearner = new NightlyLearner(db, embedder, causalGraph as unknown as ConstructorParameters<typeof NightlyLearner>[2]);
 
   return { db, reflexion, skills, causalGraph, causalRecall, explainableRecall, nightlyLearner, embedder };
 }

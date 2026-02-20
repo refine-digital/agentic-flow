@@ -21,6 +21,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 // Lazy-loaded hnswlib-node to avoid import failures on systems without build tools
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- optional native dependency with no exported type
 let HierarchicalNSW: any = null;
 let hnswlibLoadAttempted = false;
 let hnswlibLoadError: Error | null = null;
@@ -38,8 +39,9 @@ async function loadHnswlib(): Promise<boolean> {
 
   try {
     const hnswlibNode = await import('hnswlib-node');
-    HierarchicalNSW = (hnswlibNode as any).default?.HierarchicalNSW
-      || (hnswlibNode as any).HierarchicalNSW;
+    const mod = hnswlibNode as Record<string, unknown>;
+    const defaultExport = mod.default as Record<string, unknown> | undefined;
+    HierarchicalNSW = defaultExport?.HierarchicalNSW || mod.HierarchicalNSW;
     return true;
   } catch (error) {
     hnswlibLoadError = new Error(
@@ -67,8 +69,7 @@ export async function isHnswlibAvailable(): Promise<boolean> {
   }
 }
 
-// Database type from db-fallback
-type Database = any;
+import type { IDatabaseConnection } from '../types/database.types.js';
 
 export interface HNSWConfig {
   /** Maximum number of connections per layer (default: 16) */
@@ -103,7 +104,7 @@ export interface HNSWSearchResult {
   id: number;
   distance: number;
   similarity: number;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 export interface HNSWStats {
@@ -122,8 +123,9 @@ export interface HNSWStats {
 }
 
 export class HNSWIndex {
-  private db: Database;
+  private db: IDatabaseConnection;
   private config: HNSWConfig;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- hnswlib-node HierarchicalNSW instance, no exported type
   private index: any | null = null;
   private vectorCache: Map<number, Float32Array> = new Map();
   private idToLabel: Map<number, number> = new Map();
@@ -140,7 +142,7 @@ export class HNSWIndex {
   private pendingPersistentLoad: boolean = false;
   private initializePromise: Promise<void> | null = null;
 
-  constructor(db: Database, config?: Partial<HNSWConfig>) {
+  constructor(db: IDatabaseConnection, config?: Partial<HNSWConfig>) {
     this.db = db;
     this.config = {
       M: 16,
@@ -202,7 +204,7 @@ export class HNSWIndex {
         FROM ${tableName}
       `);
 
-      const rows = stmt.all() as any[];
+      const rows = stmt.all() as Array<{ id: number; embedding: Buffer }>;
 
       if (rows.length === 0) {
         console.warn('[HNSWIndex] No vectors found in database');
@@ -230,9 +232,9 @@ export class HNSWIndex {
       for (const row of rows) {
         const id = row.id;
         const embedding = new Float32Array(
-          (row.embedding as Buffer).buffer,
-          (row.embedding as Buffer).byteOffset,
-          (row.embedding as Buffer).byteLength / 4
+          row.embedding.buffer,
+          row.embedding.byteOffset,
+          row.embedding.byteLength / 4
         );
 
         // Add to index with label (convert Float32Array to number[])
@@ -275,7 +277,7 @@ export class HNSWIndex {
     k: number,
     options?: {
       threshold?: number;
-      filters?: Record<string, any>;
+      filters?: Record<string, unknown>;
     }
   ): Promise<HNSWSearchResult[]> {
     // Ensure any pending initialization is complete (may load persisted index)
@@ -496,15 +498,15 @@ export class HNSWIndex {
    */
   private applyFilters(
     results: HNSWSearchResult[],
-    filters: Record<string, any>
+    filters: Record<string, unknown>
   ): HNSWSearchResult[] {
     // Build WHERE clause for filters
     const conditions: string[] = [];
-    const params: any[] = [];
+    const params: Array<string | number | boolean> = [];
 
     Object.entries(filters).forEach(([key, value]) => {
       conditions.push(`${key} = ?`);
-      params.push(value);
+      params.push(value as string | number | boolean);
     });
 
     const whereClause = conditions.join(' AND ');

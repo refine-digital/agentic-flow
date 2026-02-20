@@ -163,7 +163,6 @@ export class ProductQuantization {
    */
   private kMeansPlusPlus(vectors: Float32Array[], k: number): Float32Array[] {
     const n = vectors.length;
-    const dim = vectors[0].length;
     const centroids: Float32Array[] = [];
 
     // Choose first centroid randomly

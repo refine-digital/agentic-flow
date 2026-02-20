@@ -244,7 +244,7 @@ describe('Input Validation', () => {
       expect(id).toBeGreaterThan(0);
 
       // Verify retrieval
-      const stored = db.prepare('SELECT metadata FROM episodes WHERE id = ?').get(id) as any;
+      const stored = db.prepare('SELECT metadata FROM episodes WHERE id = ?').get(id) as { metadata: string };
       const parsedMetadata = JSON.parse(stored.metadata);
       expect(parsedMetadata).toEqual(complexMetadata);
     });
@@ -284,7 +284,7 @@ describe('Input Validation', () => {
         const id = await reflexion.storeEpisode(episode);
 
         // Verify stored as data, not executed
-        const stored = db.prepare('SELECT task FROM episodes WHERE id = ?').get(id) as any;
+        const stored = db.prepare('SELECT task FROM episodes WHERE id = ?').get(id) as { task: string };
         expect(stored.task).toBe(payload);
       }
     });

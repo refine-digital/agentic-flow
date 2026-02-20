@@ -15,8 +15,7 @@
 
 import chalk from '../utils/chalk-fallback.js';
 
-// Database type from db-fallback
-type Database = any;
+import type { IDatabaseConnection } from '../types/database.types.js';
 
 export interface QUICServerConfig {
   host?: string;
@@ -37,13 +36,13 @@ export interface QUICServerConfig {
 export interface SyncRequest {
   type: 'episodes' | 'skills' | 'edges' | 'full';
   since?: number; // Timestamp for incremental sync
-  filters?: Record<string, any>;
+  filters?: Record<string, unknown>;
   batchSize?: number;
 }
 
 export interface SyncResponse {
   success: boolean;
-  data?: any;
+  data?: unknown;
   error?: string;
   nextCursor?: number;
   hasMore?: boolean;
@@ -66,15 +65,15 @@ interface RateLimitState {
 }
 
 export class QUICServer {
-  private db: Database;
+  private db: IDatabaseConnection;
   private config: Required<QUICServerConfig>;
   private isRunning: boolean = false;
   private connections: Map<string, ClientConnection> = new Map();
   private rateLimitState: Map<string, RateLimitState> = new Map();
-  private server: any = null;
+  private server: unknown = null;
   private cleanupInterval: NodeJS.Timeout | null = null;
 
-  constructor(db: Database, config: QUICServerConfig = {}) {
+  constructor(db: IDatabaseConnection, config: QUICServerConfig = {}) {
     this.db = db;
     this.config = {
       host: config.host || '0.0.0.0',
@@ -133,7 +132,7 @@ export class QUICServer {
       console.log(chalk.blue('🛑 Stopping QUIC server...'));
 
       // Close all connections
-      for (const [clientId, connection] of this.connections.entries()) {
+      for (const clientId of this.connections.keys()) {
         console.log(chalk.gray(`  Closing connection: ${clientId}`));
         // Close connection logic here
       }
@@ -277,26 +276,34 @@ export class QUICServer {
       console.log(chalk.gray(`   Since: ${request.since || 'full sync'}`));
 
       // Process based on type
-      let data: any;
+      let data: unknown;
       let count = 0;
 
       switch (request.type) {
-        case 'episodes':
-          data = await this.syncEpisodes(request);
-          count = data.length;
+        case 'episodes': {
+          const episodes = await this.syncEpisodes(request);
+          data = episodes;
+          count = episodes.length;
           break;
-        case 'skills':
-          data = await this.syncSkills(request);
-          count = data.length;
+        }
+        case 'skills': {
+          const skills = await this.syncSkills(request);
+          data = skills;
+          count = skills.length;
           break;
-        case 'edges':
-          data = await this.syncEdges(request);
-          count = data.length;
+        }
+        case 'edges': {
+          const edges = await this.syncEdges(request);
+          data = edges;
+          count = edges.length;
           break;
-        case 'full':
-          data = await this.syncFull(request);
-          count = data.episodes?.length + data.skills?.length + data.edges?.length || 0;
+        }
+        case 'full': {
+          const fullData = await this.syncFull(request);
+          data = fullData;
+          count = (fullData.episodes?.length || 0) + (fullData.skills?.length || 0) + (fullData.edges?.length || 0);
           break;
+        }
         default:
           return {
             success: false,
@@ -325,11 +332,11 @@ export class QUICServer {
   /**
    * Sync episodes data
    */
-  private async syncEpisodes(request: SyncRequest): Promise<any[]> {
+  private async syncEpisodes(request: SyncRequest): Promise<Array<Record<string, unknown>>> {
     const { since, filters, batchSize = 1000 } = request;
 
     let query = 'SELECT * FROM episodes WHERE 1=1';
-    const params: any[] = [];
+    const params: Array<string | number> = [];
 
     if (since) {
       query += ' AND ts > ?';
@@ -340,7 +347,7 @@ export class QUICServer {
     if (filters) {
       if (filters.sessionId) {
         query += ' AND session_id = ?';
-        params.push(filters.sessionId);
+        params.push(filters.sessionId as string | number);
       }
       if (filters.success !== undefined) {
         query += ' AND success = ?';
@@ -351,9 +358,9 @@ export class QUICServer {
     query += ` ORDER BY ts DESC LIMIT ${batchSize}`;
 
     const stmt = this.db.prepare(query);
-    const rows = stmt.all(...params);
+    const rows = stmt.all(...params) as Array<{ id: number; ts: number; session_id: string; task: string; input: string; output: string; critique: string; reward: number; success: number; latency_ms: number; tokens_used: number; tags: string; metadata: string }>;
 
-    return rows.map((row: any) => ({
+    return rows.map((row) => ({
       id: row.id,
       ts: row.ts,
       sessionId: row.session_id,
@@ -373,11 +380,11 @@ export class QUICServer {
   /**
    * Sync skills data
    */
-  private async syncSkills(request: SyncRequest): Promise<any[]> {
+  private async syncSkills(request: SyncRequest): Promise<Array<Record<string, unknown>>> {
     const { since, batchSize = 1000 } = request;
 
     let query = 'SELECT * FROM skills WHERE 1=1';
-    const params: any[] = [];
+    const params: Array<string | number> = [];
 
     if (since) {
       query += ' AND ts > ?';
@@ -387,9 +394,9 @@ export class QUICServer {
     query += ` ORDER BY ts DESC LIMIT ${batchSize}`;
 
     const stmt = this.db.prepare(query);
-    const rows = stmt.all(...params);
+    const rows = stmt.all(...params) as Array<{ id: number; ts: number; name: string; description: string; code: string; success_rate: number; usage_count: number; avg_reward: number; tags: string; metadata: string }>;
 
-    return rows.map((row: any) => ({
+    return rows.map((row) => ({
       id: row.id,
       ts: row.ts,
       name: row.name,
@@ -406,11 +413,11 @@ export class QUICServer {
   /**
    * Sync edges (skill relationships)
    */
-  private async syncEdges(request: SyncRequest): Promise<any[]> {
+  private async syncEdges(request: SyncRequest): Promise<Array<Record<string, unknown>>> {
     const { since, batchSize = 1000 } = request;
 
     let query = 'SELECT * FROM skill_edges WHERE 1=1';
-    const params: any[] = [];
+    const params: Array<string | number> = [];
 
     if (since) {
       query += ' AND ts > ?';
@@ -420,9 +427,9 @@ export class QUICServer {
     query += ` ORDER BY ts DESC LIMIT ${batchSize}`;
 
     const stmt = this.db.prepare(query);
-    const rows = stmt.all(...params);
+    const rows = stmt.all(...params) as Array<{ id: number; ts: number; from_skill_id: number; to_skill_id: number; weight: number; co_occurrences: number }>;
 
-    return rows.map((row: any) => ({
+    return rows.map((row) => ({
       id: row.id,
       ts: row.ts,
       fromSkillId: row.from_skill_id,
@@ -435,7 +442,7 @@ export class QUICServer {
   /**
    * Full sync of all data
    */
-  private async syncFull(request: SyncRequest): Promise<any> {
+  private async syncFull(request: SyncRequest): Promise<{ episodes: Array<Record<string, unknown>>; skills: Array<Record<string, unknown>>; edges: Array<Record<string, unknown>> }> {
     const [episodes, skills, edges] = await Promise.all([
       this.syncEpisodes(request),
       this.syncSkills(request),

@@ -16,7 +16,7 @@
 import { createDatabase } from '../../src/db-fallback.js';
 import { ReflexionMemory } from '../../src/controllers/ReflexionMemory.js';
 import { EmbeddingService } from '../../src/controllers/EmbeddingService.js';
-import { PerformanceOptimizer, executeParallel } from '../utils/PerformanceOptimizer.js';
+import { PerformanceOptimizer } from '../utils/PerformanceOptimizer.js';
 import * as path from 'path';
 
 interface Trader {
@@ -37,7 +37,7 @@ interface Trade {
   traderId: string;
 }
 
-interface MarketState {
+export interface MarketState {
   tick: number;
   price: number;
   volume: number;
@@ -49,8 +49,10 @@ interface MarketState {
 export default {
   description: 'Stock market with multi-strategy traders, herding, flash crashes, and adaptive learning',
 
-  async run(config: any) {
-    const { verbosity = 2, ticks = 100, traderCount = 100 } = config;
+  async run(config: Record<string, unknown>) {
+    const verbosity = (config.verbosity ?? 2) as number;
+    const ticks = (config.ticks ?? 100) as number;
+    const traderCount = (config.traderCount ?? 100) as number;
 
     if (verbosity >= 2) {
       console.log(`   📈 Initializing Stock Market: ${traderCount} traders, ${ticks} ticks`);
@@ -72,11 +74,11 @@ export default {
     );
 
     const reflexion = new ReflexionMemory(
-      db.getGraphDatabase() as any,
+      db.getGraphDatabase(),
       embedder,
       undefined,
       undefined,
-      db.getGraphDatabase() as any
+      db.getGraphDatabase()
     );
 
     const results = {
@@ -97,7 +99,7 @@ export default {
     const strategyDistribution = ['momentum', 'value', 'contrarian', 'HFT', 'index'];
     const traders: Trader[] = Array.from({ length: traderCount }, (_, i) => ({
       id: `trader-${i}`,
-      strategy: strategyDistribution[i % strategyDistribution.length] as any,
+      strategy: strategyDistribution[i % strategyDistribution.length] as Trader['strategy'],
       cash: 10000,
       shares: Math.floor(Math.random() * 50),
       profitLoss: 0,

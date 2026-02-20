@@ -8,7 +8,7 @@
  * 4. Column name injection in WHERE/SET clauses
  */
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect } from '@jest/globals';
 import {
   validateTableName,
   validateColumnName,
@@ -55,9 +55,9 @@ describe('SQL Injection Prevention - Input Validation', () => {
 
     it('should reject empty or invalid table names', () => {
       expect(() => validateTableName('')).toThrow(ValidationError);
-      expect(() => validateTableName(null as any)).toThrow(ValidationError);
-      expect(() => validateTableName(undefined as any)).toThrow(ValidationError);
-      expect(() => validateTableName(123 as any)).toThrow(ValidationError);
+      expect(() => validateTableName(null as unknown as string)).toThrow(ValidationError);
+      expect(() => validateTableName(undefined as unknown as string)).toThrow(ValidationError);
+      expect(() => validateTableName(123 as unknown as string)).toThrow(ValidationError);
     });
   });
 
@@ -119,7 +119,7 @@ describe('SQL Injection Prevention - Input Validation', () => {
 
     it('should reject empty PRAGMA commands', () => {
       expect(() => validatePragmaCommand('')).toThrow(ValidationError);
-      expect(() => validatePragmaCommand(null as any)).toThrow(ValidationError);
+      expect(() => validatePragmaCommand(null as unknown as string)).toThrow(ValidationError);
     });
   });
 
@@ -219,7 +219,7 @@ describe('SQL Injection Prevention - Input Validation', () => {
 
     it('should reject empty conditions', () => {
       expect(() => buildSafeWhereClause('episodes', {})).toThrow(ValidationError);
-      expect(() => buildSafeWhereClause('episodes', null as any)).toThrow(ValidationError);
+      expect(() => buildSafeWhereClause('episodes', null as unknown as Record<string, unknown>)).toThrow(ValidationError);
     });
   });
 

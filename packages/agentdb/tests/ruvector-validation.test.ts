@@ -14,6 +14,8 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- dynamic imports for native bindings require runtime casting */
+
 // Test storage paths
 const TEST_DIR = path.join(process.cwd(), 'test-data');
 const GRAPH_DB_PATH = path.join(TEST_DIR, 'test-graph.db');

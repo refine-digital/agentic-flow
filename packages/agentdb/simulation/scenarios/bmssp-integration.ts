@@ -19,8 +19,8 @@ import * as path from 'path';
 export default {
   description: 'BMSSP symbolic-subsymbolic processing with dedicated graph database',
 
-  async run(config: any) {
-    const { verbosity = 2 } = config;
+  async run(config: Record<string, unknown>) {
+    const verbosity = (config.verbosity ?? 2) as number;
 
     if (verbosity >= 2) {
       console.log('   🧠 Initializing BMSSP Integration Simulation');
@@ -44,16 +44,17 @@ export default {
     );
 
     const reflexion = new ReflexionMemory(
-      db.getGraphDatabase() as any,
+      db.getGraphDatabase(),
       embedder,
       undefined,
       undefined,
-      db.getGraphDatabase() as any
+      db.getGraphDatabase()
     );
 
-    const causal = new CausalMemoryGraph(
-      db.getGraphDatabase() as any,
-      db.getGraphDatabase() as any
+    // Initialize causal graph for side-effect registration
+    void new CausalMemoryGraph(
+      db.getGraphDatabase(),
+      db.getGraphDatabase()
     );
 
     const results = {
@@ -113,9 +114,7 @@ export default {
       { symbolic: 2, subsymbolic: 2, inference: 'power_reduction_optimized' }
     ];
 
-    for (const link of hybridLinks) {
-      results.hybridInferences++;
-    }
+    results.hybridInferences += hybridLinks.length;
 
     results.avgConfidence /= (symbolicRules.length + subsymbolicPatterns.length);
 

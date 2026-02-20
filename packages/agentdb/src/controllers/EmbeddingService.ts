@@ -14,7 +14,8 @@ export interface EmbeddingConfig {
 
 export class EmbeddingService {
   private config: EmbeddingConfig;
-  private pipeline: any; // transformers.js pipeline
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- transformers.js pipeline has no exported type
+  private pipeline: any;
   private cache: Map<string, Float32Array>;
 
   constructor(config: EmbeddingConfig) {
@@ -36,7 +37,7 @@ export class EmbeddingService {
         if (hfToken) {
           // Set the token for Transformers.js to use
           if (transformers.env && typeof transformers.env === 'object') {
-            (transformers.env as any).HF_TOKEN = hfToken;
+            (transformers.env as Record<string, unknown>).HF_TOKEN = hfToken;
             console.log('🔑 Using Hugging Face API key from environment');
           }
         }
@@ -125,7 +126,7 @@ export class EmbeddingService {
       })
     });
 
-    const data: any = await response.json();
+    const data = await response.json() as { data: Array<{ embedding: number[] }> };
     return new Float32Array(data.data[0].embedding);
   }
 
@@ -135,7 +136,7 @@ export class EmbeddingService {
 
     // Handle null/undefined/empty text
     if (!text || text.length === 0) {
-      return new Array(this.config.dimension).fill(0) as any as Float32Array;
+      return new Float32Array(this.config.dimension);
     }
 
     // Use simple hash-based generation

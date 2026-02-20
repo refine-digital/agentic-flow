@@ -15,7 +15,6 @@
 import type {
   SimulationScenario,
   SimulationReport,
-  PerformanceMetrics,
 } from '../../types';
 
 export interface ClusteringMetrics {
@@ -59,6 +58,44 @@ export interface CommunityAlgorithm {
  * 4. Measures agent collaboration patterns
  * 5. Compares graph topology vs latent space clusters
  */
+// Internal interfaces for type safety
+interface SemanticGraphNode {
+  id: number;
+  cluster: number;
+  embedding: number[];
+}
+
+interface SemanticGraph {
+  nodes: SemanticGraphNode[];
+  edges: [number, number][];
+  clusters: number[];
+  embeddings: number[][];
+}
+
+interface CommunityResult {
+  labels: number[];
+  numCommunities: number;
+  iterations?: number;
+  modularity?: number;
+  converged?: boolean;
+  hierarchy?: CommunityHierarchy;
+  spectralEmbeddings?: number[][];
+}
+
+interface CommunityHierarchy {
+  depth: number;
+  mergingPattern: { level: number; numMerges: number }[];
+}
+
+interface ClusteringResultEntry {
+  algorithm: string;
+  vectorCount: number;
+  dimension: number;
+  graphDensity: number;
+  detectionTimeMs: number;
+  metrics: ClusteringMetrics;
+}
+
 export const clusteringAnalysisScenario: SimulationScenario = {
   id: 'clustering-analysis',
   name: 'Graph Clustering and Community Detection',
@@ -88,17 +125,17 @@ export const clusteringAnalysisScenario: SimulationScenario = {
   },
 
   async run(config: typeof clusteringAnalysisScenario.config): Promise<SimulationReport> {
-    const results: any[] = [];
+    const results: ClusteringResultEntry[] = [];
     const startTime = Date.now();
 
     console.log('🔬 Starting Clustering Analysis...\n');
 
-    for (const algorithm of config.algorithms) {
+    for (const algorithm of config.algorithms as CommunityAlgorithm[]) {
       console.log(`\n📊 Testing algorithm: ${algorithm.name}`);
 
-      for (const vectorCount of config.vectorCounts) {
-        for (const dim of config.dimensions) {
-          for (const density of config.graphDensities) {
+      for (const vectorCount of config.vectorCounts as number[]) {
+        for (const dim of config.dimensions as number[]) {
+          for (const density of config.graphDensities as number[]) {
             console.log(`  └─ ${vectorCount} vectors, ${dim}d, density=${density}`);
 
             // Build graph with semantic clusters
@@ -116,7 +153,7 @@ export const clusteringAnalysisScenario: SimulationScenario = {
             const semanticAlignment = await measureSemanticAlignment(
               graph,
               communities,
-              config.semanticCategories
+              config.semanticCategories as string[]
             );
 
             // Analyze hierarchical structure
@@ -126,7 +163,7 @@ export const clusteringAnalysisScenario: SimulationScenario = {
             const agentMetrics = await analyzeAgentCollaboration(
               graph,
               communities,
-              config.agentTypes
+              config.agentTypes as string[]
             );
 
             results.push({
@@ -137,10 +174,10 @@ export const clusteringAnalysisScenario: SimulationScenario = {
               detectionTimeMs: detectionTime,
               metrics: {
                 ...metrics,
-                ...semanticAlignment,
-                ...hierarchyMetrics,
-                ...agentMetrics,
-              },
+                ...(semanticAlignment as Partial<ClusteringMetrics>),
+                ...(hierarchyMetrics as Partial<ClusteringMetrics>),
+                ...(agentMetrics as Partial<ClusteringMetrics>),
+              } as ClusteringMetrics,
             });
           }
         }
@@ -157,7 +194,7 @@ export const clusteringAnalysisScenario: SimulationScenario = {
 
       summary: {
         totalTests: results.length,
-        algorithms: config.algorithms.length,
+        algorithms: (config.algorithms as CommunityAlgorithm[]).length,
         bestAlgorithm: findBestAlgorithm(results),
         avgModularity: averageModularity(results),
         semanticPurity: averageSemanticPurity(results),
@@ -191,15 +228,15 @@ async function buildSemanticGraph(
   vectorCount: number,
   dimension: number,
   density: number
-): Promise<any> {
+): Promise<SemanticGraph> {
   // Generate clustered vectors (simulate semantic categories)
   const numClusters = Math.min(10, Math.floor(vectorCount / 100));
   const clusters = generateSemanticClusters(vectorCount, dimension, numClusters);
 
   // Build graph with preferential attachment within clusters
-  const graph = {
-    nodes: [] as any[],
-    edges: [] as [number, number][],
+  const graph: SemanticGraph = {
+    nodes: [],
+    edges: [],
     clusters: clusters.labels,
     embeddings: clusters.vectors,
   };
@@ -269,7 +306,7 @@ function generateSemanticClusters(
 /**
  * Community detection algorithms
  */
-async function detectCommunities(graph: any, algorithm: CommunityAlgorithm): Promise<any> {
+async function detectCommunities(graph: SemanticGraph, algorithm: CommunityAlgorithm): Promise<CommunityResult> {
   switch (algorithm.name) {
     case 'louvain':
       return louvainCommunityDetection(graph, algorithm.parameters.resolution || 1.0);
@@ -278,7 +315,7 @@ async function detectCommunities(graph: any, algorithm: CommunityAlgorithm): Pro
     case 'leiden':
       return leidenAlgorithm(graph, algorithm.parameters.resolution || 1.0);
     case 'spectral':
-      return spectralClustering(graph, (algorithm.parameters as any).numClusters || 10);
+      return spectralClustering(graph, (algorithm.parameters as Record<string, number>).numClusters || 10);
     default:
       throw new Error(`Unknown algorithm: ${algorithm.name}`);
   }
@@ -288,9 +325,9 @@ async function detectCommunities(graph: any, algorithm: CommunityAlgorithm): Pro
  * Louvain community detection (greedy modularity optimization)
  * OPTIMIZED: resolution=1.2 for Q=0.758, semantic purity=89.1%
  */
-function louvainCommunityDetection(graph: any, resolution: number): any {
+function louvainCommunityDetection(graph: SemanticGraph, resolution: number): CommunityResult {
   const n = graph.nodes.length;
-  let communities = graph.nodes.map((node: any) => node.id); // Initial: each node is own community
+  const communities = graph.nodes.map((node) => node.id); // Initial: each node is own community
   let improved = true;
   let iteration = 0;
   const maxIterations = 100;
@@ -356,9 +393,9 @@ function louvainCommunityDetection(graph: any, resolution: number): any {
 /**
  * Label Propagation algorithm
  */
-function labelPropagation(graph: any, maxIterations: number): any {
+function labelPropagation(graph: SemanticGraph, maxIterations: number): CommunityResult {
   const n = graph.nodes.length;
-  let labels = graph.nodes.map((node: any) => node.id);
+  const labels = graph.nodes.map((node) => node.id);
   let changed = true;
   let iteration = 0;
 
@@ -402,7 +439,7 @@ function labelPropagation(graph: any, maxIterations: number): any {
 /**
  * Leiden algorithm (improved Louvain)
  */
-function leidenAlgorithm(graph: any, resolution: number): any {
+function leidenAlgorithm(graph: SemanticGraph, resolution: number): CommunityResult {
   // Simplified version - full implementation would include refinement phase
   const louvain = louvainCommunityDetection(graph, resolution);
 
@@ -419,9 +456,8 @@ function leidenAlgorithm(graph: any, resolution: number): any {
 /**
  * Spectral clustering
  */
-function spectralClustering(graph: any, k: number): any {
+function spectralClustering(graph: SemanticGraph, k: number): CommunityResult {
   // Simplified: would use eigenvectors of normalized Laplacian
-  const n = graph.nodes.length;
 
   // Simulate spectral embedding
   const spectralEmbeddings = graph.embeddings.map((emb: number[]) =>
@@ -441,7 +477,7 @@ function spectralClustering(graph: any, k: number): any {
 /**
  * Analyze clustering quality
  */
-async function analyzeClusteringQuality(graph: any, communities: any): Promise<ClusteringMetrics> {
+async function analyzeClusteringQuality(graph: SemanticGraph, communities: CommunityResult): Promise<ClusteringMetrics> {
   const modularity = calculateModularity(graph, communities.labels);
   const distribution = getCommunityDistribution(communities.labels);
 
@@ -465,10 +501,10 @@ async function analyzeClusteringQuality(graph: any, communities: any): Promise<C
  * Measure semantic alignment
  */
 async function measureSemanticAlignment(
-  graph: any,
-  communities: any,
-  categories: string[]
-): Promise<any> {
+  graph: SemanticGraph,
+  communities: CommunityResult,
+  _categories: string[]
+): Promise<Partial<ClusteringMetrics>> {
   // Calculate how well detected communities match semantic categories
   const purity = calculatePurity(communities.labels, graph.clusters);
   const overlap = calculateClusterOverlap(communities.labels, graph.clusters);
@@ -483,8 +519,8 @@ async function measureSemanticAlignment(
 /**
  * Analyze hierarchical structure
  */
-async function analyzeHierarchy(communities: any): Promise<any> {
-  const hierarchy = communities.hierarchy || { depth: 1 };
+async function analyzeHierarchy(communities: CommunityResult): Promise<Partial<ClusteringMetrics>> {
+  const hierarchy = communities.hierarchy || { depth: 1, mergingPattern: [] };
 
   return {
     hierarchyDepth: hierarchy.depth,
@@ -497,10 +533,10 @@ async function analyzeHierarchy(communities: any): Promise<any> {
  * Analyze agent collaboration patterns
  */
 async function analyzeAgentCollaboration(
-  graph: any,
-  communities: any,
+  _graph: SemanticGraph,
+  communities: CommunityResult,
   agentTypes: string[]
-): Promise<any> {
+): Promise<Partial<ClusteringMetrics>> {
   // Simulate agent collaboration metrics
   const collaborationClusters = Math.min(communities.numCommunities, agentTypes.length);
   const taskSpecialization = 0.7 + Math.random() * 0.2;
@@ -515,14 +551,14 @@ async function analyzeAgentCollaboration(
 
 // Helper functions
 
-function getNeighbors(graph: any, nodeId: number): number[] {
+function getNeighbors(graph: SemanticGraph, nodeId: number): number[] {
   return graph.edges
     .filter(([a, b]: [number, number]) => a === nodeId || b === nodeId)
     .map(([a, b]: [number, number]) => a === nodeId ? b : a);
 }
 
 function modularityGain(
-  graph: any,
+  graph: SemanticGraph,
   communities: number[],
   node: number,
   fromCommunity: number,
@@ -540,7 +576,7 @@ function modularityGain(
   return gain;
 }
 
-function calculateModularity(graph: any, labels: number[]): number {
+function calculateModularity(graph: SemanticGraph, labels: number[]): number {
   const m = graph.edges.length;
   if (m === 0) return 0;
 
@@ -582,7 +618,7 @@ function getCommunityDistribution(labels: number[]): { size: number; count: numb
     .sort((a, b) => b.size - a.size);
 }
 
-function buildCommunityHierarchy(labels: number[]): any {
+function buildCommunityHierarchy(labels: number[]): CommunityHierarchy {
   return {
     depth: 2,
     mergingPattern: [
@@ -592,7 +628,7 @@ function buildCommunityHierarchy(labels: number[]): any {
   };
 }
 
-function refineCommunities(graph: any, labels: number[]): number[] {
+function refineCommunities(_graph: SemanticGraph, labels: number[]): number[] {
   // Simplified refinement
   return labels;
 }
@@ -653,13 +689,13 @@ function calculatePurity(detected: number[], ground: number[]): number {
   return correct / n;
 }
 
-function calculateClusterOverlap(detected: number[], ground: number[]): number {
+function calculateClusterOverlap(_detected: number[], _ground: number[]): number {
   // Normalized Mutual Information
   const nmi = 0.75 + Math.random() * 0.2; // Simulated
   return nmi;
 }
 
-function calculateDendrogramBalance(hierarchy: any): number {
+function calculateDendrogramBalance(_hierarchy: CommunityHierarchy | undefined): number {
   return 0.8 + Math.random() * 0.15;
 }
 
@@ -699,47 +735,47 @@ function centroid(vectors: number[][]): number[] {
   return sum.map(x => x / vectors.length);
 }
 
-function findBestAlgorithm(results: any[]): any {
+function findBestAlgorithm(results: ClusteringResultEntry[]): ClusteringResultEntry {
   return results.reduce((best, current) =>
     current.metrics.modularityScore > best.metrics.modularityScore ? current : best
   );
 }
 
-function averageModularity(results: any[]): number {
+function averageModularity(results: ClusteringResultEntry[]): number {
   return results.reduce((sum, r) => sum + r.metrics.modularityScore, 0) / results.length;
 }
 
-function averageSemanticPurity(results: any[]): number {
+function averageSemanticPurity(results: ClusteringResultEntry[]): number {
   return results.reduce((sum, r) => sum + r.metrics.semanticPurity, 0) / results.length;
 }
 
-function aggregateCommunityMetrics(results: any[]) {
+function aggregateCommunityMetrics(results: ClusteringResultEntry[]) {
   return {
     avgNumCommunities: results.reduce((sum, r) => sum + r.metrics.numCommunities, 0) / results.length,
     avgModularity: averageModularity(results),
   };
 }
 
-function aggregateSemanticMetrics(results: any[]) {
+function aggregateSemanticMetrics(results: ClusteringResultEntry[]) {
   return {
     avgPurity: averageSemanticPurity(results),
     avgOverlap: results.reduce((sum, r) => sum + r.metrics.embeddingClusterOverlap, 0) / results.length,
   };
 }
 
-function aggregateHierarchyMetrics(results: any[]) {
+function aggregateHierarchyMetrics(results: ClusteringResultEntry[]) {
   return {
     avgDepth: results.reduce((sum, r) => sum + r.metrics.hierarchyDepth, 0) / results.length,
   };
 }
 
-function aggregateAgentMetrics(results: any[]) {
+function aggregateAgentMetrics(results: ClusteringResultEntry[]) {
   return {
     avgSpecialization: results.reduce((sum, r) => sum + r.metrics.taskSpecialization, 0) / results.length,
   };
 }
 
-function generateClusteringAnalysis(results: any[]): string {
+function generateClusteringAnalysis(results: ClusteringResultEntry[]): string {
   const best = findBestAlgorithm(results);
 
   return `
@@ -763,7 +799,7 @@ function generateClusteringAnalysis(results: any[]): string {
   `.trim();
 }
 
-function generateClusteringRecommendations(results: any[]): string[] {
+function generateClusteringRecommendations(_results: ClusteringResultEntry[]): string[] {
   return [
     'Use Louvain algorithm for optimal modularity on large graphs',
     'Label Propagation provides 10x faster detection with 95% quality',
@@ -772,21 +808,21 @@ function generateClusteringRecommendations(results: any[]): string[] {
   ];
 }
 
-async function generateDendrograms(results: any[]) {
+async function generateDendrograms(_results: ClusteringResultEntry[]) {
   return {
     louvainDendrogram: 'louvain-hierarchy.png',
     leidenDendrogram: 'leiden-hierarchy.png',
   };
 }
 
-async function generateCommunityPlots(results: any[]) {
+async function generateCommunityPlots(_results: ClusteringResultEntry[]) {
   return {
     communityDistribution: 'community-sizes.png',
     modularityComparison: 'modularity-comparison.png',
   };
 }
 
-async function generateModularityCharts(results: any[]) {
+async function generateModularityCharts(_results: ClusteringResultEntry[]) {
   return {
     modularityVsSize: 'modularity-vs-graph-size.png',
     algorithmComparison: 'algorithm-modularity.png',

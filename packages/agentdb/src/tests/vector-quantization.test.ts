@@ -11,7 +11,6 @@ import {
   calculateQuantizationError,
   getQuantizationStats,
   ProductQuantizer,
-  QuantizedVectorStore,
   createScalar8BitStore,
   createScalar4BitStore,
   createProductQuantizedStore,

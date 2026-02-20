@@ -18,7 +18,8 @@
 // Types are defined inline since @ruvector/graph-node doesn't export interfaces properly
 // See node_modules/@ruvector/graph-node/index.d.ts for reference
 
-type GraphDatabase = any; // Will use dynamic import
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type GraphDatabase = any; // Will use dynamic import - FFI boundary with @ruvector/graph-node
 type JsNode = {
   id: string;
   embedding: Float32Array;
@@ -35,23 +36,13 @@ type JsEdge = {
   metadata?: Record<string, string>;
 };
 
-type JsHyperedge = {
-  nodes: Array<string>;
-  description: string;
-  embedding: Float32Array;
-  confidence?: number;
-  metadata?: Record<string, string>;
-};
-
 type JsQueryResult = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   nodes: Array<any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   edges: Array<any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   stats?: any;
-};
-
-type JsBatchInsert = {
-  nodes: Array<JsNode>;
-  edges: Array<JsEdge>;
 };
 
 export interface GraphDatabaseConfig {
@@ -104,12 +95,14 @@ export interface CausalEdge {
 export class GraphDatabaseAdapter {
   private db: GraphDatabase;
   private config: GraphDatabaseConfig;
-  private embedder: any; // EmbeddingService
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private embedder: any; // EmbeddingService - interface not exported by consumer
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(config: GraphDatabaseConfig, embedder: any) {
     this.config = config;
     this.embedder = embedder;
-    this.db = null as any; // Will be initialized
+    this.db = null as GraphDatabase; // Will be initialized
   }
 
   /**
@@ -119,6 +112,7 @@ export class GraphDatabaseAdapter {
     try {
       // Try to import graph-node package
       const graphNodeModule = await import('@ruvector/graph-node');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const GraphDatabase = (graphNodeModule as any).GraphDatabase;
 
       if (!GraphDatabase) {
@@ -127,6 +121,7 @@ export class GraphDatabaseAdapter {
 
       // Try to open existing database first
       try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
         if (require('fs').existsSync(this.config.storagePath)) {
           this.db = GraphDatabase.open(this.config.storagePath);
           console.log('✅ Opened existing RuVector graph database');
@@ -236,7 +231,7 @@ export class GraphDatabaseAdapter {
   /**
    * Search for similar episodes by embedding
    */
-  async searchSimilarEpisodes(embedding: Float32Array, k: number = 10): Promise<any[]> {
+  async searchSimilarEpisodes(embedding: Float32Array, k: number = 10): Promise<Record<string, unknown>[]> {
     // Use Cypher with vector similarity
     // Note: This is a simplified version - actual implementation would use
     // the integrated vector search capabilities

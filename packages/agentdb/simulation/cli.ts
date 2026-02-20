@@ -7,7 +7,6 @@
  */
 
 import { Command } from 'commander';
-import * as fs from 'fs';
 import * as path from 'path';
 import { config } from 'dotenv';
 

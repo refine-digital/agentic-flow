@@ -24,7 +24,7 @@ export interface MMRCandidate {
   id: number;
   embedding: number[];
   similarity: number;  // Similarity to query
-  [key: string]: any;  // Additional data
+  [key: string]: unknown;  // Additional data
 }
 
 export class MMRDiversityRanker {

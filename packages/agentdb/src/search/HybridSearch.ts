@@ -32,7 +32,7 @@ export interface HybridSearchOptions {
   keywordWeight?: number;
 
   /** Metadata filter to apply to results */
-  filter?: Record<string, any>;
+  filter?: Record<string, unknown>;
 
   /** Fusion method for combining results */
   fusionMethod?: 'rrf' | 'linear' | 'max';
@@ -64,7 +64,7 @@ export interface HybridSearchResult {
   keywordScore?: number;
 
   /** Original metadata from vector store */
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 
   /** Source of the result */
   source: 'vector' | 'keyword' | 'both';
@@ -109,7 +109,7 @@ interface DocumentEntry {
   originalText?: string;
 
   /** Associated metadata */
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -235,7 +235,7 @@ export class KeywordIndex {
    * @param text - Document text content
    * @param metadata - Optional metadata to associate with the document
    */
-  add(id: string, text: string, metadata?: Record<string, any>): void {
+  add(id: string, text: string, metadata?: Record<string, unknown>): void {
     // Remove existing document if present (update case)
     if (this.documents.has(id)) {
       this.remove(id);
@@ -367,8 +367,8 @@ export class KeywordIndex {
   search(
     query: string,
     limit: number,
-    filter?: Record<string, any>
-  ): { id: string; score: number; metadata?: Record<string, any> }[] {
+    filter?: Record<string, unknown>
+  ): { id: string; score: number; metadata?: Record<string, unknown> }[] {
     const queryTerms = this.tokenize(query);
 
     if (queryTerms.length === 0) {
@@ -387,7 +387,7 @@ export class KeywordIndex {
     }
 
     // Score candidates
-    const results: { id: string; score: number; metadata?: Record<string, any> }[] = [];
+    const results: { id: string; score: number; metadata?: Record<string, unknown> }[] = [];
 
     for (const docId of candidateIds) {
       const docEntry = this.documents.get(docId);
@@ -417,8 +417,8 @@ export class KeywordIndex {
    * Check if document metadata matches the filter criteria
    */
   private matchesFilter(
-    metadata: Record<string, any> | undefined,
-    filter: Record<string, any>
+    metadata: Record<string, unknown> | undefined,
+    filter: Record<string, unknown>
   ): boolean {
     if (!metadata) return false;
 
@@ -591,7 +591,7 @@ export class HybridSearch {
 
     // Collect results from both sources
     let vectorResults: SearchResult[] = [];
-    let keywordResults: { id: string; score: number; metadata?: Record<string, any> }[] = [];
+    let keywordResults: { id: string; score: number; metadata?: Record<string, unknown> }[] = [];
 
     // Perform vector search if vector provided
     if (query.vector) {
@@ -676,7 +676,7 @@ export class HybridSearch {
    */
   private reciprocalRankFusion(
     vectorResults: SearchResult[],
-    keywordResults: { id: string; score: number; metadata?: Record<string, any> }[],
+    keywordResults: { id: string; score: number; metadata?: Record<string, unknown> }[],
     vectorWeight: number,
     keywordWeight: number,
     k: number
@@ -687,7 +687,7 @@ export class HybridSearch {
       keywordScore?: number;
       vectorRank?: number;
       keywordRank?: number;
-      metadata?: Record<string, any>;
+      metadata?: Record<string, unknown>;
     }>();
 
     // Process vector results
@@ -766,7 +766,7 @@ export class HybridSearch {
    */
   private linearFusion(
     vectorResults: SearchResult[],
-    keywordResults: { id: string; score: number; metadata?: Record<string, any> }[],
+    keywordResults: { id: string; score: number; metadata?: Record<string, unknown> }[],
     vectorWeight: number,
     keywordWeight: number
   ): HybridSearchResult[] {
@@ -777,7 +777,7 @@ export class HybridSearch {
 
     const normalizedKeywordScores = new Map<string, {
       score: number;
-      metadata?: Record<string, any>;
+      metadata?: Record<string, unknown>;
     }>();
 
     for (const result of keywordResults) {
@@ -790,7 +790,7 @@ export class HybridSearch {
     // Create vector score map
     const vectorScores = new Map<string, {
       score: number;
-      metadata?: Record<string, any>;
+      metadata?: Record<string, unknown>;
     }>();
 
     for (const result of vectorResults) {
@@ -845,7 +845,7 @@ export class HybridSearch {
    */
   private maxFusion(
     vectorResults: SearchResult[],
-    keywordResults: { id: string; score: number; metadata?: Record<string, any> }[]
+    keywordResults: { id: string; score: number; metadata?: Record<string, unknown> }[]
   ): HybridSearchResult[] {
     // Normalize keyword scores to 0-1
     const maxKeywordScore = keywordResults.length > 0
@@ -856,7 +856,7 @@ export class HybridSearch {
       maxScore: number;
       vectorScore?: number;
       keywordScore?: number;
-      metadata?: Record<string, any>;
+      metadata?: Record<string, unknown>;
     }>();
 
     // Process vector results
@@ -938,7 +938,7 @@ export class HybridSearch {
    * Normalize keyword-only results to HybridSearchResult format
    */
   private normalizeKeywordResults(
-    results: { id: string; score: number; metadata?: Record<string, any> }[],
+    results: { id: string; score: number; metadata?: Record<string, unknown> }[],
     limit: number,
     threshold?: number
   ): HybridSearchResult[] {
@@ -966,7 +966,7 @@ export class HybridSearch {
    * Add a document to the keyword index
    * (Convenience method - delegates to KeywordIndex)
    */
-  addDocument(id: string, text: string, metadata?: Record<string, any>): void {
+  addDocument(id: string, text: string, metadata?: Record<string, unknown>): void {
     this.keywordIndex.add(id, text, metadata);
   }
 

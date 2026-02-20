@@ -4,11 +4,10 @@
  * Tests HNSW index building, searching, persistence, and management
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Database from 'better-sqlite3';
-import { HNSWIndex, HNSWConfig, HNSWStats } from '../../../src/controllers/HNSWIndex.js';
+import { HNSWIndex, HNSWConfig } from '../../../src/controllers/HNSWIndex.js';
 import * as fs from 'fs';
-import * as path from 'path';
 
 const TEST_DB_PATH = './tests/fixtures/test-hnsw-index.db';
 const TEST_INDEX_PATH = './tests/fixtures/test-hnsw.index';

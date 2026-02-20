@@ -206,8 +206,8 @@ async function scenarioWizard(): Promise<void> {
     console.log(`  Avg Latency: ${report.summary.avgLatencyUs.toFixed(2)}μs`);
     console.log(`  Avg Recall@10: ${(report.summary.avgRecall * 100).toFixed(1)}%`);
     console.log('');
-  } catch (error: any) {
-    console.error(chalk.red(`\n❌ Error: ${error.message}\n`));
+  } catch (error: unknown) {
+    console.error(chalk.red(`\n❌ Error: ${(error as Error).message}\n`));
     throw error;
   }
 }
@@ -372,8 +372,8 @@ async function customWizard(): Promise<void> {
     const savedPath = await generator.saveReport(report, outputPath, additionalConfig.format);
 
     console.log(chalk.green(`\n✅ Report saved to: ${savedPath}\n`));
-  } catch (error: any) {
-    console.error(chalk.red(`\n❌ Error: ${error.message}\n`));
+  } catch (error: unknown) {
+    console.error(chalk.red(`\n❌ Error: ${(error as Error).message}\n`));
     throw error;
   }
 }

@@ -53,7 +53,7 @@ export interface TrainingSample {
   weight?: number;
 
   /** Additional context for learning */
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
 }
 
 /**
@@ -194,17 +194,17 @@ export interface LearningBackend {
 /**
  * Type guard to check if an object implements LearningBackend
  */
-export function isLearningBackend(obj: any): obj is LearningBackend {
+export function isLearningBackend(obj: unknown): obj is LearningBackend {
+  if (typeof obj !== 'object' || obj === null) return false;
+  const o = obj as Record<string, unknown>;
   return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    typeof obj.enhance === 'function' &&
-    typeof obj.addSample === 'function' &&
-    typeof obj.train === 'function' &&
-    typeof obj.clearSamples === 'function' &&
-    typeof obj.saveModel === 'function' &&
-    typeof obj.loadModel === 'function' &&
-    typeof obj.getStats === 'function' &&
-    typeof obj.reset === 'function'
+    typeof o.enhance === 'function' &&
+    typeof o.addSample === 'function' &&
+    typeof o.train === 'function' &&
+    typeof o.clearSamples === 'function' &&
+    typeof o.saveModel === 'function' &&
+    typeof o.loadModel === 'function' &&
+    typeof o.getStats === 'function' &&
+    typeof o.reset === 'function'
   );
 }

@@ -12,8 +12,8 @@ import * as path from 'path';
 export default {
   description: 'Skill library evolution with composition and refinement',
 
-  async run(config: any) {
-    const { verbosity = 2 } = config;
+  async run(config: Record<string, unknown>) {
+    const verbosity = (config.verbosity ?? 2) as number;
 
     if (verbosity >= 2) {
       console.log('   🛠️  Initializing Skill Evolution Simulation');
@@ -33,10 +33,10 @@ export default {
     );
 
     const skills = new SkillLibrary(
-      db.getGraphDatabase() as any,
+      db.getGraphDatabase(),
       embedder,
       undefined,  // vectorBackend
-      db.getGraphDatabase() as any  // graphBackend
+      db.getGraphDatabase()  // graphBackend
     );
 
     // Simulate skill creation and evolution

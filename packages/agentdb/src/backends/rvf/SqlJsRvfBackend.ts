@@ -77,9 +77,9 @@ export class SqlJsRvfBackend implements VectorBackendAsync {
 
     this.dim = dimension;
     this.metricType = config.metric ?? 'cosine';
-    this.storagePath = (config as any).storagePath ?? ':memory:';
+    this.storagePath = (config as unknown as Record<string, unknown>).storagePath as string ?? ':memory:';
     this.batchThreshold = Math.min(
-      Math.max(1, (config as any).batchThreshold ?? DEFAULT_BATCH_THRESHOLD),
+      Math.max(1, (config as unknown as Record<string, unknown>).batchThreshold as number ?? DEFAULT_BATCH_THRESHOLD),
       MAX_BATCH_SIZE,
     );
   }
@@ -210,6 +210,7 @@ export class SqlJsRvfBackend implements VectorBackendAsync {
       // Auto-save if we have a file path
       if (this.storagePath !== ':memory:') {
         try {
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
           const fs = require('fs');
           const data: Uint8Array = this.db.export();
           fs.writeFileSync(this.storagePath, data);
@@ -301,6 +302,7 @@ export class SqlJsRvfBackend implements VectorBackendAsync {
    * Expose the raw sql.js Database instance for unified single-file mode.
    * AgentDB uses this to load relational schemas into the same database.
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getDatabase(): any {
     if (!this.initialized || !this.db) {
       throw new Error('SqlJsRvfBackend not initialized. Call initialize() first.');

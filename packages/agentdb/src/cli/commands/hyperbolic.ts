@@ -7,7 +7,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import * as fs from 'fs/promises';
-import * as path from 'path';
 
 // Operation types
 type HyperbolicOp = 'expmap' | 'logmap' | 'mobius-add' | 'distance' | 'project' | 'centroid' | 'dual-search';
@@ -76,12 +75,12 @@ export const hyperbolicCommand = new Command('hyperbolic')
         displayResult(result, options);
       }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (options.json) {
-        console.log(JSON.stringify({ error: error.message, wasmAvailable: false }, null, 2));
+        console.log(JSON.stringify({ error: (error as Error).message, wasmAvailable: false }, null, 2));
       } else {
-        console.error(chalk.red(`\n❌ Error: ${error.message}\n`));
-        if (error.message.includes('WASM') || error.message.includes('ruvector')) {
+        console.error(chalk.red(`\n❌ Error: ${(error as Error).message}\n`));
+        if ((error as Error).message.includes('WASM') || (error as Error).message.includes('ruvector')) {
           console.log(chalk.yellow('💡 Tip: Install @ruvector/attention for WASM-accelerated hyperbolic operations.'));
         }
       }
@@ -110,11 +109,11 @@ async function checkWasmAvailability(verbose: boolean): Promise<boolean> {
 /**
  * Execute hyperbolic operation
  */
-async function executeHyperbolicOp(options: HyperbolicOptions, wasmAvailable: boolean): Promise<any> {
+async function executeHyperbolicOp(options: HyperbolicOptions, wasmAvailable: boolean): Promise<Record<string, unknown>> {
   const startTime = performance.now();
   const curvature = parseFloat(String(options.curvature || '-1.0'));
 
-  let result: any;
+  let result: Record<string, unknown>;
 
   switch (options.op) {
     case 'expmap':
@@ -156,7 +155,7 @@ async function executeHyperbolicOp(options: HyperbolicOptions, wasmAvailable: bo
 /**
  * Exponential map: tangent vector -> manifold point
  */
-async function expMap(options: HyperbolicOptions, curvature: number): Promise<any> {
+async function expMap(options: HyperbolicOptions, curvature: number): Promise<Record<string, unknown>> {
   const base = parseVector(options.base || options.point, 'base/point');
   const tangent = parseVector(options.tangent, 'tangent');
 
@@ -192,7 +191,7 @@ async function expMap(options: HyperbolicOptions, curvature: number): Promise<an
 /**
  * Logarithmic map: manifold point -> tangent vector
  */
-async function logMap(options: HyperbolicOptions, curvature: number): Promise<any> {
+async function logMap(options: HyperbolicOptions, curvature: number): Promise<Record<string, unknown>> {
   const base = parseVector(options.base, 'base');
   const point = parseVector(options.point, 'point');
 
@@ -221,7 +220,7 @@ async function logMap(options: HyperbolicOptions, curvature: number): Promise<an
 /**
  * Möbius addition (hyperbolic addition)
  */
-async function mobiusAdd(options: HyperbolicOptions, curvature: number): Promise<any> {
+async function mobiusAdd(options: HyperbolicOptions, curvature: number): Promise<Record<string, unknown>> {
   const x = parseVector(options.pointA, 'point-a');
   const y = parseVector(options.pointB, 'point-b');
 
@@ -243,7 +242,7 @@ async function mobiusAdd(options: HyperbolicOptions, curvature: number): Promise
 /**
  * Poincaré distance
  */
-async function poincareDistance(options: HyperbolicOptions, curvature: number): Promise<any> {
+async function poincareDistance(options: HyperbolicOptions, curvature: number): Promise<Record<string, unknown>> {
   const x = parseVector(options.pointA, 'point-a');
   const y = parseVector(options.pointB, 'point-b');
 
@@ -268,7 +267,7 @@ async function poincareDistance(options: HyperbolicOptions, curvature: number): 
 /**
  * Project to Poincaré ball
  */
-async function projectToBall(options: HyperbolicOptions, curvature: number): Promise<any> {
+async function projectToBall(options: HyperbolicOptions, curvature: number): Promise<Record<string, unknown>> {
   const point = parseVector(options.point, 'point');
   const originalNorm = vectorNorm(point);
 
@@ -286,7 +285,7 @@ async function projectToBall(options: HyperbolicOptions, curvature: number): Pro
 /**
  * Hyperbolic centroid
  */
-async function hyperbolicCentroid(options: HyperbolicOptions, curvature: number): Promise<any> {
+async function hyperbolicCentroid(options: HyperbolicOptions, curvature: number): Promise<Record<string, unknown>> {
   if (!options.points) {
     throw new Error('Points file required (--points <file>)');
   }
@@ -343,7 +342,7 @@ async function hyperbolicCentroid(options: HyperbolicOptions, curvature: number)
 /**
  * Dual-space search (hybrid Euclidean + Hyperbolic)
  */
-async function dualSpaceSearch(options: HyperbolicOptions, curvature: number): Promise<any> {
+async function dualSpaceSearch(options: HyperbolicOptions, curvature: number): Promise<Record<string, unknown>> {
   if (!options.points) {
     throw new Error('Points file required (--points <file>)');
   }
@@ -447,7 +446,7 @@ function poincareDistanceValue(x: number[], y: number[], curvature: number): num
   return (2 / sqrtK) * Math.atanh(sqrtK * Math.sqrt(numerator / denominator));
 }
 
-function projectToPoincareBall(point: number[], curvature: number): number[] {
+function projectToPoincareBall(point: number[], _curvature: number): number[] {
   const norm = vectorNorm(point);
   const maxNorm = 0.9999;
 
@@ -459,13 +458,13 @@ function projectToPoincareBall(point: number[], curvature: number): number[] {
   return point;
 }
 
-function displayResult(result: any, options: HyperbolicOptions): void {
+function displayResult(result: Record<string, unknown>, options: HyperbolicOptions): void {
   console.log(chalk.bold('\n📐 Hyperbolic Operation Results:\n'));
 
   console.log(`  Operation: ${result.operation}`);
   console.log(`  WASM Accelerated: ${result.wasmAccelerated ? chalk.green('Yes') : chalk.yellow('No')}`);
   console.log(`  Curvature: ${result.curvature}`);
-  console.log(`  Compute Time: ${result.computeTimeMs.toFixed(2)}ms`);
+  console.log(`  Compute Time: ${(result.computeTimeMs as number).toFixed(2)}ms`);
 
   if (result.result && Array.isArray(result.result)) {
     console.log(`\n  Result Vector: [${result.result.slice(0, 5).map((v: number) => v.toFixed(4)).join(', ')}${result.result.length > 5 ? '...' : ''}]`);
@@ -474,16 +473,16 @@ function displayResult(result: any, options: HyperbolicOptions): void {
   }
 
   if (result.distance !== undefined) {
-    console.log(`\n  Poincaré Distance: ${result.distance.toFixed(4)}`);
+    console.log(`\n  Poincaré Distance: ${(result.distance as number).toFixed(4)}`);
     if (result.euclideanDistance !== undefined) {
-      console.log(`  Euclidean Distance: ${result.euclideanDistance.toFixed(4)}`);
-      console.log(`  Hyperbolic/Euclidean Ratio: ${result.ratio.toFixed(2)}x`);
+      console.log(`  Euclidean Distance: ${(result.euclideanDistance as number).toFixed(4)}`);
+      console.log(`  Hyperbolic/Euclidean Ratio: ${(result.ratio as number).toFixed(2)}x`);
     }
   }
 
   if (result.results && Array.isArray(result.results)) {
     console.log(chalk.bold('\n  Top Results:\n'));
-    result.results.slice(0, 5).forEach((r: any, i: number) => {
+    (result.results as Array<{ id: number; hybridScore: number; euclideanSimilarity: number; hyperbolicSimilarity: number }>).slice(0, 5).forEach((r, i: number) => {
       console.log(`    ${i + 1}. ID ${r.id}: hybrid=${r.hybridScore.toFixed(4)}, ` +
         `euclidean=${r.euclideanSimilarity.toFixed(4)}, hyperbolic=${r.hyperbolicSimilarity.toFixed(4)}`);
     });

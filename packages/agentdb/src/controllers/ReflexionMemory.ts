@@ -32,7 +32,7 @@ export interface Episode {
   latencyMs?: number;
   tokensUsed?: number;
   tags?: string[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface EpisodeWithEmbedding extends Episode {
@@ -85,7 +85,7 @@ export class ReflexionMemory {
     // Use GraphDatabaseAdapter if available (AgentDB v2)
     if (this.graphBackend && 'storeEpisode' in this.graphBackend) {
       // GraphDatabaseAdapter has specialized storeEpisode method
-      const graphAdapter = this.graphBackend as any as GraphDatabaseAdapter;
+      const graphAdapter = this.graphBackend as unknown as GraphDatabaseAdapter;
 
       // Generate embedding for the task
       const taskEmbedding = await this.embedder.embed(episode.task);
@@ -292,13 +292,14 @@ export class ReflexionMemory {
     query: ReflexionQuery
   ): Promise<EpisodeWithEmbedding[]> {
     const { k = 5, minReward, onlyFailures, onlySuccesses, timeWindowDays } = query;
-    const graphAdapter = this.graphBackend as any as GraphDatabaseAdapter;
+    const graphAdapter = this.graphBackend as unknown as GraphDatabaseAdapter;
 
     // Search using vector similarity
     const results = await graphAdapter.searchSimilarEpisodes(queryEmbedding, k * 3);
 
-    // Apply filters
-    const filtered = this.applyEpisodeFilters(results, {
+    // Apply filters (cast from graph results to typed format)
+    const typedResults = results as Array<{ reward: number; success: boolean; createdAt: number; [key: string]: unknown }>;
+    const filtered = this.applyEpisodeFilters(typedResults, {
       minReward,
       onlyFailures,
       onlySuccesses,
@@ -306,7 +307,7 @@ export class ReflexionMemory {
     });
 
     // Convert to EpisodeWithEmbedding format
-    return filtered.slice(0, k).map((ep: any) => this.convertGraphEpisode(ep));
+    return filtered.slice(0, k).map((ep) => this.convertGraphEpisode(ep as Parameters<typeof this.convertGraphEpisode>[0]));
   }
 
   /**
@@ -318,7 +319,7 @@ export class ReflexionMemory {
     const result = await this.graphBackend!.execute(cypherQuery);
 
     // Convert to EpisodeWithEmbedding format
-    const episodes: EpisodeWithEmbedding[] = result.rows.map((row: any) =>
+    const episodes: EpisodeWithEmbedding[] = (result.rows as Array<{ e: GraphNode }>).map((row) =>
       this.convertCypherEpisode(row.e)
     );
 
@@ -406,14 +407,14 @@ export class ReflexionMemory {
    * Apply episode filters to search results
    */
   private applyEpisodeFilters(
-    episodes: any[],
+    episodes: Array<{ reward: number; success: boolean; createdAt: number; [key: string]: unknown }>,
     filters: {
       minReward?: number;
       onlyFailures?: boolean;
       onlySuccesses?: boolean;
       timeWindowDays?: number;
     }
-  ): any[] {
+  ): Array<{ reward: number; success: boolean; createdAt: number; [key: string]: unknown }> {
     return episodes.filter((ep) => {
       if (filters.minReward !== undefined && ep.reward < filters.minReward) return false;
       if (filters.onlyFailures && ep.success) return false;
@@ -472,10 +473,10 @@ export class ReflexionMemory {
   /**
    * Build SQL WHERE clause and parameters for filters
    */
-  private buildSQLFilters(query: ReflexionQuery): { whereClause: string; params: any[] } {
+  private buildSQLFilters(query: ReflexionQuery): { whereClause: string; params: Array<string | number> } {
     const { minReward, onlyFailures, onlySuccesses, timeWindowDays } = query;
     const filters: string[] = [];
-    const params: any[] = [];
+    const params: Array<string | number> = [];
 
     if (minReward !== undefined) {
       filters.push('e.reward >= ?');
@@ -514,7 +515,7 @@ export class ReflexionMemory {
   /**
    * Convert GraphDatabaseAdapter episode to EpisodeWithEmbedding
    */
-  private convertGraphEpisode(ep: any): EpisodeWithEmbedding {
+  private convertGraphEpisode(ep: { id: string; sessionId: string; task: string; input?: string; output?: string; critique?: string; reward: number; success: boolean; latencyMs?: number; tokensUsed?: number; createdAt: number }): EpisodeWithEmbedding {
     return {
       id: parseInt(ep.id.split('-').pop() || '0', 36),
       sessionId: ep.sessionId,
@@ -533,27 +534,28 @@ export class ReflexionMemory {
   /**
    * Convert Cypher query result to EpisodeWithEmbedding
    */
-  private convertCypherEpisode(node: any): EpisodeWithEmbedding {
+  private convertCypherEpisode(node: GraphNode): EpisodeWithEmbedding {
+    const props = node.properties as Record<string, string | number | boolean | undefined>;
     return {
       id: parseInt(node.id.split('-').pop() || '0', 36),
-      sessionId: node.properties.sessionId,
-      task: node.properties.task,
-      input: node.properties.input,
-      output: node.properties.output,
-      critique: node.properties.critique,
+      sessionId: props.sessionId as string,
+      task: props.task as string,
+      input: props.input as string | undefined,
+      output: props.output as string | undefined,
+      critique: props.critique as string | undefined,
       reward:
-        typeof node.properties.reward === 'string'
-          ? parseFloat(node.properties.reward)
-          : node.properties.reward,
+        typeof props.reward === 'string'
+          ? parseFloat(props.reward)
+          : (props.reward as number),
       success:
-        typeof node.properties.success === 'string'
-          ? node.properties.success === 'true'
-          : node.properties.success,
-      latencyMs: node.properties.latencyMs,
-      tokensUsed: node.properties.tokensUsed,
-      tags: node.properties.tags ? JSON.parse(node.properties.tags) : [],
-      metadata: node.properties.metadata ? JSON.parse(node.properties.metadata) : {},
-      ts: Math.floor(node.properties.createdAt / 1000),
+        typeof props.success === 'string'
+          ? props.success === 'true'
+          : (props.success as boolean),
+      latencyMs: props.latencyMs as number | undefined,
+      tokensUsed: props.tokensUsed as number | undefined,
+      tags: props.tags ? JSON.parse(props.tags as string) : [],
+      metadata: props.metadata ? JSON.parse(props.metadata as string) : {},
+      ts: Math.floor((props.createdAt as number) / 1000),
     };
   }
 
@@ -651,9 +653,9 @@ export class ReflexionMemory {
       WHERE task = ? ${windowFilter}
     `);
 
-    const trend = trendStmt.get(task) as any;
+    const trend = trendStmt.get(task) as { recent_reward: number | null; older_reward: number | null } | undefined;
     const improvementTrend =
-      trend.recent_reward && trend.older_reward
+      trend?.recent_reward && trend?.older_reward
         ? (trend.recent_reward - trend.older_reward) / trend.older_reward
         : 0;
 
@@ -908,7 +910,7 @@ export class ReflexionMemory {
         startTime: episode.ts || Date.now(),
       });
     } else {
-      sessionNodeId = sessionNodes.rows[0].s.id;
+      sessionNodeId = (sessionNodes.rows[0] as { s: { id: string } }).s.id;
     }
 
     await this.graphBackend.createRelationship(nodeId, sessionNodeId, 'BELONGS_TO_SESSION', {
@@ -926,7 +928,7 @@ export class ReflexionMemory {
         { sessionId: episode.sessionId, timestamp: episode.ts || Date.now() }
       );
 
-      for (const prevFailure of previousFailures.rows) {
+      for (const prevFailure of previousFailures.rows as Array<{ e: { id: string } }>) {
         await this.graphBackend.createRelationship(nodeId, prevFailure.e.id, 'LEARNED_FROM', {
           critique: episode.critique,
           improvementAttempt: true,
@@ -971,7 +973,7 @@ export class ReflexionMemory {
         WHERE ee.episode_id IN (${placeholders})
       `
         )
-        .all(...episodeIds) as any[];
+        .all(...episodeIds) as Array<{ embedding: Buffer; reward: number }>;
 
       for (const ep of episodes) {
         const embedding = this.deserializeEmbedding(ep.embedding);
@@ -1017,11 +1019,11 @@ export class ReflexionMemory {
       return { similar: [], session: '', learnedFrom: [] };
     }
 
-    const row = result.rows[0];
+    const row = result.rows[0] as { similar?: number[]; session?: string; learnedFrom?: number[] };
     return {
-      similar: (row.similar || []).filter((id: any) => id != null),
-      session: row.session || '',
-      learnedFrom: (row.learnedFrom || []).filter((id: any) => id != null),
+      similar: (row.similar || []).filter((id) => id != null),
+      session: (row.session as string) || '',
+      learnedFrom: (row.learnedFrom || []).filter((id) => id != null),
     };
   }
 
@@ -1094,10 +1096,10 @@ export class ReflexionMemory {
    * Warm cache with common queries
    */
   async warmCache(sessionId?: string): Promise<void> {
-    await this.queryCache.warm(async (cache) => {
+    await this.queryCache.warm(async (_cache) => {
       // Warm cache with recent sessions if sessionId provided
       if (sessionId) {
-        const recent = await this.getRecentEpisodes(sessionId, 10);
+        await this.getRecentEpisodes(sessionId, 10);
         // Episodes are already loaded, cache will be populated on next access
       }
     });

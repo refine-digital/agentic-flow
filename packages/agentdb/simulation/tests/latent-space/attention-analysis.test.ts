@@ -16,6 +16,64 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { attentionAnalysisScenario } from '../../scenarios/latent-space/attention-analysis';
 import type { SimulationReport } from '../../types';
 
+// Type helpers for simulation report fields
+interface AttentionConfig {
+  heads: number;
+  layers: number;
+  attentionType: string;
+}
+
+interface PerformanceMetrics {
+  forwardPassMs: number;
+  backwardPassMs: number;
+  memoryMB: number;
+}
+
+interface QueryEnhancement {
+  recallImprovement: number;
+  ndcgImprovement: number;
+  cosineSimilarityGain: number;
+}
+
+interface LearningMetrics {
+  convergenceEpochs: number;
+  sampleEfficiency: number;
+  transferability: number;
+}
+
+interface WeightDistribution {
+  entropy: number;
+  concentration: number;
+  sparsity: number;
+}
+
+interface BestConfig {
+  attentionConfig: AttentionConfig;
+  metrics: {
+    performance: PerformanceMetrics;
+    queryEnhancement: QueryEnhancement;
+    learning: LearningMetrics;
+    weightDistribution: WeightDistribution;
+  };
+}
+
+interface DetailedResult {
+  metrics: {
+    performance: PerformanceMetrics;
+    weightDistribution: WeightDistribution;
+  };
+}
+
+interface IndustryComparison {
+  pinterestPinSage: unknown;
+  googleMaps: unknown;
+  comparison: string;
+}
+
+interface ScalabilityEntry {
+  [key: string]: unknown;
+}
+
 describe('AttentionAnalysis', () => {
   let report: SimulationReport;
 
@@ -25,42 +83,42 @@ describe('AttentionAnalysis', () => {
 
   describe('Optimal Configuration', () => {
     it('should use 8-head attention configuration', () => {
-      const bestConfig = report.summary.bestConfiguration;
+      const bestConfig = report.summary.bestConfiguration as BestConfig;
       expect(bestConfig.attentionConfig.heads).toBe(8);
     });
 
     it('should have 2-3 GNN layers', () => {
-      const bestConfig = report.summary.bestConfiguration;
+      const bestConfig = report.summary.bestConfiguration as BestConfig;
       expect(bestConfig.attentionConfig.layers).toBeGreaterThanOrEqual(2);
       expect(bestConfig.attentionConfig.layers).toBeLessThanOrEqual(3);
     });
 
     it('should use GAT attention type', () => {
-      const bestConfig = report.summary.bestConfiguration;
+      const bestConfig = report.summary.bestConfiguration as BestConfig;
       expect(bestConfig.attentionConfig.attentionType).toBe('gat');
     });
   });
 
   describe('Performance Metrics', () => {
     it('should achieve forward pass <5ms', () => {
-      const bestResult = report.summary.bestConfiguration;
+      const bestResult = report.summary.bestConfiguration as BestConfig;
       expect(bestResult.metrics.performance.forwardPassMs).toBeLessThan(5.0);
     });
 
     it('should target ~3.8ms forward pass latency', () => {
-      const bestResult = report.summary.bestConfiguration;
+      const bestResult = report.summary.bestConfiguration as BestConfig;
       expect(bestResult.metrics.performance.forwardPassMs).toBeCloseTo(3.8, 1);
     });
 
     it('should have reasonable backward pass time', () => {
-      const results = report.detailedResults as any[];
+      const results = report.detailedResults as DetailedResult[];
       const avgBackward = results.reduce((sum, r) =>
         sum + r.metrics.performance.backwardPassMs, 0) / results.length;
       expect(avgBackward).toBeLessThan(15); // Should be <15ms
     });
 
     it('should track memory usage', () => {
-      const bestResult = report.summary.bestConfiguration;
+      const bestResult = report.summary.bestConfiguration as BestConfig;
       expect(bestResult.metrics.performance.memoryMB).toBeGreaterThan(0);
       expect(bestResult.metrics.performance.memoryMB).toBeLessThan(1000); // Reasonable limit
     });
@@ -68,68 +126,68 @@ describe('AttentionAnalysis', () => {
 
   describe('Query Enhancement', () => {
     it('should improve recall by >10%', () => {
-      const bestResult = report.summary.bestConfiguration;
+      const bestResult = report.summary.bestConfiguration as BestConfig;
       expect(bestResult.metrics.queryEnhancement.recallImprovement).toBeGreaterThan(0.10);
     });
 
     it('should target +12.4% recall improvement', () => {
-      const bestResult = report.summary.bestConfiguration;
+      const bestResult = report.summary.bestConfiguration as BestConfig;
       expect(bestResult.metrics.queryEnhancement.recallImprovement).toBeCloseTo(0.124, 0.03);
     });
 
     it('should improve NDCG scores', () => {
-      const bestResult = report.summary.bestConfiguration;
+      const bestResult = report.summary.bestConfiguration as BestConfig;
       expect(bestResult.metrics.queryEnhancement.ndcgImprovement).toBeGreaterThan(0);
     });
 
     it('should increase cosine similarity', () => {
-      const bestResult = report.summary.bestConfiguration;
+      const bestResult = report.summary.bestConfiguration as BestConfig;
       expect(bestResult.metrics.queryEnhancement.cosineSimilarityGain).toBeGreaterThan(0.5);
     });
   });
 
   describe('Learning Convergence', () => {
     it('should converge within 50 epochs', () => {
-      const bestResult = report.summary.bestConfiguration;
+      const bestResult = report.summary.bestConfiguration as BestConfig;
       expect(bestResult.metrics.learning.convergenceEpochs).toBeLessThan(50);
     });
 
     it('should target ~35 epochs to 95% performance', () => {
-      const bestResult = report.summary.bestConfiguration;
+      const bestResult = report.summary.bestConfiguration as BestConfig;
       expect(bestResult.metrics.learning.convergenceEpochs).toBeCloseTo(35, 15);
     });
 
     it('should have high sample efficiency', () => {
-      const bestResult = report.summary.bestConfiguration;
+      const bestResult = report.summary.bestConfiguration as BestConfig;
       expect(bestResult.metrics.learning.sampleEfficiency).toBeGreaterThan(0.85);
     });
 
     it('should achieve >90% transferability', () => {
-      const bestResult = report.summary.bestConfiguration;
+      const bestResult = report.summary.bestConfiguration as BestConfig;
       expect(bestResult.metrics.learning.transferability).toBeGreaterThan(0.90);
     });
 
     it('should target 91% transferability on unseen data', () => {
-      const bestResult = report.summary.bestConfiguration;
+      const bestResult = report.summary.bestConfiguration as BestConfig;
       expect(bestResult.metrics.learning.transferability).toBeCloseTo(0.91, 0.05);
     });
   });
 
   describe('Attention Weight Distribution', () => {
     it('should calculate entropy correctly', () => {
-      const results = report.detailedResults as any[];
+      const results = report.detailedResults as DetailedResult[];
       const hasEntropy = results.some(r => r.metrics.weightDistribution.entropy > 0);
       expect(hasEntropy).toBe(true);
     });
 
     it('should measure concentration (Gini coefficient)', () => {
-      const results = report.detailedResults as any[];
+      const results = report.detailedResults as DetailedResult[];
       const ginis = results.map(r => r.metrics.weightDistribution.concentration);
       expect(ginis.every(g => g >= 0 && g <= 1)).toBe(true);
     });
 
     it('should track sparsity percentage', () => {
-      const results = report.detailedResults as any[];
+      const results = report.detailedResults as DetailedResult[];
       const sparsities = results.map(r => r.metrics.weightDistribution.sparsity);
       expect(sparsities.every(s => s >= 0 && s <= 1)).toBe(true);
     });
@@ -137,19 +195,19 @@ describe('AttentionAnalysis', () => {
 
   describe('Scalability Analysis', () => {
     it('should test multiple vector counts', () => {
-      const vectorCounts = attentionAnalysisScenario.config.vectorCounts;
+      const vectorCounts = attentionAnalysisScenario.config.vectorCounts as number[];
       expect(vectorCounts.length).toBeGreaterThan(1);
       expect(vectorCounts).toContain(100000);
     });
 
     it('should test multiple dimensions', () => {
-      const dimensions = attentionAnalysisScenario.config.dimensions;
+      const dimensions = attentionAnalysisScenario.config.dimensions as number[];
       expect(dimensions).toContain(384);
       expect(dimensions).toContain(768);
     });
 
     it('should scale performance metrics', () => {
-      const scalability = report.metrics.scalabilityAnalysis;
+      const scalability = report.metrics.scalabilityAnalysis as ScalabilityEntry[];
       expect(Array.isArray(scalability)).toBe(true);
       expect(scalability.length).toBeGreaterThan(0);
     });
@@ -157,17 +215,17 @@ describe('AttentionAnalysis', () => {
 
   describe('Industry Comparison', () => {
     it('should compare with Pinterest PinSage', () => {
-      const comparison = report.summary.industryComparison;
+      const comparison = report.summary.industryComparison as IndustryComparison;
       expect(comparison).toHaveProperty('pinterestPinSage');
     });
 
     it('should compare with Google Maps', () => {
-      const comparison = report.summary.industryComparison;
+      const comparison = report.summary.industryComparison as IndustryComparison;
       expect(comparison).toHaveProperty('googleMaps');
     });
 
     it('should provide competitive assessment', () => {
-      const comparison = report.summary.industryComparison;
+      const comparison = report.summary.industryComparison as IndustryComparison;
       expect(comparison).toHaveProperty('comparison');
       expect(typeof comparison.comparison).toBe('string');
     });

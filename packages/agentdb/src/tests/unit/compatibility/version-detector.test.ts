@@ -7,7 +7,7 @@
  * - Test public interface, not implementation
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { VersionDetector } from '../../../compatibility/VersionDetector';
 import type { V1Config, V2Config, CompatibilityConfig } from '../../../compatibility/types';
 

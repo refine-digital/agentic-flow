@@ -11,9 +11,9 @@
  */
 
 export class PerformanceOptimizer {
-  private batchQueue: Array<() => Promise<any>> = [];
+  private batchQueue: Array<() => Promise<unknown>> = [];
   private batchSize: number = 100;
-  private cache: Map<string, { data: any; timestamp: number; ttl: number }> = new Map();
+  private cache: Map<string, { data: unknown; timestamp: number; ttl: number }> = new Map();
   private metrics: {
     batchOperations: number;
     cacheHits: number;
@@ -35,18 +35,18 @@ export class PerformanceOptimizer {
   /**
    * Add operation to batch queue
    */
-  queueOperation(operation: () => Promise<any>): void {
+  queueOperation(operation: () => Promise<unknown>): void {
     this.batchQueue.push(operation);
   }
 
   /**
    * Execute all queued operations in parallel batches
    */
-  async executeBatch(): Promise<any[]> {
+  async executeBatch(): Promise<unknown[]> {
     if (this.batchQueue.length === 0) return [];
 
     const startTime = performance.now();
-    const results: any[] = [];
+    const results: unknown[] = [];
 
     // Process in batches to avoid overwhelming the system
     for (let i = 0; i < this.batchQueue.length; i += this.batchSize) {
@@ -67,7 +67,7 @@ export class PerformanceOptimizer {
   /**
    * Cache data with TTL
    */
-  setCache(key: string, data: any, ttl: number = 60000): void {
+  setCache(key: string, data: unknown, ttl: number = 60000): void {
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
@@ -78,7 +78,7 @@ export class PerformanceOptimizer {
   /**
    * Get cached data
    */
-  getCache(key: string): any | null {
+  getCache(key: string): unknown | null {
     const cached = this.cache.get(key);
 
     if (!cached) {
@@ -231,20 +231,20 @@ export class AgentPool<T> {
  * Query optimizer for database operations
  */
 export class QueryOptimizer {
-  private queryCache: Map<string, any> = new Map();
+  private queryCache: Map<string, unknown> = new Map();
 
   /**
    * Optimize Cypher query with caching
    */
   async executeOptimized(
-    queryFn: () => Promise<any>,
+    queryFn: () => Promise<unknown>,
     cacheKey?: string,
     ttl: number = 5000
-  ): Promise<any> {
+  ): Promise<unknown> {
     if (cacheKey) {
       const cached = this.queryCache.get(cacheKey);
-      if (cached && Date.now() - cached.timestamp < ttl) {
-        return cached.data;
+      if (cached && Date.now() - (cached as { timestamp: number; data: unknown }).timestamp < ttl) {
+        return (cached as { timestamp: number; data: unknown }).data;
       }
     }
 

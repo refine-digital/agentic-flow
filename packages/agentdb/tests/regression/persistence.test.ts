@@ -15,7 +15,7 @@ import { createBackend } from '../../src/backends/factory.js';
 import type { VectorBackend } from '../../src/backends/VectorBackend.js';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as crypto from 'crypto';
+// crypto import removed - not needed in tests
 
 const TEST_DB_PATH = './tests/fixtures/test-persistence.db';
 const TEMP_DIR = `./tests/fixtures/temp-${Date.now()}`;
@@ -327,7 +327,7 @@ describe('Persistence and Data Migration', () => {
 
     it('should persist skill metadata correctly', async () => {
       // First session: create skill with complex metadata
-      let skillLibrary = new SkillLibrary(db, embedder, vectorBackend);
+      const skillLibrary = new SkillLibrary(db, embedder, vectorBackend);
 
       const metadata = {
         version: '2.1.0',
@@ -356,7 +356,7 @@ describe('Persistence and Data Migration', () => {
       db = new Database(TEST_DB_PATH);
       db.pragma('journal_mode = WAL');
 
-      const row = db.prepare('SELECT * FROM skills WHERE id = ?').get(skillId) as any;
+      const row = db.prepare('SELECT * FROM skills WHERE id = ?').get(skillId) as { metadata: string };
       const retrievedMetadata = JSON.parse(row.metadata);
 
       expect(retrievedMetadata).toEqual(metadata);
@@ -472,7 +472,7 @@ describe('Persistence and Data Migration', () => {
         SELECT name FROM sqlite_master
         WHERE type='table'
         ORDER BY name
-      `).all() as any[];
+      `).all() as Array<{ name: string }>;
 
       const tableNames = tables.map(t => t.name);
 
@@ -506,7 +506,7 @@ describe('Persistence and Data Migration', () => {
       const indexes = db.prepare(`
         SELECT name FROM sqlite_master
         WHERE type='index'
-      `).all() as any[];
+      `).all() as Array<{ name: string }>;
 
       const indexNames = indexes.map(i => i.name);
       expect(indexNames.length).toBeGreaterThan(0);
@@ -550,7 +550,7 @@ describe('Persistence and Data Migration', () => {
       // Open second connection (WAL allows this)
       const db2 = new Database(TEST_DB_PATH, { readonly: true });
 
-      const count = db2.prepare('SELECT COUNT(*) as count FROM reasoning_patterns').get() as any;
+      const count = db2.prepare('SELECT COUNT(*) as count FROM reasoning_patterns').get() as { count: number };
       expect(count.count).toBeGreaterThan(0);
 
       db2.close();

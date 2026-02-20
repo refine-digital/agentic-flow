@@ -50,10 +50,10 @@ export interface SimilarCase {
 // Example: Similar case retrieval for diagnosis
 export async function findSimilarCases(
   patientScan: Float32Array,       // MRI/CT scan embeddings
-  medicalDatabase: any,            // HNSWGraph type
-  applyAttention: (data: Float32Array, config: any) => Promise<Float32Array>,
-  runEnsemble: (data: Float32Array, size: number) => Promise<any[]>,
-  calculateEnsembleConfidence: (candidate: any, ensemble: any[]) => number,
+  medicalDatabase: unknown,            // HNSWGraph type
+  applyAttention: (data: Float32Array, config: unknown) => Promise<Float32Array>,
+  runEnsemble: (data: Float32Array, size: number) => Promise<unknown[]>,
+  calculateEnsembleConfidence: (candidate: unknown, ensemble: unknown[]) => number,
   minConfidence: number = 0.95
 ): Promise<SimilarCase[]> {
   const config = MEDICAL_ATTENTION_CONFIG;
@@ -62,21 +62,24 @@ export async function findSimilarCases(
   const enhanced = await applyAttention(patientScan, config);
 
   // High-recall search (k=100 for comprehensive retrieval)
-  const candidates = await medicalDatabase.search(enhanced, 100);
+  const candidates = await (medicalDatabase as { search: (query: Float32Array, k: number) => Promise<unknown[]> }).search(enhanced, 100);
 
   // Ensemble voting for robustness
   const ensembleResults = await runEnsemble(patientScan, config.ensembleSize);
 
   // Filter by confidence threshold
   return candidates
-    .filter((c: any) => c.score >= minConfidence)
-    .map((c: any) => ({
-      caseId: c.id,
-      diagnosis: c.metadata.diagnosis,
-      similarity: c.score,
-      radiologistNotes: c.metadata.notes,
-      confidence: calculateEnsembleConfidence(c, ensembleResults)
-    }));
+    .filter((c: unknown) => (c as { score: number }).score >= minConfidence)
+    .map((c: unknown) => {
+      const cas = c as { id: string; score: number; metadata: { diagnosis: string; notes: string } };
+      return {
+        caseId: cas.id,
+        diagnosis: cas.metadata.diagnosis,
+        similarity: cas.score,
+        radiologistNotes: cas.metadata.notes,
+        confidence: calculateEnsembleConfidence(c, ensembleResults)
+      };
+    });
 }
 
 // Performance targets for medical imaging
@@ -163,7 +166,7 @@ export interface MedicalDataQuality {
   calibrationValid: boolean;
 }
 
-export function validateMedicalData(scan: any): MedicalDataQuality {
+export function validateMedicalData(scan: unknown): MedicalDataQuality {
   return {
     dicomCompliance: checkDICOMHeaders(scan),
     resolutionAdequate: checkResolution(scan),
@@ -174,8 +177,8 @@ export function validateMedicalData(scan: any): MedicalDataQuality {
 }
 
 // Placeholder validation functions
-function checkDICOMHeaders(scan: any): boolean { return true; }
-function checkResolution(scan: any): boolean { return true; }
-function assessContrast(scan: any): number { return 0.95; }
-function detectArtifacts(scan: any): number { return 0.02; }
-function verifyCalibration(scan: any): boolean { return true; }
+function checkDICOMHeaders(_scan: unknown): boolean { return true; }
+function checkResolution(_scan: unknown): boolean { return true; }
+function assessContrast(_scan: unknown): number { return 0.95; }
+function detectArtifacts(_scan: unknown): number { return 0.02; }
+function verifyCalibration(_scan: unknown): boolean { return true; }

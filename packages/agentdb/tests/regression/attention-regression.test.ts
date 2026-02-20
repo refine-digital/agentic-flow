@@ -19,6 +19,32 @@ import { SkillLibrary } from '../../src/controllers/SkillLibrary';
 import fs from 'fs';
 import path from 'path';
 
+// Internal API interfaces for testing non-public methods
+interface AgentDBInternal extends AgentDB {
+  listControllers(): string[];
+  query(sql: string): Array<{ name: string }>;
+  beginTransaction(): Promise<void>;
+  commitTransaction(): Promise<void>;
+  rollbackTransaction(): Promise<void>;
+}
+
+interface ReflexionMemoryInternal extends ReflexionMemory {
+  storeTrajectory(trajectory: Record<string, unknown>): Promise<void>;
+  getTrajectory(sessionId: string): Promise<Record<string, unknown>>;
+}
+
+interface SkillLibraryInternal extends SkillLibrary {
+  storeSkill(skill: Record<string, unknown>): Promise<void>;
+  getSkill(name: string): Promise<Record<string, unknown>>;
+}
+
+interface MemoryRecord {
+  id: string;
+  content?: string;
+  embedding?: number[];
+  metadata?: Record<string, unknown>;
+}
+
 // MemoryController is now implemented with attention support
 describe('Attention Mechanism Regression Tests', () => {
   let db: AgentDB;
@@ -48,7 +74,7 @@ describe('Attention Mechanism Regression Tests', () => {
     });
 
     it('should initialize AgentDB without attention controllers', async () => {
-      const controllers = (db as any).listControllers();
+      const controllers = (db as unknown as AgentDBInternal).listControllers();
 
       expect(controllers).not.toContain('self-attention');
       expect(controllers).not.toContain('cross-attention');
@@ -56,7 +82,7 @@ describe('Attention Mechanism Regression Tests', () => {
     });
 
     it('should store and retrieve memories normally', async () => {
-      const memoryController = db.getController('memory') as MemoryController;
+      const memoryController = db.getController('memory') as unknown as MemoryController;
 
       const memory = {
         id: 'test-memory',
@@ -73,7 +99,7 @@ describe('Attention Mechanism Regression Tests', () => {
     });
 
     it('should perform vector search without attention', async () => {
-      const memoryController = db.getController('memory') as MemoryController;
+      const memoryController = db.getController('memory') as unknown as MemoryController;
 
       await memoryController.store({
         id: 'm1',
@@ -104,8 +130,8 @@ describe('Attention Mechanism Regression Tests', () => {
         success: true
       };
 
-      await (reflexion as any).storeTrajectory(trajectory);
-      const retrieved = await (reflexion as any).getTrajectory('session1');
+      await (reflexion as unknown as ReflexionMemoryInternal).storeTrajectory(trajectory);
+      const retrieved = await (reflexion as unknown as ReflexionMemoryInternal).getTrajectory('session1');
 
       expect(retrieved).toBeDefined();
       expect(retrieved.reward).toBe(0.8);
@@ -122,8 +148,8 @@ describe('Attention Mechanism Regression Tests', () => {
         successRate: 0.9
       };
 
-      await (skillLib as any).storeSkill(skill);
-      const retrieved = await (skillLib as any).getSkill('test-skill');
+      await (skillLib as unknown as SkillLibraryInternal).storeSkill(skill);
+      const retrieved = await (skillLib as unknown as SkillLibraryInternal).getSkill('test-skill');
 
       expect(retrieved).toBeDefined();
       expect(retrieved.name).toBe(skill.name);
@@ -131,7 +157,7 @@ describe('Attention Mechanism Regression Tests', () => {
     });
 
     it('should not impact database schema', async () => {
-      const tables = await (db as any).query('SELECT name FROM sqlite_master WHERE type="table"');
+      const tables = await (db as unknown as AgentDBInternal).query('SELECT name FROM sqlite_master WHERE type="table"');
 
       // Should not have attention-specific tables when disabled
       const tableNames = tables.map(t => t.name);
@@ -169,7 +195,7 @@ describe('Attention Mechanism Regression Tests', () => {
     });
 
     it('should initialize attention controllers when enabled', async () => {
-      const controllers = (db as any).listControllers();
+      const controllers = (db as unknown as AgentDBInternal).listControllers();
 
       expect(controllers).toContain('self-attention');
       expect(controllers).toContain('cross-attention');
@@ -177,7 +203,7 @@ describe('Attention Mechanism Regression Tests', () => {
     });
 
     it('should enhance memory retrieval with attention scores', async () => {
-      const memoryController = db.getController('memory') as MemoryController;
+      const memoryController = db.getController('memory') as unknown as MemoryController;
 
       await memoryController.store({
         id: 'enhanced-mem',
@@ -192,7 +218,7 @@ describe('Attention Mechanism Regression Tests', () => {
     });
 
     it('should still support legacy search API', async () => {
-      const memoryController = db.getController('memory') as MemoryController;
+      const memoryController = db.getController('memory') as unknown as MemoryController;
 
       await memoryController.store({
         id: 'legacy-search',
@@ -225,7 +251,7 @@ describe('Attention Mechanism Regression Tests', () => {
 
       await db.initialize();
 
-      const controllers = (db as any).listControllers();
+      const controllers = (db as unknown as AgentDBInternal).listControllers();
       expect(controllers).toContain('self-attention');
       expect(controllers).not.toContain('cross-attention');
       expect(controllers).not.toContain('multi-head-attention');
@@ -257,12 +283,12 @@ describe('Attention Mechanism Regression Tests', () => {
       expect(db).toBeInstanceOf(AgentDB);
       expect(db.initialize).toBeInstanceOf(Function);
       expect(db.getController).toBeInstanceOf(Function);
-      expect((db as any).query).toBeInstanceOf(Function);
+      expect((db as unknown as AgentDBInternal).query).toBeInstanceOf(Function);
       expect(db.close).toBeInstanceOf(Function);
     });
 
     it('should maintain stable MemoryController API', async () => {
-      const memoryController = db.getController('memory') as MemoryController;
+      const memoryController = db.getController('memory') as unknown as MemoryController;
 
       expect(memoryController.store).toBeInstanceOf(Function);
       expect(memoryController.retrieve).toBeInstanceOf(Function);
@@ -272,7 +298,7 @@ describe('Attention Mechanism Regression Tests', () => {
     });
 
     it('should not break existing method signatures', async () => {
-      const memoryController = db.getController('memory') as MemoryController;
+      const memoryController = db.getController('memory') as unknown as MemoryController;
 
       // Test that all existing parameters still work
       const memory = {
@@ -288,7 +314,7 @@ describe('Attention Mechanism Regression Tests', () => {
     });
 
     it('should maintain backward-compatible search options', async () => {
-      const memoryController = db.getController('memory') as MemoryController;
+      const memoryController = db.getController('memory') as unknown as MemoryController;
 
       await memoryController.store({
         id: 'compat-test',
@@ -344,7 +370,7 @@ describe('Attention Mechanism Regression Tests', () => {
       });
       await db.initialize();
 
-      const memoryController = db.getController('memory') as MemoryController;
+      const memoryController = db.getController('memory') as unknown as MemoryController;
 
       const start = performance.now();
 
@@ -370,7 +396,7 @@ describe('Attention Mechanism Regression Tests', () => {
       });
       await db.initialize();
 
-      const memoryController = db.getController('memory') as MemoryController;
+      const memoryController = db.getController('memory') as unknown as MemoryController;
 
       // Store 1000 items
       for (let i = 0; i < 1000; i++) {
@@ -395,7 +421,7 @@ describe('Attention Mechanism Regression Tests', () => {
       });
       await db.initialize();
 
-      const memoryController = db.getController('memory') as MemoryController;
+      const memoryController = db.getController('memory') as unknown as MemoryController;
 
       // Store test data
       for (let i = 0; i < 500; i++) {
@@ -422,7 +448,7 @@ describe('Attention Mechanism Regression Tests', () => {
       });
       await db.initialize();
 
-      const memoryController2 = db.getController('memory') as MemoryController;
+      const memoryController2 = db.getController('memory') as unknown as MemoryController;
 
       for (let i = 0; i < 500; i++) {
         await memoryController2.store({
@@ -449,7 +475,7 @@ describe('Attention Mechanism Regression Tests', () => {
       });
       await db.initialize();
 
-      const memoryController = db.getController('memory') as MemoryController;
+      const memoryController = db.getController('memory') as unknown as MemoryController;
       await memoryController.store({
         id: 'migration-test',
         embedding: [0.1, 0.2, 0.3]
@@ -465,7 +491,7 @@ describe('Attention Mechanism Regression Tests', () => {
       await db.initialize();
 
       // Should still be able to retrieve old data
-      const memoryController2 = db.getController('memory') as MemoryController;
+      const memoryController2 = db.getController('memory') as unknown as MemoryController;
       const retrieved = await memoryController2.retrieve('migration-test');
 
       expect(retrieved).toBeDefined();
@@ -484,16 +510,16 @@ describe('Attention Mechanism Regression Tests', () => {
       });
       await db.initialize();
 
-      const memoryController = db.getController('memory') as MemoryController;
+      const memoryController = db.getController('memory') as unknown as MemoryController;
 
-      const memories: any[] = [];
+      const memories: MemoryRecord[] = [];
       for (let i = 0; i < 100; i++) {
-        const memory = {
+        const memory: MemoryRecord = {
           id: `integrity-${i}`,
           content: `Memory ${i}`,
           embedding: [Math.random(), Math.random(), Math.random()]
         };
-        await memoryController.store(memory as any);
+        await memoryController.store(memory as unknown as Parameters<typeof memoryController.store>[0]);
         memories.push(memory);
       }
 
@@ -506,11 +532,11 @@ describe('Attention Mechanism Regression Tests', () => {
       });
       await db.initialize();
 
-      const memoryController2 = db.getController('memory') as MemoryController;
+      const memoryController2 = db.getController('memory') as unknown as MemoryController;
 
       // Verify all data is intact
       for (const memory of memories) {
-        const retrieved = await memoryController2.retrieve(memory.id) as any;
+        const retrieved = await memoryController2.retrieve(memory.id) as unknown as MemoryRecord;
         expect(retrieved).toBeDefined();
         expect(retrieved.id).toBe(memory.id);
         expect(retrieved.content).toBe(memory.content);
@@ -539,7 +565,7 @@ describe('Attention Mechanism Regression Tests', () => {
     });
 
     it('should handle missing attention controllers gracefully', async () => {
-      const memoryController = db.getController('memory') as MemoryController;
+      const memoryController = db.getController('memory') as unknown as MemoryController;
 
       await memoryController.store({
         id: 'error-test',
@@ -552,24 +578,24 @@ describe('Attention Mechanism Regression Tests', () => {
     });
 
     it('should maintain transaction integrity with attention', async () => {
-      const memoryController = db.getController('memory') as MemoryController;
+      const memoryController = db.getController('memory') as unknown as MemoryController;
 
-      await (db as any).beginTransaction();
+      await (db as unknown as AgentDBInternal).beginTransaction();
 
       try {
         await memoryController.store({
           id: 'tx-test-1',
           embedding: [0.1, 0.2, 0.3]
-        } as any);
+        } as unknown as Parameters<typeof memoryController.store>[0]);
 
         await memoryController.store({
           id: 'tx-test-2',
           embedding: [0.4, 0.5, 0.6]
-        } as any);
+        } as unknown as Parameters<typeof memoryController.store>[0]);
 
-        await (db as any).commitTransaction();
+        await (db as unknown as AgentDBInternal).commitTransaction();
       } catch (error) {
-        await (db as any).rollbackTransaction();
+        await (db as unknown as AgentDBInternal).rollbackTransaction();
         throw error;
       }
 

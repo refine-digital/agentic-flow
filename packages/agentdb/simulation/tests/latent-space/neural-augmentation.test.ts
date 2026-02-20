@@ -17,6 +17,57 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { neuralAugmentationScenario } from '../../scenarios/latent-space/neural-augmentation';
 import type { SimulationReport } from '../../types';
 
+// Type helpers for simulation report fields
+interface StrategyConfig {
+  name: string;
+  parameters: Record<string, unknown>;
+}
+
+interface DetailedResult {
+  strategy: string;
+  size: number;
+  metrics: {
+    sparsityGain?: number;
+    avgDegree?: number;
+    edgeSelectionQuality: number;
+    avgHopsReduction?: number;
+    rlConvergenceEpochs?: number;
+    policyQuality?: number;
+    jointOptimizationGain?: number;
+    embeddingQuality: number;
+    topologyQuality: number;
+    layerSkipRate?: number;
+    routingAccuracy?: number;
+    speedupFromRouting?: number;
+    navigationEfficiency?: number;
+  };
+}
+
+interface EdgeSelectionMetrics {
+  avgSparsityGain: number;
+  [key: string]: unknown;
+}
+
+interface NavigationMetrics {
+  avgHopsReduction: number;
+  [key: string]: unknown;
+}
+
+interface CoOptimizationMetrics {
+  avgJointGain: number;
+  [key: string]: unknown;
+}
+
+interface LayerRoutingMetrics {
+  avgLayerSkipRate: number;
+  [key: string]: unknown;
+}
+
+interface BestStrategy {
+  strategy: string;
+  [key: string]: unknown;
+}
+
 describe('NeuralAugmentation', () => {
   let report: SimulationReport;
 
@@ -26,18 +77,18 @@ describe('NeuralAugmentation', () => {
 
   describe('Optimal Strategy', () => {
     it('should select full-neural or joint-opt', () => {
-      const best = report.summary.bestStrategy;
+      const best = report.summary.bestStrategy as BestStrategy;
       expect(['full-neural', 'joint-opt', 'gnn-edges']).toContain(best.strategy);
     });
 
     it('should test baseline', () => {
-      const strategies = neuralAugmentationScenario.config.strategies;
+      const strategies = neuralAugmentationScenario.config.strategies as StrategyConfig[];
       const baseline = strategies.find(s => s.name === 'baseline');
       expect(baseline).toBeDefined();
     });
 
     it('should test all neural components', () => {
-      const strategies = neuralAugmentationScenario.config.strategies;
+      const strategies = neuralAugmentationScenario.config.strategies as StrategyConfig[];
       expect(strategies.some(s => s.name === 'gnn-edges')).toBe(true);
       expect(strategies.some(s => s.name === 'rl-nav')).toBe(true);
       expect(strategies.some(s => s.name === 'joint-opt')).toBe(true);
@@ -46,12 +97,12 @@ describe('NeuralAugmentation', () => {
 
   describe('GNN Edge Selection', () => {
     it('should reduce memory >15%', () => {
-      const edgeMetrics = report.metrics.edgeSelection;
+      const edgeMetrics = report.metrics.edgeSelection as EdgeSelectionMetrics;
       expect(edgeMetrics.avgSparsityGain).toBeGreaterThan(15);
     });
 
     it('should target 18% memory reduction', () => {
-      const gnnResults = (report.detailedResults as any[]).filter(
+      const gnnResults = (report.detailedResults as DetailedResult[]).filter(
         r => r.strategy === 'gnn-edges' || r.strategy === 'full-neural'
       );
 
@@ -63,7 +114,7 @@ describe('NeuralAugmentation', () => {
     });
 
     it('should adapt M between 8-32', () => {
-      const gnnResults = (report.detailedResults as any[]).filter(
+      const gnnResults = (report.detailedResults as DetailedResult[]).filter(
         r => r.strategy === 'gnn-edges' || r.strategy === 'full-neural'
       );
 
@@ -76,7 +127,7 @@ describe('NeuralAugmentation', () => {
     });
 
     it('should maintain graph quality', () => {
-      const gnnResults = (report.detailedResults as any[]).filter(
+      const gnnResults = (report.detailedResults as DetailedResult[]).filter(
         r => r.strategy === 'gnn-edges'
       );
 
@@ -88,12 +139,12 @@ describe('NeuralAugmentation', () => {
 
   describe('RL Navigation', () => {
     it('should reduce hops >20%', () => {
-      const navMetrics = report.metrics.navigation;
+      const navMetrics = report.metrics.navigation as NavigationMetrics;
       expect(navMetrics.avgHopsReduction).toBeGreaterThan(20);
     });
 
     it('should target 26% hop reduction', () => {
-      const rlResults = (report.detailedResults as any[]).filter(
+      const rlResults = (report.detailedResults as DetailedResult[]).filter(
         r => r.strategy === 'rl-nav' || r.strategy === 'full-neural'
       );
 
@@ -105,7 +156,7 @@ describe('NeuralAugmentation', () => {
     });
 
     it('should converge <500 episodes', () => {
-      const rlResults = (report.detailedResults as any[]).filter(
+      const rlResults = (report.detailedResults as DetailedResult[]).filter(
         r => r.strategy === 'rl-nav' || r.strategy === 'full-neural'
       );
 
@@ -117,7 +168,7 @@ describe('NeuralAugmentation', () => {
     });
 
     it('should achieve high policy quality', () => {
-      const rlResults = (report.detailedResults as any[]).filter(
+      const rlResults = (report.detailedResults as DetailedResult[]).filter(
         r => r.strategy === 'rl-nav'
       );
 
@@ -131,12 +182,12 @@ describe('NeuralAugmentation', () => {
 
   describe('Joint Embedding-Topology Optimization', () => {
     it('should improve performance >9%', () => {
-      const jointMetrics = report.metrics.coOptimization;
+      const jointMetrics = report.metrics.coOptimization as CoOptimizationMetrics;
       expect(jointMetrics.avgJointGain).toBeGreaterThan(7);
     });
 
     it('should target +9.1% improvement', () => {
-      const jointResults = (report.detailedResults as any[]).filter(
+      const jointResults = (report.detailedResults as DetailedResult[]).filter(
         r => r.strategy === 'joint-opt' || r.strategy === 'full-neural'
       );
 
@@ -148,7 +199,7 @@ describe('NeuralAugmentation', () => {
     });
 
     it('should improve embedding quality', () => {
-      const jointResults = (report.detailedResults as any[]).filter(
+      const jointResults = (report.detailedResults as DetailedResult[]).filter(
         r => r.strategy === 'joint-opt'
       );
 
@@ -158,7 +209,7 @@ describe('NeuralAugmentation', () => {
     });
 
     it('should improve topology quality', () => {
-      const jointResults = (report.detailedResults as any[]).filter(
+      const jointResults = (report.detailedResults as DetailedResult[]).filter(
         r => r.strategy === 'joint-opt'
       );
 
@@ -170,12 +221,12 @@ describe('NeuralAugmentation', () => {
 
   describe('Attention-Based Layer Routing', () => {
     it('should skip layers efficiently', () => {
-      const routingMetrics = report.metrics.layerRouting;
+      const routingMetrics = report.metrics.layerRouting as LayerRoutingMetrics;
       expect(routingMetrics.avgLayerSkipRate).toBeGreaterThan(30);
     });
 
     it('should target 35-50% layer skip rate', () => {
-      const fullNeural = (report.detailedResults as any[]).filter(
+      const fullNeural = (report.detailedResults as DetailedResult[]).filter(
         r => r.strategy === 'full-neural'
       );
 
@@ -188,7 +239,7 @@ describe('NeuralAugmentation', () => {
     });
 
     it('should maintain routing accuracy >85%', () => {
-      const fullNeural = (report.detailedResults as any[]).filter(
+      const fullNeural = (report.detailedResults as DetailedResult[]).filter(
         r => r.strategy === 'full-neural'
       );
 
@@ -200,7 +251,7 @@ describe('NeuralAugmentation', () => {
     });
 
     it('should speed up search', () => {
-      const fullNeural = (report.detailedResults as any[]).filter(
+      const fullNeural = (report.detailedResults as DetailedResult[]).filter(
         r => r.strategy === 'full-neural'
       );
 
@@ -214,12 +265,12 @@ describe('NeuralAugmentation', () => {
 
   describe('Full Neural Pipeline', () => {
     it('should improve >25% end-to-end', () => {
-      const avgImprovement = report.summary.avgNavigationImprovement;
+      const avgImprovement = report.summary.avgNavigationImprovement as number;
       expect(avgImprovement).toBeGreaterThan(20);
     });
 
     it('should target 29.4% improvement', () => {
-      const fullNeural = (report.detailedResults as any[]).find(
+      const fullNeural = (report.detailedResults as DetailedResult[]).find(
         r => r.strategy === 'full-neural'
       );
 
@@ -231,7 +282,7 @@ describe('NeuralAugmentation', () => {
     });
 
     it('should combine all components', () => {
-      const fullNeural = (report.detailedResults as any[]).filter(
+      const fullNeural = (report.detailedResults as DetailedResult[]).filter(
         r => r.strategy === 'full-neural'
       );
 
@@ -245,7 +296,7 @@ describe('NeuralAugmentation', () => {
 
   describe('Component Integration', () => {
     it('should test GNN architecture', () => {
-      const strategies = neuralAugmentationScenario.config.strategies;
+      const strategies = neuralAugmentationScenario.config.strategies as StrategyConfig[];
       const gnn = strategies.find(s => s.name === 'gnn-edges');
 
       if (gnn) {
@@ -255,7 +306,7 @@ describe('NeuralAugmentation', () => {
     });
 
     it('should test RL parameters', () => {
-      const strategies = neuralAugmentationScenario.config.strategies;
+      const strategies = neuralAugmentationScenario.config.strategies as StrategyConfig[];
       const rl = strategies.find(s => s.name === 'rl-nav');
 
       if (rl) {
@@ -267,18 +318,18 @@ describe('NeuralAugmentation', () => {
 
   describe('Scalability', () => {
     it('should test at 100k nodes', () => {
-      const sizes = neuralAugmentationScenario.config.graphSizes;
+      const sizes = neuralAugmentationScenario.config.graphSizes as number[];
       expect(sizes).toContain(100000);
     });
 
     it('should test multiple dimensions', () => {
-      const dims = neuralAugmentationScenario.config.dimensions;
+      const dims = neuralAugmentationScenario.config.dimensions as number[];
       expect(dims).toContain(128);
       expect(dims).toContain(768);
     });
 
     it('should maintain quality at scale', () => {
-      const large = (report.detailedResults as any[]).filter(r => r.size === 100000);
+      const large = (report.detailedResults as DetailedResult[]).filter(r => r.size === 100000);
 
       large.forEach(r => {
         if (r.strategy !== 'baseline') {
@@ -290,8 +341,8 @@ describe('NeuralAugmentation', () => {
 
   describe('Baseline Comparison', () => {
     it('should outperform baseline', () => {
-      const baseline = (report.detailedResults as any[]).filter(r => r.strategy === 'baseline');
-      const neural = (report.detailedResults as any[]).filter(r => r.strategy !== 'baseline');
+      const baseline = (report.detailedResults as DetailedResult[]).filter(r => r.strategy === 'baseline');
+      const neural = (report.detailedResults as DetailedResult[]).filter(r => r.strategy !== 'baseline');
 
       if (baseline.length > 0 && neural.length > 0) {
         const avgNeuralGain = neural.reduce(

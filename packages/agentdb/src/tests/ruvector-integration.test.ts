@@ -11,25 +11,16 @@
  * @module ruvector-integration.test
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 // SIMD Vector Operations
 import {
   cosineSimilaritySIMD,
   euclideanDistanceSIMD,
-  euclideanDistanceSquaredSIMD,
-  dotProductSIMD,
-  l2NormSIMD,
   batchCosineSimilarity,
-  batchEuclideanDistance,
   normalizeVector,
-  normalizeVectorInPlace,
   detectSIMDSupport,
   SIMDVectorOps,
-  randomUnitVector,
-  vectorAdd,
-  vectorSub,
-  vectorScale,
 } from '../simd/simd-vector-ops.js';
 
 // Vector Quantization
@@ -51,7 +42,6 @@ import {
 import {
   scaledDotProductAttention,
   scaledDotProductAttentionOptimized,
-  batchScaledDotProductAttention,
   batchSequenceAttention,
   MultiHeadAttention,
   MultiHeadAttentionOptimized,
@@ -1384,7 +1374,14 @@ describe('Attention Optimized', () => {
 // ============================================================================
 
 describe('WASMVectorSearch', () => {
-  let mockDb: any;
+  let mockDb: {
+    prepare: () => {
+      all: () => never[];
+      get: () => null;
+      run: () => { lastInsertRowid: number; changes: number };
+    };
+    exec: () => void;
+  };
   let wasmSearch: WASMVectorSearch;
 
   beforeEach(() => {
@@ -1397,7 +1394,7 @@ describe('WASMVectorSearch', () => {
       exec: () => {},
     };
 
-    wasmSearch = new WASMVectorSearch(mockDb);
+    wasmSearch = new WASMVectorSearch(mockDb as unknown as ConstructorParameters<typeof WASMVectorSearch>[0]);
   });
 
   describe('Cosine Similarity', () => {
@@ -1491,7 +1488,7 @@ describe('WASMVectorSearch', () => {
       ];
       const ids = [1, 2, 3, 4];
 
-      wasmSearch = new WASMVectorSearch(mockDb, { indexThreshold: 3 });
+      wasmSearch = new WASMVectorSearch(mockDb as unknown as ConstructorParameters<typeof WASMVectorSearch>[0], { indexThreshold: 3 });
       wasmSearch.buildIndex(vectors, ids);
 
       const query = new Float32Array([1, 0, 0]);
@@ -1503,7 +1500,7 @@ describe('WASMVectorSearch', () => {
     });
 
     it('should clear index', () => {
-      wasmSearch = new WASMVectorSearch(mockDb, { indexThreshold: 0 });
+      wasmSearch = new WASMVectorSearch(mockDb as unknown as ConstructorParameters<typeof WASMVectorSearch>[0], { indexThreshold: 0 });
       wasmSearch.buildIndex([new Float32Array([1, 0, 0])], [1]);
 
       let stats = wasmSearch.getStats();

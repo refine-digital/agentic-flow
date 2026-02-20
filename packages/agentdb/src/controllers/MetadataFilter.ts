@@ -19,14 +19,15 @@
 
 export type FilterOperator = '$eq' | '$ne' | '$gt' | '$gte' | '$lt' | '$lte' | '$in' | '$nin' | '$contains' | '$exists';
 
-export type FilterValue = string | number | boolean | string[] | number[] | { [op in FilterOperator]?: any };
+export type FilterValue = string | number | boolean | string[] | number[] | { [op in FilterOperator]?: string | number | boolean | string[] | number[] };
 
 export interface MetadataFilters {
   [field: string]: FilterValue;
 }
 
 export interface FilterableItem {
-  metadata?: any;
+  metadata?: Record<string, unknown> | string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- index signature required for dynamic metadata field access
   [key: string]: any;
 }
 
@@ -71,7 +72,7 @@ export class MetadataFilter {
     }
 
     // Handle operator-based filters
-    const operators = filter as { [op in FilterOperator]?: any };
+    const operators = filter as { [op in FilterOperator]?: string | number | boolean | string[] | number[] };
 
     for (const [operator, operand] of Object.entries(operators)) {
       switch (operator as FilterOperator) {
@@ -84,43 +85,45 @@ export class MetadataFilter {
           break;
 
         case '$gt':
-          if (!(value > operand)) return false;
+          if (!((value as number) > (operand as number))) return false;
           break;
 
         case '$gte':
-          if (!(value >= operand)) return false;
+          if (!((value as number) >= (operand as number))) return false;
           break;
 
         case '$lt':
-          if (!(value < operand)) return false;
+          if (!((value as number) < (operand as number))) return false;
           break;
 
         case '$lte':
-          if (!(value <= operand)) return false;
+          if (!((value as number) <= (operand as number))) return false;
           break;
 
         case '$in':
-          if (!Array.isArray(operand) || !operand.includes(value)) return false;
+          if (!Array.isArray(operand) || !(operand as Array<string | number>).includes(value as string | number)) return false;
           break;
 
         case '$nin':
-          if (!Array.isArray(operand) || operand.includes(value)) return false;
+          if (!Array.isArray(operand) || (operand as Array<string | number>).includes(value as string | number)) return false;
           break;
 
-        case '$contains':
+        case '$contains': {
           if (typeof value === 'string') {
-            if (!value.includes(operand)) return false;
+            if (!value.includes(operand as string)) return false;
           } else if (Array.isArray(value)) {
-            if (!value.includes(operand)) return false;
+            if (!value.includes(operand as string)) return false;
           } else {
             return false;
           }
           break;
+        }
 
-        case '$exists':
+        case '$exists': {
           const exists = value !== undefined && value !== null;
           if (exists !== operand) return false;
           break;
+        }
 
         default:
           console.warn(`Unknown operator: ${operator}`);
@@ -134,25 +137,27 @@ export class MetadataFilter {
   /**
    * Get field value from item (supports nested paths)
    */
-  private static getFieldValue(item: FilterableItem, field: string): any {
+  private static getFieldValue(item: FilterableItem, field: string): unknown {
     const parts = field.split('.');
-    let value: any = item;
+    let value: unknown = item;
 
     for (const part of parts) {
       if (value === null || value === undefined) {
         return undefined;
       }
 
+      const obj = value as Record<string, unknown>;
+
       // Parse metadata JSON if needed
-      if (part === 'metadata' && typeof value.metadata === 'string') {
+      if (part === 'metadata' && typeof obj.metadata === 'string') {
         try {
-          value.metadata = JSON.parse(value.metadata);
-        } catch (e) {
+          obj.metadata = JSON.parse(obj.metadata);
+        } catch {
           return undefined;
         }
       }
 
-      value = value[part];
+      value = obj[part];
     }
 
     return value;
@@ -165,9 +170,9 @@ export class MetadataFilter {
    * @param tableName - Table name for column references
    * @returns SQL WHERE clause and parameters
    */
-  static toSQL(filters: MetadataFilters, tableName: string = ''): { where: string; params: any[] } {
+  static toSQL(filters: MetadataFilters, tableName: string = ''): { where: string; params: Array<string | number | boolean> } {
     const conditions: string[] = [];
-    const params: any[] = [];
+    const params: Array<string | number | boolean> = [];
     const prefix = tableName ? `${tableName}.` : '';
 
     for (const [field, filter] of Object.entries(filters)) {
@@ -180,48 +185,48 @@ export class MetadataFilter {
       if (typeof filter !== 'object' || Array.isArray(filter)) {
         // Simple equality
         conditions.push(`${columnRef} = ?`);
-        params.push(filter);
+        params.push(filter as string | number | boolean);
       } else {
         // Operator-based filters
-        const operators = filter as { [op in FilterOperator]?: any };
+        const operators = filter as { [op in FilterOperator]?: string | number | boolean | string[] | number[] };
 
         for (const [operator, operand] of Object.entries(operators)) {
           switch (operator as FilterOperator) {
             case '$eq':
               conditions.push(`${columnRef} = ?`);
-              params.push(operand);
+              params.push(operand as string | number | boolean);
               break;
 
             case '$ne':
               conditions.push(`${columnRef} != ?`);
-              params.push(operand);
+              params.push(operand as string | number | boolean);
               break;
 
             case '$gt':
               conditions.push(`${columnRef} > ?`);
-              params.push(operand);
+              params.push(operand as string | number | boolean);
               break;
 
             case '$gte':
               conditions.push(`${columnRef} >= ?`);
-              params.push(operand);
+              params.push(operand as string | number | boolean);
               break;
 
             case '$lt':
               conditions.push(`${columnRef} < ?`);
-              params.push(operand);
+              params.push(operand as string | number | boolean);
               break;
 
             case '$lte':
               conditions.push(`${columnRef} <= ?`);
-              params.push(operand);
+              params.push(operand as string | number | boolean);
               break;
 
             case '$in':
               if (Array.isArray(operand)) {
                 const placeholders = operand.map(() => '?').join(', ');
                 conditions.push(`${columnRef} IN (${placeholders})`);
-                params.push(...operand);
+                params.push(...(operand as Array<string | number | boolean>));
               }
               break;
 
@@ -229,7 +234,7 @@ export class MetadataFilter {
               if (Array.isArray(operand)) {
                 const placeholders = operand.map(() => '?').join(', ');
                 conditions.push(`${columnRef} NOT IN (${placeholders})`);
-                params.push(...operand);
+                params.push(...(operand as Array<string | number | boolean>));
               }
               break;
 

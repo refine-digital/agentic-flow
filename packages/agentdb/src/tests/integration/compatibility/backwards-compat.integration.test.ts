@@ -4,7 +4,7 @@
  * Tests that v1.x code runs unchanged on v2.0 backend
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { V1toV2Adapter } from '../../../compatibility/V1toV2Adapter';
 import { VersionDetector } from '../../../compatibility/VersionDetector';
 import { DeprecationWarnings } from '../../../compatibility/DeprecationWarnings';
@@ -314,7 +314,7 @@ describe('Backwards Compatibility Integration', () => {
       const adapter = new V1toV2Adapter(mockV2);
 
       const start = performance.now();
-      const promises: Promise<any>[] = [];
+      const promises: Promise<unknown>[] = [];
       for (let i = 0; i < 100; i++) {
         promises.push(adapter.setMemory(`key${i}`, `value${i}`));
       }

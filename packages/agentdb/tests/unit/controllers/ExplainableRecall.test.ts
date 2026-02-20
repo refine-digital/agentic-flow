@@ -4,9 +4,9 @@
  * Tests certificate issuance, verification, provenance tracking, and justification
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Database from 'better-sqlite3';
-import { ExplainableRecall, RecallCertificate, JustificationPath, ProvenanceSource } from '../../../src/controllers/ExplainableRecall.js';
+import { ExplainableRecall } from '../../../src/controllers/ExplainableRecall.js';
 import { EmbeddingService } from '../../../src/controllers/EmbeddingService.js';
 import * as fs from 'fs';
 
@@ -409,7 +409,7 @@ describe('ExplainableRecall', () => {
       // Get the content hash from provenance_sources
       const source = db.prepare(
         'SELECT content_hash FROM provenance_sources WHERE source_type = ? AND source_id = ?'
-      ).get('episode', 1) as any;
+      ).get('episode', 1) as { content_hash: string } | undefined;
 
       if (source) {
         const lineage = explainableRecall.getProvenanceLineage(source.content_hash);

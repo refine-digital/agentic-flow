@@ -11,14 +11,14 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-// Database type
-type Database = any;
+// Database type - IDatabaseConnection from types
+// (type alias removed: was unused)
 import { CausalMemoryGraph } from '../controllers/CausalMemoryGraph.js';
 import { CausalRecall } from '../controllers/CausalRecall.js';
-import { ReflexionMemory } from '../controllers/ReflexionMemory.js';
+import { ReflexionMemory, type Episode, type ReflexionQuery } from '../controllers/ReflexionMemory.js';
 import { SkillLibrary } from '../controllers/SkillLibrary.js';
 import { NightlyLearner } from '../controllers/NightlyLearner.js';
-import { LearningSystem } from '../controllers/LearningSystem.js';
+import { LearningSystem, type LearningSession } from '../controllers/LearningSystem.js';
 import { EmbeddingService } from '../controllers/EmbeddingService.js';
 import { BatchOperations } from '../optimizations/BatchOperations.js';
 import { ReasoningBank } from '../controllers/ReasoningBank.js';
@@ -30,20 +30,12 @@ import {
   validateTaskString,
   validateNumericRange,
   validateArrayLength,
-  validateObject,
   validateBoolean,
   validateEnum,
   ValidationError,
   handleSecurityError,
 } from '../security/input-validation.js';
-import * as path from 'path';
 import * as fs from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-
-// ES module equivalent of __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 // ============================================================================
 // Helper Functions for Core Vector DB Operations
@@ -52,7 +44,7 @@ const __dirname = dirname(__filename);
 /**
  * Initialize database schema
  */
-function initializeSchema(database: any): void {
+function initializeSchema(database: { exec(sql: string): void }): void {
   const db = database;
   // Episodes table (vector store)
   db.exec(`
@@ -187,21 +179,21 @@ function initializeSchema(database: any): void {
 /**
  * Serialize embedding to BLOB
  */
-function serializeEmbedding(embedding: Float32Array): Buffer {
+function _serializeEmbedding(embedding: Float32Array): Buffer {
   return Buffer.from(embedding.buffer);
 }
 
 /**
  * Deserialize embedding from BLOB
  */
-function deserializeEmbedding(blob: Buffer): Float32Array {
+function _deserializeEmbedding(blob: Buffer): Float32Array {
   return new Float32Array(blob.buffer, blob.byteOffset, blob.byteLength / 4);
 }
 
 /**
  * Calculate cosine similarity between two vectors
  */
-function cosineSimilarity(a: Float32Array, b: Float32Array): number {
+function _cosineSimilarity(a: Float32Array, b: Float32Array): number {
   if (a.length !== b.length) {
     throw new Error('Vectors must have same length');
   }
@@ -218,6 +210,11 @@ function cosineSimilarity(a: Float32Array, b: Float32Array): number {
 
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
+
+// Keep references to suppress unused warnings (functions may be needed later)
+void _serializeEmbedding;
+void _deserializeEmbedding;
+void _cosineSimilarity;
 
 // ============================================================================
 // Initialize Database and Controllers via unified AgentDB
@@ -249,7 +246,8 @@ const skills = new SkillLibrary(db, embeddingService);
 const causalRecall = new CausalRecall(db, embeddingService);
 const learner = new NightlyLearner(db, embeddingService);
 const learningSystem = new LearningSystem(db, embeddingService);
-const batchOps = new BatchOperations(db, embeddingService);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _batchOps = new BatchOperations(db, embeddingService);
 const reasoningBank = new ReasoningBank(db, embeddingService);
 const caches = new MCPToolCaches();
 
@@ -864,8 +862,10 @@ const tools = [
 // ============================================================================
 // Solver MCP Tools (ADR-010 — gated behind WASM availability)
 // ============================================================================
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let solverInstance: any = null;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getSolver(): Promise<any> {
   if (solverInstance) return solverInstance;
   try {
@@ -879,6 +879,7 @@ async function getSolver(): Promise<any> {
 }
 
 // Register solver tools at startup if WASM is available
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const solverTools: Array<{ name: string; description: string; inputSchema: any }> = [
   {
     name: 'solver_train',
@@ -922,6 +923,7 @@ const solverTools: Array<{ name: string; description: string; inputSchema: any }
   try {
     const { AgentDBSolver } = await import('../backends/rvf/RvfSolver.js');
     if (await AgentDBSolver.isAvailable()) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       tools.push(...solverTools as any);
     }
   } catch { /* solver not available — tools not registered */ }
@@ -952,7 +954,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         // Initialize schema
         initializeSchema(db);
 
-        const stats = db.prepare('SELECT COUNT(*) as count FROM sqlite_master WHERE type="table"').get() as any;
+        const stats = db.prepare('SELECT COUNT(*) as count FROM sqlite_master WHERE type="table"').get() as { count: number } | undefined;
 
         return {
           content: [
@@ -960,7 +962,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               type: 'text',
               text: `✅ AgentDB initialized successfully!\n` +
                     `📍 Database: ${targetDbPath}\n` +
-                    `📊 Tables created: ${stats.count}\n` +
+                    `📊 Tables created: ${stats?.count ?? 0}\n` +
                     `⚙️  Optimizations: WAL mode, cache_size=64MB\n` +
                     `🧠 Embedding service: ${embeddingService.constructor.name} ready`,
             },
@@ -972,7 +974,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const text = args?.text as string;
         const sessionId = (args?.session_id as string) || 'default';
         const tags = (args?.tags as string[]) || [];
-        const metadata = (args?.metadata as Record<string, any>) || {};
+        const metadata = (args?.metadata as Record<string, unknown>) || {};
 
         const episodeId = await reflexion.storeEpisode({
           sessionId,
@@ -1003,21 +1005,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'agentdb_insert_batch': {
-        const items = (args?.items as any[]) || [];
+        const items = (args?.items as Array<Record<string, unknown>>) || [];
         const batchSize = (args?.batch_size as number) || 100;
 
-        const episodes = items.map((item: any) => ({
-          sessionId: item.session_id || 'default',
-          task: item.text,
+        const episodes: Episode[] = items.map((item: Record<string, unknown>) => ({
+          sessionId: (item.session_id as string) || 'default',
+          task: item.text as string,
           reward: 1.0,
           success: true,
-          input: item.text,
+          input: item.text as string,
           output: '',
           critique: '',
           latencyMs: 0,
           tokensUsed: 0,
-          tags: item.tags || [],
-          metadata: item.metadata || {},
+          tags: (item.tags as string[]) || [],
+          metadata: (item.metadata as Record<string, unknown>) || {},
         }));
 
         const batchOpsConfig = new BatchOperations(db, embeddingService, {
@@ -1045,16 +1047,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const queryText = args?.query as string;
         const k = (args?.k as number) || 10;
         const minSimilarity = (args?.min_similarity as number) || 0.0;
-        const filters = args?.filters as any;
+        const filters = args?.filters as Record<string, unknown> | undefined;
 
-        const query: any = {
+        const query: ReflexionQuery = {
           task: queryText,
           k,
         };
 
         if (filters) {
           if (filters.min_reward !== undefined) {
-            query.minReward = filters.min_reward;
+            query.minReward = filters.min_reward as number;
           }
           // Session ID filter would require custom query
         }
@@ -1089,7 +1091,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'agentdb_delete': {
         let deleted = 0;
         const id = args?.id as number | undefined;
-        const filters = args?.filters as any;
+        const filters = args?.filters as Record<string, unknown> | undefined;
 
         try {
           if (id !== undefined) {
@@ -1104,7 +1106,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             // Bulk delete with validated filters
             if (filters.session_id) {
               // Validate session_id
-              const validatedSessionId = validateSessionId(filters.session_id);
+              const validatedSessionId = validateSessionId(filters.session_id as string);
 
               // Use parameterized query
               const stmt = db.prepare('DELETE FROM episodes WHERE session_id = ?');
@@ -1135,7 +1137,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               },
             ],
           };
-        } catch (error: any) {
+        } catch (error: unknown) {
           const safeMessage = handleSecurityError(error);
           return {
             content: [
@@ -1343,12 +1345,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'db_stats': {
         const stats: Record<string, number> = {
-          causal_edges: (db.prepare('SELECT COUNT(*) as count FROM causal_edges').get() as any)?.count || 0,
-          causal_experiments: (db.prepare('SELECT COUNT(*) as count FROM causal_experiments').get() as any)?.count || 0,
-          causal_observations: (db.prepare('SELECT COUNT(*) as count FROM causal_observations').get() as any)?.count || 0,
-          episodes: (db.prepare('SELECT COUNT(*) as count FROM episodes').get() as any)?.count || 0,
-          episode_embeddings: (db.prepare('SELECT COUNT(*) as count FROM episode_embeddings').get() as any)?.count || 0,
-          skills: (db.prepare('SELECT COUNT(*) as count FROM skills').get() as any)?.count || 0,
+          causal_edges: (db.prepare<{ count: number }>('SELECT COUNT(*) as count FROM causal_edges').get())?.count || 0,
+          causal_experiments: (db.prepare<{ count: number }>('SELECT COUNT(*) as count FROM causal_experiments').get())?.count || 0,
+          causal_observations: (db.prepare<{ count: number }>('SELECT COUNT(*) as count FROM causal_observations').get())?.count || 0,
+          episodes: (db.prepare<{ count: number }>('SELECT COUNT(*) as count FROM episodes').get())?.count || 0,
+          episode_embeddings: (db.prepare<{ count: number }>('SELECT COUNT(*) as count FROM episode_embeddings').get())?.count || 0,
+          skills: (db.prepare<{ count: number }>('SELECT COUNT(*) as count FROM skills').get())?.count || 0,
         };
         return {
           content: [
@@ -1389,7 +1391,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         // Helper to safely query table count
         const safeCount = (tableName: string): number => {
           try {
-            return (db.prepare(`SELECT COUNT(*) as count FROM ${tableName}`).get() as any)?.count || 0;
+            return (db.prepare<{ count: number }>(`SELECT COUNT(*) as count FROM ${tableName}`).get())?.count || 0;
           } catch {
             return 0; // Table doesn't exist
           }
@@ -1424,23 +1426,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         if (detailed) {
           // Add storage statistics
-          const dbStats = db.prepare(`
+          const dbStats = db.prepare<{ total_bytes: number }>(`
             SELECT page_count * page_size as total_bytes
             FROM pragma_page_count(), pragma_page_size()
-          `).get() as any;
+          `).get();
 
-          const totalMB = (dbStats.total_bytes / (1024 * 1024)).toFixed(2);
+          const totalMB = ((dbStats?.total_bytes ?? 0) / (1024 * 1024)).toFixed(2);
 
           // Add recent activity stats
-          const recentActivity = db.prepare(`
+          const recentActivity = db.prepare<{ count: number }>(`
             SELECT COUNT(*) as count
             FROM episodes
             WHERE ts >= strftime('%s', 'now', '-7 days')
-          `).get() as any;
+          `).get();
 
           output += `\n📦 Storage:\n` +
             `   Database Size: ${totalMB} MB\n` +
-            `   Recent Activity (7d): ${recentActivity.count} episodes\n`;
+            `   Recent Activity (7d): ${recentActivity?.count ?? 0} episodes\n`;
         }
 
         // Cache the result (60s TTL)
@@ -1461,7 +1463,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const approach = args?.approach as string;
         const successRate = args?.successRate as number;
         const tags = (args?.tags as string[]) || [];
-        const metadata = (args?.metadata as Record<string, any>) || {};
+        const metadata = (args?.metadata as Record<string, unknown>) || {};
 
         const patternId = await reasoningBank.storePattern({
           taskType,
@@ -1491,7 +1493,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const task = args?.task as string;
         const k = (args?.k as number) || 10;
         const threshold = (args?.threshold as number) || 0.0;
-        const filters = args?.filters as any;
+        const filters = args?.filters as Record<string, unknown> | undefined;
 
         // Generate embedding for the task
         const taskEmbedding = await embeddingService.embed(task);
@@ -1501,9 +1503,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           k,
           threshold,
           filters: filters ? {
-            taskType: filters.taskType,
-            minSuccessRate: filters.minSuccessRate,
-            tags: filters.tags,
+            taskType: filters.taskType as string | undefined,
+            minSuccessRate: filters.minSuccessRate as number | undefined,
+            tags: filters.tags as string[] | undefined,
           } : undefined,
         });
 
@@ -1617,6 +1619,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           const format = args?.format ? validateEnum(args.format, 'format', ['concise', 'detailed', 'json'] as const) : 'concise';
 
           // Validate each skill
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const validatedSkills = skillsArray.map((skill: any, index: number) => {
             const name = validateTaskString(skill.name, `skills[${index}].name`);
             const description = validateTaskString(skill.description, `skills[${index}].description`);
@@ -1697,7 +1700,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               ],
             };
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           const safeMessage = handleSecurityError(error);
           return {
             content: [
@@ -1724,6 +1727,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           const format = args?.format ? validateEnum(args.format, 'format', ['concise', 'detailed', 'json'] as const) : 'concise';
 
           // Validate each episode
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const validatedEpisodes = episodesArray.map((ep: any, index: number) => {
             const sessionId = validateSessionId(ep.session_id);
             const task = validateTaskString(ep.task, `episodes[${index}].task`);
@@ -1802,7 +1806,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               ],
             };
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           const safeMessage = handleSecurityError(error);
           return {
             content: [
@@ -1829,6 +1833,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           const format = args?.format ? validateEnum(args.format, 'format', ['concise', 'detailed', 'json'] as const) : 'concise';
 
           // Validate each pattern
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const validatedPatterns = patternsArray.map((pattern: any, index: number) => {
             const taskType = validateTaskString(pattern.taskType, `patterns[${index}].taskType`);
             const approach = validateTaskString(pattern.approach, `patterns[${index}].approach`);
@@ -1902,7 +1907,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               ],
             };
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           const safeMessage = handleSecurityError(error);
           return {
             content: [
@@ -1926,18 +1931,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       // ======================================================================
       case 'learning_start_session': {
         const userId = args?.user_id as string;
-        const sessionType = args?.session_type as any;
-        const config = args?.config as any;
+        const sessionType = args?.session_type as string;
+        const config = args?.config as Record<string, unknown>;
 
         const sessionId = await learningSystem.startSession(
           userId,
-          sessionType,
+          sessionType as LearningSession['sessionType'],
           {
-            learningRate: config.learning_rate,
-            discountFactor: config.discount_factor,
-            explorationRate: config.exploration_rate,
-            batchSize: config.batch_size,
-            targetUpdateFrequency: config.target_update_frequency,
+            learningRate: config.learning_rate as number,
+            discountFactor: config.discount_factor as number,
+            explorationRate: config.exploration_rate as number | undefined,
+            batchSize: config.batch_size as number | undefined,
+            targetUpdateFrequency: config.target_update_frequency as number | undefined,
           }
         );
 
@@ -2134,7 +2139,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const sourceTask = args?.source_task as string | undefined;
         const targetTask = args?.target_task as string | undefined;
         const minSimilarity = (args?.min_similarity as number) || 0.7;
-        const transferType = (args?.transfer_type as any) || 'all';
+        const transferType = ((args?.transfer_type as string) || 'all') as 'episodes' | 'skills' | 'causal_edges' | 'all';
         const maxTransfers = (args?.max_transfers as number) || 10;
 
         const result = await learningSystem.transferLearning({
@@ -2161,7 +2166,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 `   • Skills/Q-Values: ${result.transferred.skills}\n` +
                 `   • Causal Edges: ${result.transferred.causalEdges}\n` +
                 (result.transferred.details.length > 0 ? `\n📝 Transfer Details:\n` +
-                  result.transferred.details.slice(0, 5).map((d: any, i: number) =>
+                  result.transferred.details.slice(0, 5).map((d: { type: string; id: number; similarity: number }, i: number) =>
                     `   ${i + 1}. ${d.type} #${d.id} (similarity: ${(d.similarity * 100).toFixed(1)}%)`
                   ).join('\n') : '') +
                 `\n\n💡 Knowledge successfully transferred for reuse!`,
@@ -2173,7 +2178,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'learning_explain': {
         const query = args?.query as string;
         const k = (args?.k as number) || 5;
-        const explainDepth = (args?.explain_depth as any) || 'detailed';
+        const explainDepth = ((args?.explain_depth as string) || 'detailed') as 'summary' | 'detailed' | 'full';
         const includeConfidence = (args?.include_confidence as boolean) !== false;
         const includeEvidence = (args?.include_evidence as boolean) !== false;
         const includeCausal = (args?.include_causal as boolean) !== false;
@@ -2194,14 +2199,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               text: `🔍 AI Action Recommendations (Explainable)\n\n` +
                 `🎯 Query: ${query}\n\n` +
                 `💡 Recommended Actions:\n` +
-                explanation.recommendations.map((rec: any, i: number) =>
+                explanation.recommendations.map((rec: { action: string; confidence: number; successRate: number; avgReward: number; supportingExamples: number; evidence?: Array<{ episodeId: number; reward: number; similarity: number }> }, i: number) =>
                   `${i + 1}. ${rec.action}\n` +
                   `   • Confidence: ${(rec.confidence * 100).toFixed(1)}%\n` +
                   `   • Success Rate: ${(rec.successRate * 100).toFixed(1)}%\n` +
                   `   • Avg Reward: ${rec.avgReward.toFixed(3)}\n` +
                   `   • Supporting Examples: ${rec.supportingExamples}\n` +
                   (includeEvidence && rec.evidence ? `   • Evidence:\n` +
-                    rec.evidence.map((e: any) =>
+                    rec.evidence.map((e: { episodeId: number; reward: number; similarity: number }) =>
                       `     - Episode ${e.episodeId}: reward=${e.reward.toFixed(2)}, similarity=${(e.similarity * 100).toFixed(1)}%`
                     ).join('\n') : '')
                 ).join('\n\n') +
@@ -2210,8 +2215,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                   `   • Avg Similarity: ${(explanation.reasoning.avgSimilarity * 100).toFixed(1)}%\n` +
                   `   • Unique Actions Considered: ${explanation.reasoning.uniqueActions}` : '') +
                 (includeCausal && explanation.causalChains && explanation.causalChains.length > 0 ? `\n\n🔗 Causal Reasoning Chains:\n` +
-                  explanation.causalChains.slice(0, 3).map((chain: any, i: number) =>
-                    `   ${i + 1}. ${chain.fromMemoryType} → ${chain.toMemoryType} (uplift: ${(chain.uplift || 0).toFixed(3)})`
+                  explanation.causalChains.slice(0, 3).map((chain: { from_memory_id: number; to_memory_id: number; uplift: number }, i: number) =>
+                    `   ${i + 1}. ${chain.from_memory_id} → ${chain.to_memory_id} (uplift: ${(chain.uplift || 0).toFixed(3)})`
                   ).join('\n') : ''),
             },
           ],
@@ -2222,13 +2227,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const sessionId = args?.session_id as string;
         const toolName = args?.tool_name as string;
         const action = args?.action as string;
-        const stateBefore = args?.state_before as any;
-        const stateAfter = args?.state_after as any;
+        const stateBefore = args?.state_before as Record<string, unknown> | undefined;
+        const stateAfter = args?.state_after as Record<string, unknown> | undefined;
         const outcome = args?.outcome as string;
         const reward = args?.reward as number;
         const success = args?.success as boolean;
         const latencyMs = args?.latency_ms as number | undefined;
-        const metadata = args?.metadata as any;
+        const metadata = args?.metadata as Record<string, unknown> | undefined;
 
         const experienceId = await learningSystem.recordExperience({
           sessionId,
@@ -2271,7 +2276,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const timeTakenMs = args?.time_taken_ms as number | undefined;
         const expectedTimeMs = args?.expected_time_ms as number | undefined;
         const includeCausal = (args?.include_causal as boolean) !== false;
-        const rewardFunction = (args?.reward_function as any) || 'standard';
+        const rewardFunction = ((args?.reward_function as string) || 'standard') as 'standard' | 'sparse' | 'dense' | 'shaped';
 
         const reward = learningSystem.calculateReward({
           episodeId,
@@ -2375,12 +2380,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       content: [
         {
           type: 'text',
-          text: `❌ Error: ${error.message}`,
+          text: `❌ Error: ${(error as Error).message}`,
         },
       ],
       isError: true,

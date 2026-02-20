@@ -204,7 +204,8 @@ function matVecMul8x(
 /**
  * 8x unrolled scaled add: output[i] = a[i] + scale * b[i]
  */
-function scaledAdd8x(
+// exported for use in attention kernel pipeline
+export function scaledAdd8x(
   output: Float32Array,
   a: Float32Array,
   b: Float32Array,
@@ -325,7 +326,8 @@ function softmaxInPlace(scores: Float32Array, length: number): void {
 /**
  * Softmax returning new array (when in-place not desired)
  */
-function softmaxOptimized(input: Float32Array): Float32Array {
+// exported for use in attention kernel pipeline
+export function softmaxOptimized(input: Float32Array): Float32Array {
   const output = globalBufferPool.acquire(input.length);
   output.set(input);
   softmaxInPlace(output, input.length);
@@ -1759,9 +1761,10 @@ export class MoEAttention {
  */
 export function isNativeAttentionAvailable(): boolean {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires -- dynamic native module probe
     const attention = require('@ruvector/attention');
     // Try a simple operation
-    const result = attention.flashAttention(
+    attention.flashAttention(
       new Float32Array([1, 0]),
       new Float32Array([1, 0]),
       new Float32Array([1, 0]),

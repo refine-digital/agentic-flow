@@ -17,7 +17,7 @@ import { CausalMemoryGraph } from '../controllers/CausalMemoryGraph.js';
 import { EmbeddingService } from '../controllers/EmbeddingService.js';
 import { createBackend } from '../backends/factory.js';
 import { SqlJsRvfBackend } from '../backends/rvf/SqlJsRvfBackend.js';
-import type { VectorBackend } from '../backends/VectorBackend.js';
+import type { VectorBackend, VectorConfig } from '../backends/VectorBackend.js';
 import type { IDatabaseConnection } from '../types/database.types.js';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -29,7 +29,7 @@ export interface AgentDBConfig {
   dbPath?: string;
   namespace?: string;
   enableAttention?: boolean;
-  attentionConfig?: Record<string, any>;
+  attentionConfig?: Record<string, unknown>;
   /** Force use of sql.js WASM even if better-sqlite3 is available */
   forceWasm?: boolean;
   /** Vector backend type: 'auto' | 'ruvector' | 'rvf' | 'hnswlib' */
@@ -69,9 +69,9 @@ export class AgentDB {
       // One sql.js database for everything: vectors + relational tables
       const rvfBackend = new SqlJsRvfBackend({
         dimension: vectorDimension,
-        metric: 'cosine',
+        metric: 'cosine' as const,
         storagePath: dbPath,
-      } as any);
+      } as VectorConfig & { storagePath: string });
       await rvfBackend.initialize();
 
       // Extract the raw sql.js database and wrap it with better-sqlite3 API
@@ -136,8 +136,8 @@ export class AgentDB {
     if (this.unifiedMode && this.rvfBackendRef) {
       const target = savePath || this.config.dbPath || ':memory:';
       await this.rvfBackendRef.save(target);
-    } else if (this.db && typeof (this.db as any).save === 'function') {
-      (this.db as any).save();
+    } else if (this.db && typeof (this.db as unknown as { save?: () => void }).save === 'function') {
+      (this.db as unknown as { save: () => void }).save();
     }
   }
 
@@ -190,7 +190,7 @@ export class AgentDB {
     }
   }
 
-  getController(name: string): any {
+  getController(name: string): ReflexionMemory | SkillLibrary | CausalMemoryGraph {
     if (!this.initialized) {
       throw new Error('AgentDB not initialized. Call initialize() first.');
     }

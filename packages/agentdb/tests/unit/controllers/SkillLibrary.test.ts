@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Database from 'better-sqlite3';
 import { SkillLibrary, Skill } from '../../../src/controllers/SkillLibrary.js';
-import { ReflexionMemory, Episode } from '../../../src/controllers/ReflexionMemory.js';
+import { ReflexionMemory } from '../../../src/controllers/ReflexionMemory.js';
 import { EmbeddingService } from '../../../src/controllers/EmbeddingService.js';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -112,10 +112,10 @@ describe('SkillLibrary', () => {
 
       // Verify embedding was stored
       const embedding = db.prepare('SELECT embedding FROM skill_embeddings WHERE skill_id = ?')
-        .get(skillId) as any;
+        .get(skillId) as { embedding: Buffer } | undefined;
 
       expect(embedding).toBeDefined();
-      expect(embedding.embedding).toBeInstanceOf(Buffer);
+      expect(embedding!.embedding).toBeInstanceOf(Buffer);
     });
   });
 
@@ -208,7 +208,7 @@ describe('SkillLibrary', () => {
       skills.updateSkillStats(skillId, true, 0.9, 90);
 
       // Verify updated stats
-      const updated = db.prepare('SELECT * FROM skills WHERE id = ?').get(skillId) as any;
+      const updated = db.prepare('SELECT * FROM skills WHERE id = ?').get(skillId) as Record<string, unknown>;
 
       expect(updated.uses).toBe(11);
       expect(updated.success_rate).toBeGreaterThan(0.8);
@@ -230,7 +230,7 @@ describe('SkillLibrary', () => {
       skills.updateSkillStats(skillId, false, 0.2, 200);
 
       // Verify updated stats
-      const updated = db.prepare('SELECT * FROM skills WHERE id = ?').get(skillId) as any;
+      const updated = db.prepare('SELECT * FROM skills WHERE id = ?').get(skillId) as Record<string, unknown>;
 
       expect(updated.uses).toBe(11);
       expect(updated.success_rate).toBeLessThan(0.9);
@@ -300,7 +300,7 @@ describe('SkillLibrary', () => {
 
     it('should update existing skills instead of duplicating', async () => {
       // First consolidation
-      const result1 = await skills.consolidateEpisodesIntoSkills({
+      await skills.consolidateEpisodesIntoSkills({
         minAttempts: 3,
         minReward: 0.7,
       });

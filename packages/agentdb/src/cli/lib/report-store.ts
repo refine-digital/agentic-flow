@@ -7,11 +7,13 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
-import { AgentDBConfig, SimulationResult } from './simulation-registry';
+import { SimulationResult } from './simulation-registry';
 
 // Use better-sqlite3 if available (optional dependency)
-let Database: any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let Database: any = null;
 try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   Database = require('better-sqlite3');
 } catch {
   // Fallback to in-memory store if better-sqlite3 not installed
@@ -60,6 +62,7 @@ export interface Regression {
 // ============================================================================
 
 export class ReportStore {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private db: any = null;
   private dbPath: string;
 
@@ -259,12 +262,12 @@ export class ReportStore {
       scenario: simulation.scenario_id,
       timestamp: new Date(simulation.timestamp),
       config: JSON.parse(simulation.config_json),
-      metrics: metrics.reduce((acc: any, m: any) => {
+      metrics: metrics.reduce((acc: Record<string, number>, m: { metric_name: string; metric_value: number }) => {
         acc[m.metric_name] = m.metric_value;
         return acc;
-      }, {} as any),
-      insights: insights.map((i: any) => i.content),
-      recommendations: recommendations.map((r: any) => r.content),
+      }, {} as Record<string, number>),
+      insights: insights.map((i: { content: string }) => i.content),
+      recommendations: recommendations.map((r: { content: string }) => r.content),
       iterations: simulation.iterations,
       duration: simulation.duration_ms
     };

@@ -16,7 +16,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { NativeAccelerator, resetAccelerator } from '../../src/backends/rvf/NativeAccelerator.js';
 import { WasmStoreBridge } from '../../src/backends/rvf/WasmStoreBridge.js';
-import { FilterBuilder, type RvfFilterExpr } from '../../src/backends/rvf/FilterBuilder.js';
+import { FilterBuilder, type RvfFilterExpr, type FilterPredicate } from '../../src/backends/rvf/FilterBuilder.js';
 
 function randomVec(dim: number): Float32Array {
   const v = new Float32Array(dim);
@@ -402,7 +402,7 @@ describe('ADR-007 Phase 1: FilterBuilder', () => {
     });
 
     it('should return null for null input', () => {
-      expect(FilterBuilder.buildFilter(null as any)).toBeNull();
+      expect(FilterBuilder.buildFilter(null as unknown as FilterPredicate)).toBeNull();
     });
 
     it('should skip null/undefined values', () => {
@@ -476,7 +476,7 @@ describe('ADR-007 Phase 1: TemporalCompressor Batch + Native Bridge', () => {
     const compressor = await TemporalCompressor.create();
     const dim = 32;
 
-    const items: any[] = [];
+    const items: Array<{ id: string; embedding: Float32Array; accessFrequency: number }> = [];
     for (let i = 0; i < 20; i++) {
       items.push({
         id: `batch-${i}`,

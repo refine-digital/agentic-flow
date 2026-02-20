@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 /**
  * QUICServer Unit Tests
@@ -15,7 +15,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 class MockQUICServer {
   private port: number;
   private isRunning: boolean = false;
-  private connections: Map<string, any> = new Map();
+  private connections: Map<string, { id: string; connectedAt: number; authenticated: boolean }> = new Map();
   private authTokens: Set<string> = new Set(['valid-token-123']);
 
   constructor(port: number = 4433) {
@@ -71,7 +71,7 @@ class MockQUICServer {
     return this.connections.delete(clientId);
   }
 
-  async handleSyncRequest(clientId: string, data: any): Promise<any> {
+  async handleSyncRequest(clientId: string, data: { type: string; payload: Record<string, unknown[]> }): Promise<Record<string, unknown>> {
     if (!this.connections.has(clientId)) {
       throw new Error('Client not connected');
     }

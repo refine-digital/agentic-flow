@@ -16,7 +16,7 @@ export interface Episode {
   reward: number;
   quality?: number;
   embedding?: number[];
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   timestamp?: number;
 }
 
@@ -26,7 +26,7 @@ export interface EpisodeSearchOptions {
   maxReward?: number;
   sessionId?: string;
   k?: number;
-  filter?: Record<string, any>;
+  filter?: Record<string, unknown>;
 }
 
 export interface Pattern {
@@ -36,7 +36,7 @@ export interface Pattern {
   output: string;
   quality: number;
   embedding?: number[];
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   timestamp?: number;
 }
 
@@ -50,6 +50,7 @@ export interface Pattern {
  */
 export class AgentDBFast extends EventEmitter {
   private db: AgentDB | null = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic backend type depends on runtime initialization
   private backend: any = null;
   private config: {
     path: string;
@@ -102,8 +103,8 @@ export class AgentDBFast extends EventEmitter {
 
       this.initialized = true;
       this.emit('initialized');
-    } catch (error: any) {
-      throw new Error(`Failed to initialize AgentDB: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Failed to initialize AgentDB: ${(error as Error).message}`);
     }
   }
 
@@ -158,6 +159,7 @@ export class AgentDBFast extends EventEmitter {
     const k = options.k || 5;
 
     // Build filter
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- filter values can be primitives or MongoDB-style query objects
     const filter: Record<string, any> = { type: 'episode' };
     if (options.sessionId) filter.sessionId = options.sessionId;
     if (options.minReward !== undefined) filter.reward = { $gte: options.minReward };
@@ -175,6 +177,7 @@ export class AgentDBFast extends EventEmitter {
       { filter: Object.keys(filter).length > 1 ? filter : undefined }
     );
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- backend search returns dynamic result shape
     return results.map((result: any) => ({
       id: result.id,
       sessionId: result.metadata.sessionId,
@@ -234,6 +237,7 @@ export class AgentDBFast extends EventEmitter {
 
     const queryEmbedding = await this.getEmbedding(query);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- filter values can be primitives or MongoDB-style query objects
     const filter: Record<string, any> = { type: 'pattern' };
     if (minQuality !== undefined) {
       filter.quality = { $gte: minQuality };
@@ -249,6 +253,7 @@ export class AgentDBFast extends EventEmitter {
       { filter: Object.keys(filter).length > 1 ? filter : undefined }
     );
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- backend search returns dynamic result shape
     return results.map((result: any) => ({
       id: result.id,
       task: result.metadata.task,
@@ -285,10 +290,13 @@ export class AgentDBFast extends EventEmitter {
       {}
     );
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- backend search returns dynamic result shape
     const episodes = allResults.filter((r: any) => r.metadata?.type === 'episode');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- backend search returns dynamic result shape
     const patterns = allResults.filter((r: any) => r.metadata?.type === 'pattern');
 
     const avgQuality =
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- backend search returns dynamic result shape
       patterns.reduce((sum: number, p: any) => sum + (p.metadata?.quality || 0), 0) /
       (patterns.length || 1);
 
@@ -407,7 +415,7 @@ export async function benchmarkAgentDB(): Promise<{
 
   // API benchmark
   const apiStoreStart = Date.now();
-  const episodeId = await client.storeEpisode({
+  await client.storeEpisode({
     sessionId: 'test-session',
     task: 'test-task',
     trajectory: ['step1', 'step2'],

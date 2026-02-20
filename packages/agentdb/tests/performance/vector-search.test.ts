@@ -6,8 +6,8 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Database from 'better-sqlite3';
-import { ReflexionMemory, Episode } from '../../src/controllers/ReflexionMemory.js';
-import { SkillLibrary, Skill } from '../../src/controllers/SkillLibrary.js';
+import { ReflexionMemory } from '../../src/controllers/ReflexionMemory.js';
+import { SkillLibrary } from '../../src/controllers/SkillLibrary.js';
 import { EmbeddingService } from '../../src/controllers/EmbeddingService.js';
 import * as fs from 'fs';
 import * as path from 'path';

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 /**
  * QUIC Synchronization Integration Tests
@@ -12,9 +12,11 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
  */
 
 // Mock implementations for integration testing
+interface SyncItem { id: string; content?: string; timestamp: number; [key: string]: unknown }
+
 class IntegrationQUICServer {
-  private connections: Map<string, any> = new Map();
-  private data: Map<string, any> = new Map();
+  private connections: Map<string, { authenticated: boolean }> = new Map();
+  private data: Map<string, SyncItem> = new Map();
   private isRunning: boolean = false;
 
   async start(): Promise<void> {
@@ -34,12 +36,12 @@ class IntegrationQUICServer {
     return false;
   }
 
-  async handleSync(clientId: string, items: any[]): Promise<any[]> {
+  async handleSync(clientId: string, items: SyncItem[]): Promise<SyncItem[]> {
     if (!this.connections.has(clientId)) {
       throw new Error('Unauthorized');
     }
 
-    const synced: any[] = [];
+    const synced: SyncItem[] = [];
 
     for (const item of items) {
       const existing = this.data.get(item.id);
@@ -53,7 +55,7 @@ class IntegrationQUICServer {
     return synced;
   }
 
-  getData(): any[] {
+  getData(): SyncItem[] {
     return Array.from(this.data.values());
   }
 
@@ -84,7 +86,7 @@ class IntegrationQUICClient {
     this.isConnected = false;
   }
 
-  async sync(server: IntegrationQUICServer, items: any[]): Promise<any[]> {
+  async sync(server: IntegrationQUICServer, items: SyncItem[]): Promise<SyncItem[]> {
     if (!this.isConnected) {
       throw new Error('Not connected');
     }
@@ -228,7 +230,7 @@ describe('QUIC Synchronization Integration', () => {
       const conflictItem = serverData.find(item => item.id === 'conflict-item');
 
       expect(conflictItem).toBeDefined();
-      expect(conflictItem.content).toBe('Version 2'); // Later timestamp wins
+      expect(conflictItem!.content).toBe('Version 2'); // Later timestamp wins
 
       await client1.disconnect();
       await client2.disconnect();
@@ -328,7 +330,7 @@ describe('QUIC Synchronization Integration', () => {
       ];
 
       let attempts = 0;
-      let synced: any[] = [];
+      let synced: SyncItem[] = [];
       const maxRetries = 3;
 
       while (attempts < maxRetries) {

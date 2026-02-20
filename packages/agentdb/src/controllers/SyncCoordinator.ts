@@ -15,14 +15,13 @@
  */
 
 import chalk from '../utils/chalk-fallback.js';
-import { QUICClient, SyncOptions, SyncResult, PushResult } from './QUICClient.js';
-import { QUICServer, SyncRequest } from './QUICServer.js';
+import { QUICClient } from './QUICClient.js';
+import { QUICServer } from './QUICServer.js';
 
-// Database type from db-fallback
-type Database = any;
+import type { IDatabaseConnection } from '../types/database.types.js';
 
 export interface SyncCoordinatorConfig {
-  db: Database;
+  db: IDatabaseConnection;
   client?: QUICClient;
   server?: QUICServer;
   conflictStrategy?: 'local-wins' | 'remote-wins' | 'latest-wins' | 'merge';
@@ -64,7 +63,7 @@ export interface SyncReport {
 }
 
 export class SyncCoordinator {
-  private db: Database;
+  private db: IDatabaseConnection;
   private client?: QUICClient;
   private server?: QUICServer;
   private config: Required<Omit<SyncCoordinatorConfig, 'db' | 'client' | 'server'>>;
@@ -144,7 +143,7 @@ export class SyncCoordinator {
 
       // Phase 5: Apply changes
       onProgress?.({ phase: 'applying', current: 0, total: itemsPulled, message: 'Applying changes...' });
-      await this.applyChanges(pullResult.data);
+      await this.applyChanges(pullResult.data as { episodes: Array<Record<string, unknown>>; skills: Array<Record<string, unknown>>; edges: Array<Record<string, unknown>> });
 
       // Update sync state
       this.syncState.lastSyncAt = Date.now();
@@ -205,9 +204,9 @@ export class SyncCoordinator {
    * Detect changes since last sync
    */
   private async detectChanges(): Promise<{
-    episodes: any[];
-    skills: any[];
-    edges: any[];
+    episodes: unknown[];
+    skills: unknown[];
+    edges: unknown[];
   }> {
     const { lastEpisodeSync, lastSkillSync, lastEdgeSync } = this.syncState;
 
@@ -233,7 +232,7 @@ export class SyncCoordinator {
    * Push local changes to remote
    */
   private async pushChanges(
-    changes: { episodes: any[]; skills: any[]; edges: any[] },
+    changes: { episodes: unknown[]; skills: unknown[]; edges: unknown[] },
     onProgress?: (progress: SyncProgress) => void
   ): Promise<{ itemsPushed: number; bytesTransferred: number; errors: string[] }> {
     if (!this.client) {
@@ -374,8 +373,8 @@ export class SyncCoordinator {
   ): Promise<{
     itemsPulled: number;
     bytesTransferred: number;
-    data: any;
-    conflicts?: any[];
+    data: { episodes: unknown[]; skills: unknown[]; edges: unknown[] };
+    conflicts?: Array<{ local: { ts: number }; remote: { ts: number } }>;
     errors: string[];
   }> {
     if (!this.client) {
@@ -385,7 +384,7 @@ export class SyncCoordinator {
     const errors: string[] = [];
     let itemsPulled = 0;
     let bytesTransferred = 0;
-    const allData: any = { episodes: [], skills: [], edges: [] };
+    const allData: { episodes: unknown[]; skills: unknown[]; edges: unknown[] } = { episodes: [], skills: [], edges: [] };
 
     try {
       // Pull episodes
@@ -404,7 +403,7 @@ export class SyncCoordinator {
       });
 
       if (episodesResult.success && episodesResult.data) {
-        allData.episodes = episodesResult.data;
+        allData.episodes = episodesResult.data as unknown[];
         itemsPulled += episodesResult.itemsReceived;
         bytesTransferred += episodesResult.bytesTransferred;
         this.syncState.lastEpisodeSync = Date.now();
@@ -428,7 +427,7 @@ export class SyncCoordinator {
       });
 
       if (skillsResult.success && skillsResult.data) {
-        allData.skills = skillsResult.data;
+        allData.skills = skillsResult.data as unknown[];
         itemsPulled += skillsResult.itemsReceived;
         bytesTransferred += skillsResult.bytesTransferred;
         this.syncState.lastSkillSync = Date.now();
@@ -452,7 +451,7 @@ export class SyncCoordinator {
       });
 
       if (edgesResult.success && edgesResult.data) {
-        allData.edges = edgesResult.data;
+        allData.edges = edgesResult.data as unknown[];
         itemsPulled += edgesResult.itemsReceived;
         bytesTransferred += edgesResult.bytesTransferred;
         this.syncState.lastEdgeSync = Date.now();
@@ -475,7 +474,7 @@ export class SyncCoordinator {
   /**
    * Resolve conflicts between local and remote data
    */
-  private async resolveConflicts(conflicts: any[]): Promise<number> {
+  private async resolveConflicts(conflicts: Array<{ local: { ts: number }; remote: { ts: number } }>): Promise<number> {
     let resolved = 0;
 
     for (const conflict of conflicts) {
@@ -506,7 +505,7 @@ export class SyncCoordinator {
   /**
    * Apply pulled changes to local database
    */
-  private async applyChanges(data: any): Promise<void> {
+  private async applyChanges(data: { episodes: Array<Record<string, unknown>>; skills: Array<Record<string, unknown>>; edges: Array<Record<string, unknown>> }): Promise<void> {
     // Apply episodes
     if (data.episodes && data.episodes.length > 0) {
       const stmt = this.db.prepare(`
@@ -588,7 +587,7 @@ export class SyncCoordinator {
     try {
       const row = this.db
         .prepare('SELECT * FROM sync_state WHERE id = 1')
-        .get();
+        .get() as { last_sync_at: number; last_episode_sync: number; last_skill_sync: number; last_edge_sync: number; total_items_synced: number; total_bytes_synced: number; sync_count: number; last_error: string | null } | undefined;
 
       if (row) {
         return {
@@ -599,7 +598,7 @@ export class SyncCoordinator {
           totalItemsSynced: row.total_items_synced,
           totalBytesSynced: row.total_bytes_synced,
           syncCount: row.sync_count,
-          lastError: row.last_error,
+          lastError: row.last_error ?? undefined,
         };
       }
     } catch (error) {

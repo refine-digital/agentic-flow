@@ -59,8 +59,8 @@ export interface RobotContext {
 
 // Navigation plan interface
 export interface NavigationPlan {
-  bestMatch: any;
-  suggestedPath: any;
+  bestMatch: unknown;
+  suggestedPath: unknown;
   confidence: number;
   latencyMs: number;
 }
@@ -68,12 +68,12 @@ export interface NavigationPlan {
 // Example: Environment matching for navigation
 export async function matchEnvironment(
   currentSensorData: Float32Array,  // LIDAR, camera, IMU
-  knownEnvironments: any,           // HNSWGraph type
+  knownEnvironments: unknown,           // HNSWGraph type
   robotContext: RobotContext,
-  applyAttention: (data: Float32Array, config: any) => Promise<Float32Array>,
+  applyAttention: (data: Float32Array, config: unknown) => Promise<Float32Array>,
   analyzeSceneComplexity: (data: Float32Array) => number,
   calculateObstacleDensity: (data: Float32Array) => number,
-  computePath: (matches: any[]) => any
+  computePath: (matches: unknown[]) => unknown
 ): Promise<NavigationPlan> {
   const startTime = Date.now();
   const config = ROBOTICS_ATTENTION_CONFIG;
@@ -93,7 +93,7 @@ export async function matchEnvironment(
   const k = Math.round(5 + obstacleDensity * 15);  // 5-20 range
 
   // Search for similar environments
-  const matches = await knownEnvironments.search(enhanced, k);
+  const matches = await (knownEnvironments as { search: (query: Float32Array, k: number) => Promise<{ score: number }[]> }).search(enhanced, k);
 
   return {
     bestMatch: matches[0],

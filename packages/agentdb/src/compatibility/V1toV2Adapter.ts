@@ -12,9 +12,11 @@ import type { V1Config } from './types';
  * Adapter that translates v1.x API calls to v2.0 backend
  */
 export class V1toV2Adapter {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- v2 instance is a generic API surface with dynamic methods
   private v2Instance: any;
   private warnings: DeprecationWarnings;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- v2 instance is a generic API surface with dynamic methods
   constructor(v2Instance: any, config?: V1Config) {
     this.v2Instance = v2Instance;
     this.warnings = new DeprecationWarnings({
@@ -31,6 +33,7 @@ export class V1toV2Adapter {
     topology?: string;
     maxAgents?: number;
     strategy?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- v1 API returns dynamic shapes
   }): Promise<any> {
     this.warnings.warn('initSwarm', {
       message: 'initSwarm() is deprecated. Use swarms.create() in v2.0',
@@ -39,16 +42,17 @@ export class V1toV2Adapter {
     });
 
     return await this.v2Instance.swarms.create({
-      topology: (config.topology as any) || 'mesh',
+      topology: config.topology || 'mesh',
       maxAgents: config.maxAgents || 8,
-      strategy: (config.strategy as any) || 'auto'
+      strategy: config.strategy || 'auto'
     });
   }
 
   /**
    * Spawn an agent (v1.x API)
    */
-  async spawnAgent(type: string, config?: any): Promise<any> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- v1 API accepts and returns dynamic shapes
+  async spawnAgent(type: string, config?: Record<string, unknown>): Promise<any> {
     this.warnings.warn('spawnAgent', {
       message: 'spawnAgent() is deprecated. Use agents.spawn() in v2.0',
       migration: 'const agent = await flow.agents.spawn({ type: "coder", ...config });',
@@ -71,6 +75,7 @@ export class V1toV2Adapter {
       priority?: string;
       maxAgents?: number;
     }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- v1 API returns dynamic shapes
   ): Promise<any> {
     this.warnings.warn('orchestrateTask', {
       message: 'orchestrateTask() is deprecated. Use tasks.orchestrate() in v2.0',
@@ -80,8 +85,8 @@ export class V1toV2Adapter {
 
     return await this.v2Instance.tasks.orchestrate({
       description,
-      strategy: (config?.strategy as any) || 'adaptive',
-      priority: (config?.priority as any) || 'medium',
+      strategy: config?.strategy || 'adaptive',
+      priority: config?.priority || 'medium',
       maxAgents: config?.maxAgents
     });
   }
@@ -89,6 +94,7 @@ export class V1toV2Adapter {
   /**
    * Get memory value (v1.x API)
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- v1 API returns dynamic shapes
   async getMemory(key: string): Promise<any> {
     this.warnings.warn('getMemory', {
       message: 'getMemory() is deprecated. Use memory.retrieve() in v2.0',
@@ -102,7 +108,7 @@ export class V1toV2Adapter {
   /**
    * Set memory value (v1.x API)
    */
-  async setMemory(key: string, value: any): Promise<void> {
+  async setMemory(key: string, value: unknown): Promise<void> {
     this.warnings.warn('setMemory', {
       message: 'setMemory() is deprecated. Use memory.store() in v2.0',
       migration: 'await flow.memory.store(key, value);',
@@ -115,6 +121,7 @@ export class V1toV2Adapter {
   /**
    * Search memory (v1.x API)
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- v1 API returns dynamic shapes
   async searchMemory(query: string, limit?: number): Promise<any[]> {
     this.warnings.warn('searchMemory', {
       message: 'searchMemory() is deprecated. Use memory.vectorSearch() for semantic search',
@@ -127,6 +134,7 @@ export class V1toV2Adapter {
     });
 
     // Format results to match v1 structure
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- v2 search result shape
     return results.map((r: any) => ({
       key: r.id,
       value: r.metadata,
@@ -137,6 +145,7 @@ export class V1toV2Adapter {
   /**
    * Get swarm status (v1.x API)
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- v1 API returns dynamic shapes
   async getSwarmStatus(): Promise<any> {
     this.warnings.warn('getSwarmStatus', {
       message: 'getSwarmStatus() is deprecated. Use swarms.status() in v2.0',
@@ -151,6 +160,7 @@ export class V1toV2Adapter {
       swarmId: v2Status.id,
       topology: v2Status.topology,
       agentCount: v2Status.agents.length,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- v2 agent status shape
       agents: v2Status.agents.map((agent: any) => ({
         id: agent.id,
         type: agent.type,
@@ -178,6 +188,7 @@ export class V1toV2Adapter {
   /**
    * Get task status (v1.x API)
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- v1 API returns dynamic shapes
   async getTaskStatus(taskId: string): Promise<any> {
     this.warnings.warn('getTaskStatus', {
       message: 'getTaskStatus() is deprecated. Use tasks.status() in v2.0',
@@ -191,6 +202,7 @@ export class V1toV2Adapter {
   /**
    * Wait for task completion (v1.x API)
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- v1 API returns dynamic shapes
   async waitForTask(taskId: string, timeout?: number): Promise<any> {
     this.warnings.warn('waitForTask', {
       message: 'waitForTask() is deprecated. Use tasks.wait() in v2.0',
@@ -204,6 +216,7 @@ export class V1toV2Adapter {
   /**
    * Get underlying v2 instance
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- v2 instance type
   getV2Instance(): any {
     return this.v2Instance;
   }

@@ -160,6 +160,7 @@ export function detectSIMDSupport(): boolean {
       0x0b                    // end
     ]);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebAssembly runtime detection requires dynamic access
     const globalAny = globalThis as any;
     _simdSupported =
       typeof globalAny.WebAssembly !== 'undefined' &&
@@ -179,6 +180,7 @@ export function detectSIMDSupport(): boolean {
  */
 export function detectSIMDSupportLegacy(): boolean {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebAssembly runtime detection requires dynamic access
     const globalAny = globalThis as any;
     return (
       typeof globalAny.WebAssembly !== 'undefined' &&

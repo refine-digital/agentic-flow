@@ -6,13 +6,21 @@
  */
 
 // Optional OpenTelemetry imports - gracefully degrade if not available
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- OTel types are optional; using any for graceful degradation
 type Span = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars -- OTel types are optional
 type SpanStatusCode = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars -- OTel types are optional
 type Context = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- OTel types are optional
 type Tracer = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- OTel types are optional
 type Meter = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- OTel types are optional
 type Counter = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- OTel types are optional
 type Histogram = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- OTel types are optional
 type ObservableGauge = any;
 
 /**
@@ -77,6 +85,7 @@ const DEFAULT_CONFIG: Required<TelemetryConfig> = {
  */
 export class TelemetryManager {
   private static instance: TelemetryManager;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- OTel NodeSDK type is optional
   private sdk: any | null = null;
   private tracer: Tracer | null = null;
   private meter: Meter | null = null;
@@ -138,6 +147,7 @@ export class TelemetryManager {
       this.sdk = new NodeSDK({
         resource,
         instrumentations: [],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- OTel SDK type mismatch
       }) as any;
 
       await this.sdk.start();
@@ -219,7 +229,7 @@ export class TelemetryManager {
   /**
    * Start a new span
    */
-  public startSpan(name: string, attributes?: Record<string, any>): Span | null {
+  public startSpan(name: string, attributes?: Record<string, unknown>): Span | null {
     if (!this.config.enabled || !this.tracer) {
       return null;
     }
@@ -396,14 +406,16 @@ export function recordMetric(
 export function traced(
   operationName?: string,
   options: {
-    attributes?: Record<string, any>;
+    attributes?: Record<string, unknown>;
     recordMetrics?: boolean;
   } = {}
 ) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- decorator target requires any
   return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
     const spanName = operationName || `${target.constructor.name}.${propertyKey}`;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- decorator args require any
     descriptor.value = async function (...args: any[]) {
       const telemetry = TelemetryManager.getInstance();
 
@@ -480,7 +492,7 @@ export function traced(
 export async function withSpan<T>(
   spanName: string,
   fn: (span: Span | null) => Promise<T>,
-  attributes?: Record<string, any>
+  attributes?: Record<string, unknown>
 ): Promise<T> {
   const telemetry = TelemetryManager.getInstance();
 

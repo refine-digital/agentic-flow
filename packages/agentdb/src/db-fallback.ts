@@ -11,14 +11,16 @@ import { validatePragmaCommand, ValidationError } from './security/input-validat
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Type-only for compatibility
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars -- sql.js Database has no shared TS type with better-sqlite3; kept for documentation
 type Database = any;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- cached wrapper class
 let sqlJsWrapper: any = null;
 
 /**
  * Get sql.js database implementation (ONLY sql.js, no better-sqlite3)
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- returns dynamically constructed class
 export async function getDatabaseImplementation(): Promise<any> {
   // Return cached wrapper
   if (sqlJsWrapper) {
@@ -49,15 +51,18 @@ export async function getDatabaseImplementation(): Promise<any> {
  * Create a better-sqlite3 compatible wrapper around sql.js
  * This allows AgentDB to work (with reduced performance) without native compilation
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- sql.js SQL factory type
 function createSqlJsWrapper(SQL: any) {
   return class SqlJsDatabase {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- sql.js Database instance
     private db: any;
     private filename: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- sql.js Statement instances
     private activeStatements: Map<number, any> = new Map();
     private statementCounter: number = 0;
     private intervalId: NodeJS.Timeout | null = null;
 
-    constructor(filename: string, options?: any) {
+    constructor(filename: string, _options?: unknown) {
       this.filename = filename;
 
       // In-memory database
@@ -95,6 +100,7 @@ function createSqlJsWrapper(SQL: any) {
       this.activeStatements.set(stmtId, stmt);
 
       return {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- sql.js bind accepts heterogeneous params
         run: (...params: any[]) => {
           if (isFinalized) throw new Error('Statement already finalized');
           try {
@@ -117,6 +123,7 @@ function createSqlJsWrapper(SQL: any) {
           }
         },
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- sql.js bind accepts heterogeneous params
         get: (...params: any[]) => {
           if (isFinalized) throw new Error('Statement already finalized');
           try {
@@ -132,7 +139,7 @@ function createSqlJsWrapper(SQL: any) {
             const values = stmt.get();
             stmt.reset();
 
-            const result: any = {};
+            const result: Record<string, unknown> = {};
             columns.forEach((col: string, idx: number) => {
               result[col] = values[idx];
             });
@@ -149,17 +156,18 @@ function createSqlJsWrapper(SQL: any) {
           }
         },
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- sql.js bind accepts heterogeneous params
         all: (...params: any[]) => {
           if (isFinalized) throw new Error('Statement already finalized');
           try {
             stmt.bind(params);
-            const results: any[] = [];
+            const results: Record<string, unknown>[] = [];
 
             while (stmt.step()) {
               const columns = stmt.getColumnNames();
               const values = stmt.get();
 
-              const result: any = {};
+              const result: Record<string, unknown> = {};
               columns.forEach((col: string, idx: number) => {
                 result[col] = values[idx];
               });
@@ -221,10 +229,10 @@ function createSqlJsWrapper(SQL: any) {
       }
 
       // Free all active statements to prevent memory leaks
-      for (const [stmtId, stmt] of this.activeStatements.entries()) {
+      for (const [, stmt] of this.activeStatements.entries()) {
         try {
           stmt.free();
-        } catch (e) {
+        } catch {
           // Statement may already be freed
         }
       }
@@ -235,7 +243,7 @@ function createSqlJsWrapper(SQL: any) {
       this.db.close();
     }
 
-    pragma(pragma: string, options?: any) {
+    pragma(pragma: string, _options?: unknown) {
       try {
         // SECURITY: Validate PRAGMA command against whitelist to prevent SQL injection
         const validatedPragma = validatePragmaCommand(pragma);
@@ -252,7 +260,7 @@ function createSqlJsWrapper(SQL: any) {
       }
     }
 
-    transaction(fn: () => any) {
+    transaction(fn: () => unknown) {
       // Return a function that executes the transaction when called
       // This matches better-sqlite3 API where transaction() returns a callable function
       return () => {
@@ -273,7 +281,8 @@ function createSqlJsWrapper(SQL: any) {
 /**
  * Create a database instance using sql.js
  */
-export async function createDatabase(filename: string, options?: any): Promise<any> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- returns dynamically constructed SqlJsDatabase
+export async function createDatabase(filename: string, options?: unknown): Promise<any> {
   const DatabaseImpl = await getDatabaseImplementation();
   return new DatabaseImpl(filename, options);
 }
@@ -286,7 +295,9 @@ export async function createDatabase(filename: string, options?: any): Promise<a
  * Unlike createDatabase(), this does NOT create a new SQL.Database — it wraps
  * the one already held by SqlJsRvfBackend.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- sql.js raw database and returned wrapper
 export function wrapExistingSqlJsDatabase(rawDb: any, filename: string = ':memory:'): any {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- sql.js Statement instances
   const activeStatements = new Map<number, any>();
   let statementCounter = 0;
 
@@ -298,6 +309,7 @@ export function wrapExistingSqlJsDatabase(rawDb: any, filename: string = ':memor
       activeStatements.set(stmtId, stmt);
 
       return {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- sql.js bind accepts heterogeneous params
         run(...params: any[]) {
           if (isFinalized) throw new Error('Statement already finalized');
           try {
@@ -313,6 +325,7 @@ export function wrapExistingSqlJsDatabase(rawDb: any, filename: string = ':memor
             throw error;
           }
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- sql.js bind accepts heterogeneous params
         get(...params: any[]) {
           if (isFinalized) throw new Error('Statement already finalized');
           try {
@@ -322,7 +335,7 @@ export function wrapExistingSqlJsDatabase(rawDb: any, filename: string = ':memor
             const columns = stmt.getColumnNames();
             const values = stmt.get();
             stmt.reset();
-            const result: any = {};
+            const result: Record<string, unknown> = {};
             columns.forEach((col: string, idx: number) => { result[col] = values[idx]; });
             return result;
           } catch (error) {
@@ -330,15 +343,16 @@ export function wrapExistingSqlJsDatabase(rawDb: any, filename: string = ':memor
             throw error;
           }
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- sql.js bind accepts heterogeneous params
         all(...params: any[]) {
           if (isFinalized) throw new Error('Statement already finalized');
           try {
             stmt.bind(params);
-            const results: any[] = [];
+            const results: Record<string, unknown>[] = [];
             while (stmt.step()) {
               const columns = stmt.getColumnNames();
               const values = stmt.get();
-              const result: any = {};
+              const result: Record<string, unknown> = {};
               columns.forEach((col: string, idx: number) => { result[col] = values[idx]; });
               results.push(result);
             }
@@ -377,7 +391,7 @@ export function wrapExistingSqlJsDatabase(rawDb: any, filename: string = ':memor
       rawDb.close();
     },
 
-    pragma(pragma: string, _options?: any) {
+    pragma(pragma: string, _options?: unknown) {
       try {
         const validatedPragma = validatePragmaCommand(pragma);
         const result = rawDb.exec(`PRAGMA ${validatedPragma}`);
@@ -391,7 +405,7 @@ export function wrapExistingSqlJsDatabase(rawDb: any, filename: string = ':memor
       }
     },
 
-    transaction(fn: () => any) {
+    transaction(fn: () => unknown) {
       return () => {
         try {
           rawDb.exec('BEGIN TRANSACTION');

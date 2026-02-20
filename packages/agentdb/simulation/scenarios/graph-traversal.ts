@@ -11,8 +11,8 @@ import * as path from 'path';
 export default {
   description: 'Graph database traversal and Cypher query performance',
 
-  async run(config: any) {
-    const { verbosity = 2 } = config;
+  async run(config: Record<string, unknown>) {
+    const verbosity = (config.verbosity ?? 2) as number;
 
     if (verbosity >= 2) {
       console.log('   📊 Initializing Graph Traversal Simulation');
@@ -55,7 +55,7 @@ export default {
       const embedding = new Float32Array(384).map(() => Math.random());
 
       // Use GraphDatabaseAdapter.createNode API
-      const id = await (graphDb as any).createNode({
+      const id = await (graphDb as Record<string, (...args: unknown[]) => unknown>).createNode({
         id: `test-node-${i}`,
         embedding,
         labels: ['TestNode'],
@@ -65,7 +65,7 @@ export default {
         }
       });
 
-      nodeIds.push(id);
+      nodeIds.push(id as string);
       results.nodesCreated++;
     }
 
@@ -73,7 +73,7 @@ export default {
     for (let i = 0; i < 45; i++) {
       const embedding = new Float32Array(384).map(() => Math.random());
 
-      await (graphDb as any).createEdge({
+      await (graphDb as Record<string, (...args: unknown[]) => unknown>).createEdge({
         from: nodeIds[i],
         to: nodeIds[i + 1],
         description: 'NEXT',
@@ -96,7 +96,7 @@ export default {
     let totalQueryTime = 0;
     for (const query of queries) {
       const queryStart = performance.now();
-      const result = await (graphDb as any).query(query);
+      const result = await (graphDb as Record<string, (...args: unknown[]) => unknown>).query(query);
       const queryEnd = performance.now();
 
       totalQueryTime += (queryEnd - queryStart);
@@ -104,7 +104,7 @@ export default {
 
       if (verbosity >= 3) {
         console.log(`      ✅ Query: ${query.substring(0, 50)}... (${(queryEnd - queryStart).toFixed(2)}ms)`);
-        console.log(`         Results: ${result.nodes?.length || 0} nodes`);
+        console.log(`         Results: ${(result as Record<string, unknown[]>).nodes?.length || 0} nodes`);
       }
     }
 

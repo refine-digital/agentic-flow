@@ -44,9 +44,11 @@ export const DEFAULT_CACHE_SIZE = 10000;
 const INV_255 = 1 / 255;
 
 /** @inline Pre-computed inverse of 15 for 4-bit dequantization */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- pre-computed constant reserved for 4-bit dequantization path
 const INV_15 = 1 / 15;
 
 /** @inline Small epsilon for numerical stability */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- pre-computed constant reserved for numerical stability checks
 const EPSILON = 1e-10;
 
 // ============================================================================
@@ -1181,6 +1183,7 @@ export class QuantizedVectorStore {
     results.sort((a, b) => a.distance - b.distance);
 
     // Convert to search results with similarity scores
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- reserved for future distance normalization
     const maxDistance = Math.max(...results.map((r) => r.distance), 1e-10);
     const searchResults: QuantizedSearchResult[] = [];
 
@@ -1260,11 +1263,12 @@ export class QuantizedVectorStore {
       case 'scalar4bit':
         bytesPerVector = Math.ceil(this.config.dimension / 2) + 8 + 4;
         break;
-      case 'product':
+      case 'product': {
         const pqStats = this.productQuantizer?.getStats();
         bytesPerVector = (pqStats?.numSubspaces ?? 8) + 4; // codes + norm
         codebookBytes = pqStats?.codebookSizeBytes ?? 0;
         break;
+      }
       default:
         bytesPerVector = this.config.dimension * 4;
     }

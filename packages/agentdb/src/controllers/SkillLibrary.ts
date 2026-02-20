@@ -24,8 +24,8 @@ export interface Skill {
   description?: string;
   signature?: {
     // v1 API: optional
-    inputs: Record<string, any>;
-    outputs: Record<string, any>;
+    inputs: Record<string, unknown>;
+    outputs: Record<string, unknown>;
   };
   code?: string;
   successRate: number;
@@ -33,7 +33,7 @@ export interface Skill {
   avgReward?: number; // v1 API: optional (defaults to 0)
   avgLatencyMs?: number; // v1 API: optional (defaults to 0)
   createdFromEpisode?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface SkillLink {
@@ -41,7 +41,7 @@ export interface SkillLink {
   childSkillId: number;
   relationship: 'prerequisite' | 'alternative' | 'refinement' | 'composition';
   weight: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface SkillQuery {
@@ -58,7 +58,8 @@ export class SkillLibrary {
   private db: IDatabaseConnection;
   private embedder: EmbeddingService;
   private vectorBackend: VectorBackend | null;
-  private graphBackend?: any; // GraphBackend or GraphDatabaseAdapter
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- may be GraphBackend or GraphDatabaseAdapter
+  private graphBackend?: any;
   private queryCache: QueryCache;
   private bandit: SolverBandit | null = null;
 
@@ -66,6 +67,7 @@ export class SkillLibrary {
     db: IDatabaseConnection,
     embedder: EmbeddingService,
     vectorBackend?: VectorBackend,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- may be GraphBackend or GraphDatabaseAdapter
     graphBackend?: any,
     cacheConfig?: QueryCacheConfig,
     bandit?: SolverBandit
@@ -87,7 +89,7 @@ export class SkillLibrary {
     this.queryCache.invalidateCategory('skills');
     // Use GraphDatabaseAdapter if available (AgentDB v2)
     if (this.graphBackend && 'storeSkill' in this.graphBackend) {
-      const graphAdapter = this.graphBackend as any as GraphDatabaseAdapter;
+      const graphAdapter = this.graphBackend as unknown as GraphDatabaseAdapter;
 
       const text = this.buildSkillText(skill);
       const embedding = await this.embedder.embed(text);
@@ -213,14 +215,14 @@ export class SkillLibrary {
 
     // Use GraphDatabaseAdapter if available (AgentDB v2)
     if (this.graphBackend && 'searchSkills' in this.graphBackend) {
-      const graphAdapter = this.graphBackend as any as GraphDatabaseAdapter;
+      const graphAdapter = this.graphBackend as unknown as GraphDatabaseAdapter;
 
       const searchResults = await graphAdapter.searchSkills(queryEmbedding, k);
 
       let results = searchResults
         .map((result) => {
           // Handle metadata/tags parsing
-          let metadata: any = undefined;
+          let metadata: Record<string, unknown> | undefined = undefined;
           if (result.tags) {
             if (typeof result.tags === 'string') {
               // Skip parsing if it's a String object representation
@@ -435,7 +437,8 @@ export class SkillLibrary {
       WHERE sl.parent_skill_id = ? AND sl.relationship = 'prerequisite'
       ORDER BY sl.weight DESC
     `);
-    const prerequisites = prereqStmt.all(skillId).map(this.rowToSkill);
+    type SkillRow = Parameters<typeof this.rowToSkill>[0];
+    const prerequisites = (prereqStmt.all(skillId) as SkillRow[]).map(this.rowToSkill);
 
     // Get alternatives
     const altStmt = this.db.prepare(`
@@ -444,7 +447,7 @@ export class SkillLibrary {
       WHERE sl.parent_skill_id = ? AND sl.relationship = 'alternative'
       ORDER BY sl.weight DESC, s.success_rate DESC
     `);
-    const alternatives = altStmt.all(skillId).map(this.rowToSkill);
+    const alternatives = (altStmt.all(skillId) as SkillRow[]).map(this.rowToSkill);
 
     // Get refinements
     const refStmt = this.db.prepare(`
@@ -453,7 +456,7 @@ export class SkillLibrary {
       WHERE sl.parent_skill_id = ? AND sl.relationship = 'refinement'
       ORDER BY sl.weight DESC, s.created_at DESC
     `);
-    const refinements = refStmt.all(skillId).map(this.rowToSkill);
+    const refinements = (refStmt.all(skillId) as SkillRow[]).map(this.rowToSkill);
 
     return { skill, prerequisites, alternatives, refinements };
   }
@@ -575,7 +578,7 @@ export class SkillLibrary {
       } else {
         // Update existing skill stats
         this.updateSkillStats(
-          (existing as any).id,
+          (existing as { id: number }).id,
           candidate.success_rate > 0.5,
           candidate.avg_reward,
           candidate.avg_latency ?? 0
@@ -604,7 +607,7 @@ export class SkillLibrary {
       AND success = 1
     `
       )
-      .all(...episodeIds) as any[];
+      .all(...episodeIds) as Array<{ id: number; task: string; input: string; output: string; critique: string; reward: number; success: number; metadata: string }>;
 
     if (episodes.length === 0) {
       return { commonPatterns: [], successIndicators: [] };
@@ -734,16 +737,16 @@ export class SkillLibrary {
     return Array.from(frequency.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, n)
-      .filter(([_, count]) => count >= 2) // Only keywords appearing at least twice
-      .map(([word, _]) => word);
+      .filter(([_word, count]) => count >= 2) // Only keywords appearing at least twice
+      .map(([word]) => word);
   }
 
   /**
    * Extract common patterns from episode metadata
    */
-  private extractMetadataPatterns(episodes: any[]): string[] {
+  private extractMetadataPatterns(episodes: Array<{ metadata?: string | Record<string, unknown>; [key: string]: unknown }>): string[] {
     const patterns: string[] = [];
-    const metadataFields = new Map<string, Set<any>>();
+    const metadataFields = new Map<string, Set<unknown>>();
 
     for (const episode of episodes) {
       if (episode.metadata) {
@@ -778,7 +781,7 @@ export class SkillLibrary {
   /**
    * Analyze learning trend across episodes
    */
-  private analyzeLearningTrend(episodes: any[]): string | null {
+  private analyzeLearningTrend(episodes: Array<{ id: number; reward: number; [key: string]: unknown }>): string | null {
     if (episodes.length < 3) return null;
 
     // Sort by episode ID (temporal order)
@@ -866,7 +869,7 @@ export class SkillLibrary {
    * Warm cache with common skill queries
    */
   async warmCache(commonTasks: string[]): Promise<void> {
-    await this.queryCache.warm(async (cache) => {
+    await this.queryCache.warm(async (_cache) => {
       // Pre-load common skill queries
       for (const task of commonTasks) {
         await this.retrieveSkills({ task, k: 5 });
@@ -897,12 +900,12 @@ export class SkillLibrary {
 
   private getSkillById(id: number): Skill {
     const stmt = this.db.prepare('SELECT * FROM skills WHERE id = ?');
-    const row = stmt.get(id);
+    const row = stmt.get(id) as { id: number; name: string; description: string; signature: string; code: string; success_rate: number; uses: number; avg_reward: number; avg_latency_ms: number; created_from_episode: number | null; metadata: string | null } | undefined;
     if (!row) throw new Error(`Skill ${id} not found`);
     return this.rowToSkill(row);
   }
 
-  private rowToSkill(row: any): Skill {
+  private rowToSkill(row: { id: number; name: string; description: string; signature: string; code: string; success_rate: number; uses: number; avg_reward: number; avg_latency_ms: number; created_from_episode: number | null; metadata: string | null }): Skill {
     return {
       id: row.id,
       name: row.name,
@@ -913,7 +916,7 @@ export class SkillLibrary {
       uses: row.uses,
       avgReward: row.avg_reward,
       avgLatencyMs: row.avg_latency_ms,
-      createdFromEpisode: row.created_from_episode,
+      createdFromEpisode: row.created_from_episode ?? undefined,
       metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
     };
   }

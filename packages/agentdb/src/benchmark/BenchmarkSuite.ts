@@ -23,10 +23,6 @@ import { createBackend, detectBackends } from '../backends/factory.js';
 import type { VectorBackend } from '../backends/VectorBackend.js';
 import {
   QuantizedVectorStore,
-  quantize8bit,
-  quantize4bit,
-  dequantize8bit,
-  dequantize4bit,
 } from '../quantization/index.js';
 
 // ============================================================================
@@ -262,7 +258,9 @@ export abstract class Benchmark {
    * Force garbage collection if available
    */
   protected forceGC(): void {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- global.gc is a V8 runtime API exposed via --expose-gc
     if (typeof global !== 'undefined' && (global as any).gc) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (global as any).gc();
     }
   }

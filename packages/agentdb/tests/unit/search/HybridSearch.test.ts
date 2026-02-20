@@ -4,7 +4,7 @@
  * Tests for KeywordIndex (BM25) and HybridSearch (combined vector + keyword)
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   KeywordIndex,
   HybridSearch,
@@ -19,19 +19,19 @@ import type { VectorBackend, SearchResult, VectorStats } from '../../../src/back
 
 class MockVectorBackend implements VectorBackend {
   readonly name = 'hnswlib' as const;
-  private vectors: Map<string, { embedding: Float32Array; metadata?: Record<string, any> }> = new Map();
+  private vectors: Map<string, { embedding: Float32Array; metadata?: Record<string, unknown> }> = new Map();
 
-  insert(id: string, embedding: Float32Array, metadata?: Record<string, any>): void {
+  insert(id: string, embedding: Float32Array, metadata?: Record<string, unknown>): void {
     this.vectors.set(id, { embedding, metadata });
   }
 
-  insertBatch(items: Array<{ id: string; embedding: Float32Array; metadata?: Record<string, any> }>): void {
+  insertBatch(items: Array<{ id: string; embedding: Float32Array; metadata?: Record<string, unknown> }>): void {
     for (const item of items) {
       this.insert(item.id, item.embedding, item.metadata);
     }
   }
 
-  search(query: Float32Array, k: number, options?: { threshold?: number; filter?: Record<string, any> }): SearchResult[] {
+  search(query: Float32Array, k: number, options?: { threshold?: number; filter?: Record<string, unknown> }): SearchResult[] {
     const results: SearchResult[] = [];
 
     for (const [id, data] of this.vectors) {

@@ -10,7 +10,7 @@ export interface AttentionMechanismConfig {
   enabled: boolean;
   heads: number;
   dimension: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface AttentionConfig {
@@ -94,12 +94,12 @@ export async function loadAttentionConfig(configPath?: string): Promise<Attentio
     const data = await fs.readFile(filePath, 'utf-8');
     const config = JSON.parse(data);
     return validateConfig(config);
-  } catch (error: any) {
-    if (error.code === 'ENOENT') {
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       // Config file doesn't exist, return default
       return DEFAULT_ATTENTION_CONFIG;
     }
-    throw new Error(`Failed to load attention config: ${error.message}`);
+    throw new Error(`Failed to load attention config: ${(error as Error).message}`);
   }
 }
 
@@ -126,7 +126,8 @@ export async function saveAttentionConfig(
 /**
  * Validate attention configuration
  */
-export function validateConfig(config: any): AttentionConfig {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function validateConfig(config: Record<string, any>): AttentionConfig {
   if (!config || typeof config !== 'object') {
     throw new Error('Invalid configuration: must be an object');
   }
@@ -238,11 +239,11 @@ export async function updateMechanismConfig(
     throw new Error(`Unknown mechanism: ${mechanismName}`);
   }
 
-  // Apply updates
-  config.mechanisms[mechanismName as keyof typeof config.mechanisms] = {
-    ...config.mechanisms[mechanismName as keyof typeof config.mechanisms],
+  // Apply updates — the spread merges base + mechanism-specific fields
+  (config.mechanisms as Record<string, AttentionMechanismConfig>)[mechanismName] = {
+    ...(config.mechanisms as Record<string, AttentionMechanismConfig>)[mechanismName],
     ...updates,
-  } as any;
+  };
 
   // Validate and save
   const validConfig = validateConfig(config);

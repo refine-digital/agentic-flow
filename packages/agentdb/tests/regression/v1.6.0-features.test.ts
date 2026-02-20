@@ -15,7 +15,6 @@ describe('v1.6.0 New Features Regression Tests', () => {
   const testDbPath = './test-v160-features.db';
   const exportPath = './test-export.json';
   const importPath = './test-import.db';
-  const cliPath = path.join(__dirname, '../../dist/cli/agentdb-cli.js');
 
   beforeAll(() => {
     // Clean up any existing test files
@@ -110,7 +109,7 @@ describe('v1.6.0 New Features Regression Tests', () => {
   });
 
   describe('Vector Search Command', () => {
-    let db: any;
+    let db: Awaited<ReturnType<typeof createDatabase>>;
     let embedder: EmbeddingService;
     let reflexion: ReflexionMemory;
 
@@ -194,7 +193,7 @@ describe('v1.6.0 New Features Regression Tests', () => {
       const results = JSON.parse(output);
       expect(Array.isArray(results)).toBe(true);
       // All results should have similarity >= 0.9
-      results.forEach((r: any) => {
+      results.forEach((r: { similarity: number }) => {
         expect(r.similarity).toBeGreaterThanOrEqual(0.9);
       });
     });
@@ -207,7 +206,7 @@ describe('v1.6.0 New Features Regression Tests', () => {
   });
 
   describe('Export/Import Commands', () => {
-    let db: any;
+    let db: Awaited<ReturnType<typeof createDatabase>>;
     let embedder: EmbeddingService;
     let reflexion: ReflexionMemory;
 
@@ -296,7 +295,7 @@ describe('v1.6.0 New Features Regression Tests', () => {
   });
 
   describe('Stats Command', () => {
-    let db: any;
+    let db: Awaited<ReturnType<typeof createDatabase>>;
     let embedder: EmbeddingService;
     let reflexion: ReflexionMemory;
 
@@ -386,7 +385,7 @@ async function runCLI(args: string[]): Promise<string> {
       stderr += data.toString();
     });
 
-    child.on('close', (code) => {
+    child.on('close', (_code) => {
       // CLI commands may exit with 0 or 1 depending on the operation
       // We consider both successful for testing purposes
       resolve(stdout + stderr);

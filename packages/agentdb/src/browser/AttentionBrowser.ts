@@ -32,7 +32,8 @@ export type LoadingState = 'idle' | 'loading' | 'loaded' | 'error';
  * Browser-compatible attention class with WASM support
  */
 export class AttentionBrowser {
-  private wasmModule: any = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private wasmModule: any = null; // WASM module loaded at runtime - FFI boundary
   private loadingState: LoadingState = 'idle';
   private loadError: Error | null = null;
   private config: AttentionConfig;
@@ -85,7 +86,7 @@ export class AttentionBrowser {
       }
 
       // Dynamic import of WASM loader
-      // @ts-ignore - WASM loader generated during build
+      // @ts-expect-error - WASM loader generated during build, not available at compile time
       const wasmLoader = await import('../../dist/agentdb.wasm-loader.js');
       this.wasmModule = await wasmLoader.initWASM();
       this.loadingState = 'loaded';

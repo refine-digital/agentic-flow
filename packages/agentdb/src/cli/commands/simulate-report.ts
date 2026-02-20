@@ -25,8 +25,8 @@ export async function viewReport(reportId?: string): Promise<void> {
   try {
     const report = await loadReport(reportId);
     displayReport(report);
-  } catch (error: any) {
-    console.error(chalk.red(`\n❌ Error loading report: ${error.message}\n`));
+  } catch (error: unknown) {
+    console.error(chalk.red(`\n❌ Error loading report: ${(error as Error).message}\n`));
   }
 }
 
@@ -108,11 +108,11 @@ async function listReports(): Promise<void> {
     });
 
     console.log('\n' + chalk.gray('Use: agentdb simulate --report [id] to view details\n'));
-  } catch (error: any) {
-    if (error.code === 'ENOENT') {
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       console.log(chalk.gray('No reports directory found.\n'));
     } else {
-      console.error(chalk.red(`Error: ${error.message}\n`));
+      console.error(chalk.red(`Error: ${(error as Error).message}\n`));
     }
   }
 }

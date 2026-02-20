@@ -34,7 +34,7 @@ export interface QUICClientConfig {
 export interface SyncOptions {
   type: 'episodes' | 'skills' | 'edges' | 'full';
   since?: number;
-  filters?: Record<string, any>;
+  filters?: Record<string, unknown>;
   batchSize?: number;
   onProgress?: (progress: SyncProgress) => void;
 }
@@ -49,7 +49,7 @@ export interface SyncProgress {
 
 export interface SyncResult {
   success: boolean;
-  data?: any;
+  data?: unknown;
   itemsReceived: number;
   bytesTransferred: number;
   durationMs: number;
@@ -58,7 +58,7 @@ export interface SyncResult {
 
 export interface PushOptions {
   type: 'episodes' | 'skills' | 'edges';
-  data: any[];
+  data: unknown[];
   batchSize?: number;
   onProgress?: (progress: PushProgress) => void;
 }
@@ -79,7 +79,7 @@ export interface PushResult {
   bytesTransferred: number;
   durationMs: number;
   error?: string;
-  failedItems?: any[];
+  failedItems?: Array<{ item: unknown; error: string }>;
 }
 
 interface Connection {
@@ -163,7 +163,7 @@ export class QUICClient {
       console.log(chalk.blue('🔌 Disconnecting from QUIC server...'));
 
       // Close all connections in pool
-      for (const [connId, conn] of this.connectionPool.entries()) {
+      for (const connId of this.connectionPool.keys()) {
         console.log(chalk.gray(`  Closing connection: ${connId}`));
         // Close connection logic here
       }
@@ -283,9 +283,9 @@ export class QUICClient {
    */
   private async sendWithRetry(
     connection: Connection,
-    request: any,
+    request: Record<string, unknown>,
     attempt: number = 0
-  ): Promise<any> {
+  ): Promise<{ success: boolean; data?: unknown; count?: number; error?: string }> {
     try {
       // Simulate sending request
       // In real implementation, this would use QUIC protocol
@@ -314,7 +314,7 @@ export class QUICClient {
   /**
    * Send request to server
    */
-  private async sendRequest(connection: Connection, request: any): Promise<any> {
+  private async sendRequest(connection: Connection, _request: Record<string, unknown>): Promise<{ success: boolean; data?: unknown; count?: number; error?: string }> {
     // Simulate request
     // In real implementation, this would serialize and send via QUIC
 
@@ -441,7 +441,7 @@ export class QUICClient {
     const startTime = Date.now();
     let bytesTransferred = 0;
     let itemsPushed = 0;
-    const failedItems: any[] = [];
+    const failedItems: Array<{ item: unknown; error: string }> = [];
     const batchSize = options.batchSize || 100;
 
     try {
@@ -578,9 +578,9 @@ export class QUICClient {
    * Push multiple data types in a single operation
    */
   async pushAll(data: {
-    episodes?: any[];
-    skills?: any[];
-    edges?: any[];
+    episodes?: unknown[];
+    skills?: unknown[];
+    edges?: unknown[];
   }, options?: {
     batchSize?: number;
     onProgress?: (type: string, progress: PushProgress) => void;

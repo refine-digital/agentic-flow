@@ -20,8 +20,8 @@ import * as path from 'path';
 export default {
   description: 'Psycho-symbolic reasoner with hybrid symbolic/subsymbolic processing',
 
-  async run(config: any) {
-    const { verbosity = 2 } = config;
+  async run(config: Record<string, unknown>) {
+    const verbosity = (config.verbosity ?? 2) as number;
 
     if (verbosity >= 2) {
       console.log('   🧩 Initializing Psycho-Symbolic Reasoner');
@@ -41,23 +41,24 @@ export default {
     );
 
     const reflexion = new ReflexionMemory(
-      db.getGraphDatabase() as any,
+      db.getGraphDatabase(),
       embedder,
       undefined,
       undefined,
-      db.getGraphDatabase() as any
+      db.getGraphDatabase()
     );
 
-    const causal = new CausalMemoryGraph(
-      db.getGraphDatabase() as any,
-      db.getGraphDatabase() as any
+    // Initialize causal graph for side-effect registration
+    void new CausalMemoryGraph(
+      db.getGraphDatabase(),
+      db.getGraphDatabase()
     );
 
     const skills = new SkillLibrary(
-      db.getGraphDatabase() as any,
+      db.getGraphDatabase(),
       embedder,
       undefined,
-      db.getGraphDatabase() as any
+      db.getGraphDatabase()
     );
 
     const results = {

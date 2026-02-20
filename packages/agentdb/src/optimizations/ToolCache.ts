@@ -31,7 +31,7 @@ export interface CacheStats {
   avgAccessCount: number;
 }
 
-export class ToolCache<T = any> {
+export class ToolCache<T = unknown> {
   private cache: Map<string, CacheEntry<T>>;
   private maxSize: number;
   private defaultTTLMs: number;
@@ -287,22 +287,22 @@ export class ToolCache<T = any> {
 
 export class MCPToolCaches {
   public stats: ToolCache<string>;
-  public patterns: ToolCache<any[]>;
-  public searches: ToolCache<any[]>;
-  public metrics: ToolCache<any>;
+  public patterns: ToolCache<unknown[]>;
+  public searches: ToolCache<unknown[]>;
+  public metrics: ToolCache<unknown>;
 
   constructor() {
     // Stats cache: 60s TTL (agentdb_stats, db_stats, pattern_stats)
     this.stats = new ToolCache<string>(100, 60000);
 
     // Pattern cache: 30s TTL (pattern searches, skill searches)
-    this.patterns = new ToolCache<any[]>(500, 30000);
+    this.patterns = new ToolCache<unknown[]>(500, 30000);
 
     // Search results cache: 15s TTL (episode retrieval, vector search)
-    this.searches = new ToolCache<any[]>(1000, 15000);
+    this.searches = new ToolCache<unknown[]>(1000, 15000);
 
     // Metrics cache: 120s TTL (learning_metrics, expensive computations)
-    this.metrics = new ToolCache<any>(50, 120000);
+    this.metrics = new ToolCache<unknown>(50, 120000);
   }
 
   /**

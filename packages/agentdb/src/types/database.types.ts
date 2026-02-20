@@ -14,27 +14,27 @@
 /**
  * Prepared statement interface for type-safe queries
  */
-export interface IPreparedStatement<T = any> {
+export interface IPreparedStatement<T = unknown> {
   /**
    * Execute a query and get a single row result
    * @param params - Query parameters
    * @returns Single row or undefined if no match
    */
-  get(...params: any[]): T | undefined;
+  get(...params: unknown[]): T | undefined;
 
   /**
    * Execute a query and get all matching rows
    * @param params - Query parameters
    * @returns Array of matching rows
    */
-  all(...params: any[]): T[];
+  all(...params: unknown[]): T[];
 
   /**
    * Execute a query that modifies data (INSERT, UPDATE, DELETE)
    * @param params - Query parameters
    * @returns Result with metadata about the operation
    */
-  run(...params: any[]): IRunResult;
+  run(...params: unknown[]): IRunResult;
 
   /**
    * Finalize the statement and free resources
@@ -87,7 +87,7 @@ export interface IDatabaseConnection {
    * const stmt = db.prepare('SELECT * FROM users WHERE id = ?');
    * const user = stmt.get(123);
    */
-  prepare<T = any>(sql: string): IPreparedStatement<T>;
+  prepare<T = unknown>(sql: string): IPreparedStatement<T>;
 
   /**
    * Execute a SQL query and return all results
@@ -98,7 +98,7 @@ export interface IDatabaseConnection {
    * @returns Array of result rows
    * @deprecated Use prepare().all() for better performance and type safety
    */
-  all?<T = any>(sql: string, ...params: any[]): T[];
+  all?<T = unknown>(sql: string, ...params: unknown[]): T[];
 
   /**
    * Execute a SQL query and return a single result
@@ -109,7 +109,7 @@ export interface IDatabaseConnection {
    * @returns Single row or undefined
    * @deprecated Use prepare().get() for better performance and type safety
    */
-  get?<T = any>(sql: string, ...params: any[]): T | undefined;
+  get?<T = unknown>(sql: string, ...params: unknown[]): T | undefined;
 
   /**
    * Execute a data modification query
@@ -120,7 +120,7 @@ export interface IDatabaseConnection {
    * @returns Run result with metadata
    * @deprecated Use prepare().run() for better performance and type safety
    */
-  run?(sql: string, ...params: any[]): IRunResult;
+  run?(sql: string, ...params: unknown[]): IRunResult;
 
   /**
    * Close the database connection and free resources
@@ -132,6 +132,7 @@ export interface IDatabaseConnection {
    * Creates a transaction wrapper function
    * Note: Exact signature depends on database backend
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   transaction?: any;
 
   /**
@@ -157,7 +158,7 @@ export interface IDatabaseConnection {
   /**
    * Enable WAL mode (better-sqlite3 only)
    */
-  pragma?(pragma: string, value?: any): any;
+  pragma?(pragma: string, value?: unknown): unknown;
 }
 
 /**
@@ -174,26 +175,28 @@ export type QueryResult<T> = T;
 /**
  * Type guard to check if a value is a valid database connection
  */
-export function isDatabaseConnection(db: any): db is IDatabaseConnection {
+export function isDatabaseConnection(db: unknown): db is IDatabaseConnection {
   return (
-    db &&
+    db !== null &&
+    db !== undefined &&
     typeof db === 'object' &&
-    typeof db.exec === 'function' &&
-    typeof db.prepare === 'function' &&
-    typeof db.close === 'function'
+    typeof (db as IDatabaseConnection).exec === 'function' &&
+    typeof (db as IDatabaseConnection).prepare === 'function' &&
+    typeof (db as IDatabaseConnection).close === 'function'
   );
 }
 
 /**
  * Type guard to check if a value is a prepared statement
  */
-export function isPreparedStatement(stmt: any): stmt is IPreparedStatement {
+export function isPreparedStatement(stmt: unknown): stmt is IPreparedStatement {
   return (
-    stmt &&
+    stmt !== null &&
+    stmt !== undefined &&
     typeof stmt === 'object' &&
-    typeof stmt.get === 'function' &&
-    typeof stmt.all === 'function' &&
-    typeof stmt.run === 'function'
+    typeof (stmt as IPreparedStatement).get === 'function' &&
+    typeof (stmt as IPreparedStatement).all === 'function' &&
+    typeof (stmt as IPreparedStatement).run === 'function'
   );
 }
 
@@ -227,6 +230,7 @@ export function createTypedStatement<T>(
 /**
  * Row type helpers for common database tables
  */
+// eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace DatabaseRows {
   /**
    * Episode row from episodes table

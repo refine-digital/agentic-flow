@@ -4,9 +4,9 @@
  * Tests automated causal discovery, A/B experiments, and edge consolidation
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Database from 'better-sqlite3';
-import { NightlyLearner, LearnerConfig, LearnerReport } from '../../../src/controllers/NightlyLearner.js';
+import { NightlyLearner, LearnerConfig } from '../../../src/controllers/NightlyLearner.js';
 import { EmbeddingService } from '../../../src/controllers/EmbeddingService.js';
 import * as fs from 'fs';
 

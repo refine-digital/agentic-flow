@@ -22,7 +22,7 @@ export interface GraphNode {
   labels: string[];
 
   /** Node properties */
-  properties: Record<string, any>;
+  properties: Record<string, unknown>;
 
   /** Optional vector embedding for hybrid search */
   embedding?: Float32Array;
@@ -45,7 +45,7 @@ export interface GraphRelationship {
   type: string;
 
   /** Relationship properties */
-  properties?: Record<string, any>;
+  properties?: Record<string, unknown>;
 }
 
 /**
@@ -53,7 +53,7 @@ export interface GraphRelationship {
  */
 export interface QueryResult {
   /** Result rows */
-  rows: Record<string, any>[];
+  rows: Record<string, unknown>[];
 
   /** Result columns */
   columns: string[];
@@ -121,7 +121,7 @@ export interface GraphBackend {
    * @param params - Query parameters
    * @returns Query result with rows and metadata
    */
-  execute(cypher: string, params?: Record<string, any>): Promise<QueryResult>;
+  execute(cypher: string, params?: Record<string, unknown>): Promise<QueryResult>;
 
   // ============================================================================
   // Node Operations
@@ -134,7 +134,7 @@ export interface GraphBackend {
    * @param properties - Node properties
    * @returns Created node ID
    */
-  createNode(labels: string[], properties: Record<string, any>): Promise<string>;
+  createNode(labels: string[], properties: Record<string, unknown>): Promise<string>;
 
   /**
    * Get a node by ID
@@ -151,7 +151,7 @@ export interface GraphBackend {
    * @param properties - Properties to update
    * @returns True if updated, false if not found
    */
-  updateNode(id: string, properties: Record<string, any>): Promise<boolean>;
+  updateNode(id: string, properties: Record<string, unknown>): Promise<boolean>;
 
   /**
    * Delete a node and its relationships
@@ -178,7 +178,7 @@ export interface GraphBackend {
     from: string,
     to: string,
     type: string,
-    properties?: Record<string, any>
+    properties?: Record<string, unknown>
   ): Promise<string>;
 
   /**
@@ -269,22 +269,22 @@ export interface GraphBackend {
 /**
  * Type guard to check if an object implements GraphBackend
  */
-export function isGraphBackend(obj: any): obj is GraphBackend {
+export function isGraphBackend(obj: unknown): obj is GraphBackend {
+  if (typeof obj !== 'object' || obj === null) return false;
+  const o = obj as Record<string, unknown>;
   return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    typeof obj.execute === 'function' &&
-    typeof obj.createNode === 'function' &&
-    typeof obj.getNode === 'function' &&
-    typeof obj.updateNode === 'function' &&
-    typeof obj.deleteNode === 'function' &&
-    typeof obj.createRelationship === 'function' &&
-    typeof obj.getRelationship === 'function' &&
-    typeof obj.deleteRelationship === 'function' &&
-    typeof obj.traverse === 'function' &&
-    typeof obj.shortestPath === 'function' &&
-    typeof obj.vectorSearch === 'function' &&
-    typeof obj.getStats === 'function' &&
-    typeof obj.clear === 'function'
+    typeof o.execute === 'function' &&
+    typeof o.createNode === 'function' &&
+    typeof o.getNode === 'function' &&
+    typeof o.updateNode === 'function' &&
+    typeof o.deleteNode === 'function' &&
+    typeof o.createRelationship === 'function' &&
+    typeof o.getRelationship === 'function' &&
+    typeof o.deleteRelationship === 'function' &&
+    typeof o.traverse === 'function' &&
+    typeof o.shortestPath === 'function' &&
+    typeof o.vectorSearch === 'function' &&
+    typeof o.getStats === 'function' &&
+    typeof o.clear === 'function'
   );
 }

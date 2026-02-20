@@ -4,8 +4,6 @@
  */
 
 import { execSync } from 'child_process';
-import * as fs from 'fs';
-import * as path from 'path';
 
 // Color codes for beautiful output
 const colors = {

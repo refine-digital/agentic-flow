@@ -3,7 +3,7 @@
  * Tests all existing functionality to ensure no regressions
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import { createDatabase } from '../../src/db-fallback.js';
@@ -13,7 +13,7 @@ import { CausalMemoryGraph } from '../../src/controllers/CausalMemoryGraph.js';
 import { EmbeddingService } from '../../src/controllers/EmbeddingService.js';
 
 describe('Core Features Regression Tests', () => {
-  let db: any;
+  let db: Awaited<ReturnType<typeof createDatabase>>;
   let embedder: EmbeddingService;
   let reflexion: ReflexionMemory;
   let skills: SkillLibrary;

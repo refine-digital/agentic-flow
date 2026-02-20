@@ -35,7 +35,7 @@ interface SimulationResult {
     memoryUsage: number;
     errorRate: number;
   };
-  details: any[];
+  details: Record<string, unknown>[];
 }
 
 export async function runSimulation(scenario: string, options: SimulationOptions): Promise<void> {
@@ -149,7 +149,7 @@ export async function runSimulation(scenario: string, options: SimulationOptions
 
     // Calculate metrics
     const successfulIterations = result.details.filter(d => d.success);
-    const totalDuration = successfulIterations.reduce((sum, d) => sum + d.duration, 0);
+    const totalDuration = successfulIterations.reduce((sum, d) => sum + (d.duration as number), 0);
     result.metrics.avgLatency = totalDuration / successfulIterations.length;
     result.metrics.opsPerSec = (result.success / (result.duration / 1000));
     result.metrics.errorRate = result.failures / result.iterations;
@@ -220,7 +220,7 @@ export async function listScenarios(): Promise<void> {
   console.log('');
 }
 
-export async function initScenario(scenario: string, options: any): Promise<void> {
+export async function initScenario(scenario: string, options: { template: string }): Promise<void> {
   const scenarioPath = path.join(process.cwd(), 'simulation', 'scenarios', `${scenario}.ts`);
 
   if (fs.existsSync(scenarioPath)) {
@@ -245,7 +245,7 @@ function getTemplate(templateName: string): string {
 export default {
   description: 'Basic simulation scenario',
 
-  async run(config: any) {
+  async run(config: unknown) {
     // Your simulation logic here
     return {
       status: 'success',
@@ -261,7 +261,7 @@ export default {
 export default {
   description: 'Multi-agent swarm simulation',
 
-  async run(config: any) {
+  async run(config: unknown) {
     const { swarmInit, agentSpawn } = await import('./swarms/coordinator.js');
 
     // Initialize swarm

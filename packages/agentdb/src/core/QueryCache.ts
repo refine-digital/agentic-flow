@@ -22,6 +22,7 @@ export interface QueryCacheConfig {
   maxResultSize?: number;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic cache must accept any value type
 export interface CacheEntry<T = any> {
   /** Cached value */
   value: T;
@@ -86,7 +87,7 @@ export class QueryCache {
   /**
    * Generate cache key from SQL query and parameters
    */
-  generateKey(sql: string, params: any[] = [], category: string = 'query'): string {
+  generateKey(sql: string, params: unknown[] = [], category: string = 'query'): string {
     const paramStr = params.length > 0 ? JSON.stringify(params) : '';
     // Use a simple hash for better performance
     const hash = this.hashCode(`${category}:${sql}:${paramStr}`);
@@ -96,6 +97,7 @@ export class QueryCache {
   /**
    * Get value from cache
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic cache must accept any value type
   get<T = any>(key: string): T | undefined {
     if (!this.config.enabled) {
       return undefined;
@@ -128,6 +130,7 @@ export class QueryCache {
   /**
    * Set value in cache
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic cache must accept any value type
   set<T = any>(key: string, value: T, ttl: number = this.config.defaultTTL): void {
     if (!this.config.enabled) {
       return;
@@ -372,7 +375,7 @@ export class QueryCache {
   /**
    * Estimate size of cached value in bytes
    */
-  private estimateSize(value: any): number {
+  private estimateSize(value: unknown): number {
     if (value === null || value === undefined) {
       return 8;
     }
@@ -384,9 +387,9 @@ export class QueryCache {
         return 8;
       case 'string':
         return value.length * 2; // UTF-16
-      case 'object':
+      case 'object': {
         if (Array.isArray(value)) {
-          return value.reduce((sum, item) => sum + this.estimateSize(item), 0);
+          return value.reduce((sum: number, item: unknown) => sum + this.estimateSize(item), 0);
         }
         if (value instanceof Float32Array) {
           return value.length * 4;
@@ -398,10 +401,12 @@ export class QueryCache {
           return value.length;
         }
         // For objects, estimate recursively
-        return Object.entries(value).reduce(
+        const obj = value as Record<string, unknown>;
+        return Object.entries(obj).reduce(
           (sum, [key, val]) => sum + key.length * 2 + this.estimateSize(val),
           0
         );
+      }
       default:
         return 64; // Fallback estimate
     }

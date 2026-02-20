@@ -13,8 +13,9 @@ import * as path from 'path';
 export default {
   description: 'Lean-agentic lightweight swarm with minimal overhead',
 
-  async run(config: any) {
-    const { verbosity = 2, size = 3 } = config;
+  async run(config: Record<string, unknown>) {
+    const verbosity = (config.verbosity ?? 2) as number;
+    const size = (config.size ?? 3) as number;
 
     if (verbosity >= 2) {
       console.log(`   ⚡ Initializing Lean-Agentic ${size}-Agent Swarm`);
@@ -52,11 +53,11 @@ export default {
         if (role === 'memory') {
           // Memory agent: Store and retrieve patterns
           const reflexion = new ReflexionMemory(
-            db.getGraphDatabase() as any,
+            db.getGraphDatabase(),
             embedder,
             undefined,
             undefined,
-            db.getGraphDatabase() as any
+            db.getGraphDatabase()
           );
 
           await reflexion.storeEpisode({
@@ -81,9 +82,9 @@ export default {
         } else if (role === 'skill') {
           // Skill agent: Create and search skills
           const skills = new SkillLibrary(
-            db.getGraphDatabase() as any,
+            db.getGraphDatabase(),
             embedder,
-            db.getGraphDatabase() as any
+            db.getGraphDatabase()
           );
 
           await skills.createSkill({
@@ -106,11 +107,11 @@ export default {
         } else {
           // Coordinator agent: Query and coordinate
           const reflexion = new ReflexionMemory(
-            db.getGraphDatabase() as any,
+            db.getGraphDatabase(),
             embedder,
             undefined,
             undefined,
-            db.getGraphDatabase() as any
+            db.getGraphDatabase()
           );
 
           const episodes = await reflexion.retrieveRelevant({

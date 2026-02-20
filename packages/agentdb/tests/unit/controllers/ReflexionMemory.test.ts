@@ -115,10 +115,10 @@ describe('ReflexionMemory', () => {
 
       // Verify embedding was stored
       const embedding = db.prepare('SELECT embedding FROM episode_embeddings WHERE episode_id = ?')
-        .get(episodeId) as any;
+        .get(episodeId) as { embedding: Buffer } | undefined;
 
       expect(embedding).toBeDefined();
-      expect(embedding.embedding).toBeInstanceOf(Buffer);
+      expect(embedding!.embedding).toBeInstanceOf(Buffer);
     });
   });
 

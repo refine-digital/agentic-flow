@@ -19,10 +19,13 @@ import { WASMVectorSearch } from '../../src/controllers/WASMVectorSearch.js';
 // Mock database interface
 interface MockDatabase {
   prepare: (sql: string) => {
-    all: (...params: any[]) => any[];
-    get: (...params: any[]) => any;
+    all: (..._params: unknown[]) => unknown[];
+    get: (..._params: unknown[]) => unknown;
   };
 }
+
+type HNSWDb = ConstructorParameters<typeof HNSWIndex>[0];
+type WASMDb = ConstructorParameters<typeof WASMVectorSearch>[0];
 
 // Test data generation utilities
 function generateVector(dimension: number): Float32Array {
@@ -74,13 +77,14 @@ function createMockDatabase(vectors: TestVector[]): MockDatabase {
 
   return {
     prepare: (sql: string) => ({
-      all: (...params: any[]) => {
+      all: (..._params: unknown[]) => {
         if (sql.includes('SELECT pattern_id')) {
           return Array.from(vectorMap.values());
         }
         return [];
       },
-      get: (id: number, ...params: any[]) => {
+      get: (..._params: unknown[]) => {
+        const id = _params[0] as number;
         return vectorMap.get(id);
       },
     }),
@@ -107,10 +111,10 @@ describe('Backend Parity Tests', () => {
     queries = generateTestVectors(NUM_QUERIES, DIMENSION);
 
     // Create mock database
-    mockDb = createMockDatabase(testVectors) as any;
+    mockDb = createMockDatabase(testVectors);
 
     // Initialize HNSW backend
-    hnswIndex = new HNSWIndex(mockDb as any, {
+    hnswIndex = new HNSWIndex(mockDb as unknown as HNSWDb, {
       dimension: DIMENSION,
       metric: 'cosine',
       M: 16,
@@ -121,7 +125,7 @@ describe('Backend Parity Tests', () => {
     });
 
     // Initialize WASM backend (RuVector alternative)
-    wasmSearch = new WASMVectorSearch(mockDb as any, {
+    wasmSearch = new WASMVectorSearch(mockDb as unknown as WASMDb, {
       enableWASM: false, // Use pure JS for consistent comparison
       enableSIMD: false,
       batchSize: 100,
@@ -219,7 +223,7 @@ describe('Backend Parity Tests', () => {
       const threshold = 0.7;
 
       const hnswResults = await hnswIndex.search(query.embedding, K_RESULTS, { threshold });
-      const wasmResults = await wasmSearch.findKNN(query.embedding, K_RESULTS, { threshold } as any);
+      const wasmResults = await wasmSearch.findKNN(query.embedding, K_RESULTS, { threshold } as unknown as Parameters<typeof wasmSearch.findKNN>[2]);
 
       // Both should filter by threshold
       for (const result of hnswResults) {
@@ -262,7 +266,7 @@ describe('Backend Parity Tests', () => {
       hnswIndex.removeVector(removeId);
 
       // Search should not return removed vector
-      const results = await hnswIndex.search(vectorToRemove.embedding, K_RESULTS);
+      await hnswIndex.search(vectorToRemove.embedding, K_RESULTS);
 
       // The removed vector should not appear in results
       // Note: HNSW doesn't support true deletion, so we verify it's marked as removed
@@ -395,7 +399,7 @@ describe('Backend Parity Tests', () => {
     });
 
     it('should handle normalized vs unnormalized vectors', () => {
-      const unnormalized = new Float32Array([3, 4, 0]);
+      void new Float32Array([3, 4, 0]); // unnormalized input for reference
       const normalized = normalizeVector(new Float32Array([3, 4, 0]));
 
       // Self-similarity should always be 1.0 for normalized vectors

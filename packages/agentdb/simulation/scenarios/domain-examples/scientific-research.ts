@@ -63,11 +63,11 @@ export interface ResearchConnection {
 // Example: Research paper discovery with cross-domain connections
 export async function discoverRelatedResearch(
   paperEmbedding: Float32Array,    // Paper abstract + citations embeddings
-  researchCorpus: any,             // HNSWGraph type
-  applyAttention: (data: Float32Array, config: any) => Promise<Float32Array>,
-  buildResearchTaxonomy: (papers: any[], config: any) => Promise<any>,
-  findCrossDomainConnections: (papers: any[], taxonomy: any) => Promise<any[]>,
-  findDomain: (paper: any, taxonomy: any) => string,
+  researchCorpus: unknown,             // HNSWGraph type
+  applyAttention: (data: Float32Array, config: unknown) => Promise<Float32Array>,
+  buildResearchTaxonomy: (papers: unknown[], config: unknown) => Promise<unknown>,
+  findCrossDomainConnections: (papers: unknown[], taxonomy: unknown) => Promise<unknown[]>,
+  findDomain: (paper: unknown, taxonomy: unknown) => string,
   includeCrossDomain: boolean = true
 ): Promise<ResearchConnection[]> {
   const config = RESEARCH_ATTENTION_CONFIG;
@@ -76,7 +76,7 @@ export async function discoverRelatedResearch(
   const enhanced = await applyAttention(paperEmbedding, config);
 
   // High-recall search (k=100 for comprehensive review)
-  const candidates = await researchCorpus.search(enhanced, 100);
+  const candidates = await (researchCorpus as { search: (query: Float32Array, k: number) => Promise<unknown[]> }).search(enhanced, 100);
 
   // Hierarchical clustering for taxonomy
   const taxonomy = await buildResearchTaxonomy(candidates, config.clustering);
@@ -86,15 +86,18 @@ export async function discoverRelatedResearch(
     ? await findCrossDomainConnections(candidates, taxonomy)
     : [];
 
-  return candidates.map((p: any) => ({
-    paperId: p.id,
-    title: p.metadata.title,
-    authors: p.metadata.authors,
-    similarity: p.score,
-    domain: findDomain(p, taxonomy),
-    crossDomainConnection: crossDomain.find((c: any) => c.paperId === p.id),
-    citations: p.metadata.citations
-  }));
+  return candidates.map((p: unknown) => {
+    const paper = p as { id: string; score: number; metadata: { title: string; authors: string[]; citations: number } };
+    return {
+      paperId: paper.id,
+      title: paper.metadata.title,
+      authors: paper.metadata.authors,
+      similarity: paper.score,
+      domain: findDomain(p, taxonomy),
+      crossDomainConnection: crossDomain.find((c: unknown) => (c as { paperId: string }).paperId === paper.id) as ResearchConnection['crossDomainConnection'],
+      citations: paper.metadata.citations
+    };
+  });
 }
 
 // Performance targets for research
@@ -239,7 +242,7 @@ export interface CitationNetworkMetrics {
   communityModularity: number;
 }
 
-export function analyzeCitationNetwork(papers: ResearchConnection[]): CitationNetworkMetrics {
+export function analyzeCitationNetwork(_papers: ResearchConnection[]): CitationNetworkMetrics {
   // Placeholder implementation
   return {
     networkDensity: 0.15,

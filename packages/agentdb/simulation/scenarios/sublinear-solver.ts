@@ -17,8 +17,9 @@ import * as path from 'path';
 export default {
   description: 'Sublinear-time O(log n) solver with optimized vector search',
 
-  async run(config: any) {
-    const { verbosity = 2, dataSize = 1000 } = config;
+  async run(config: Record<string, unknown>) {
+    const verbosity = (config.verbosity ?? 2) as number;
+    const dataSize = (config.dataSize ?? 1000) as number;
 
     if (verbosity >= 2) {
       console.log(`   ⚡ Initializing Sublinear-Time Solver (n=${dataSize})`);
@@ -38,11 +39,11 @@ export default {
     );
 
     const reflexion = new ReflexionMemory(
-      db.getGraphDatabase() as any,
+      db.getGraphDatabase(),
       embedder,
       undefined,
       undefined,
-      db.getGraphDatabase() as any
+      db.getGraphDatabase()
     );
 
     const results = {

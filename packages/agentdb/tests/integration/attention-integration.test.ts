@@ -49,7 +49,7 @@ describe('Attention Mechanism Integration', () => {
     });
 
     await db.initialize();
-    memoryController = db.getController('memory') as MemoryController;
+    memoryController = db.getController('memory') as unknown as MemoryController;
   });
 
   afterEach(async () => {
@@ -61,7 +61,7 @@ describe('Attention Mechanism Integration', () => {
 
   describe('Self-Attention Mechanism', () => {
     it('should compute self-attention scores for memory entries', async () => {
-      const controller = db.getController('self-attention') as SelfAttentionController;
+      const controller = db.getController('self-attention') as unknown as SelfAttentionController;
 
       // Store test memories
       const memories = [
@@ -90,7 +90,7 @@ describe('Attention Mechanism Integration', () => {
     });
 
     it('should apply softmax normalization to attention scores', async () => {
-      const controller = db.getController('self-attention') as SelfAttentionController;
+      const controller = db.getController('self-attention') as unknown as SelfAttentionController;
 
       // Store test data
       await memoryController.store({
@@ -108,7 +108,7 @@ describe('Attention Mechanism Integration', () => {
     });
 
     it('should filter results by minimum attention score', async () => {
-      const controller = db.getController('self-attention') as SelfAttentionController;
+      const controller = db.getController('self-attention') as unknown as SelfAttentionController;
 
       // Store memories with varying similarity
       await memoryController.store({ id: 'm1', content: 'High similarity', embedding: [0.9, 0.1, 0.0] });
@@ -127,7 +127,7 @@ describe('Attention Mechanism Integration', () => {
     });
 
     it('should handle empty memory gracefully', async () => {
-      const controller = db.getController('self-attention') as SelfAttentionController;
+      const controller = db.getController('self-attention') as unknown as SelfAttentionController;
 
       const query = [0.1, 0.2, 0.3];
       const result = await controller.computeAttention(query);
@@ -137,10 +137,10 @@ describe('Attention Mechanism Integration', () => {
     });
 
     it('should scale with large memory sets efficiently', async () => {
-      const controller = db.getController('self-attention') as SelfAttentionController;
+      const controller = db.getController('self-attention') as unknown as SelfAttentionController;
 
       // Store 1000 memories
-      const promises: Promise<any>[] = [];
+      const promises: Promise<unknown>[] = [];
       for (let i = 0; i < 1000; i++) {
         promises.push(memoryController.store({
           id: `mem${i}`,
@@ -162,7 +162,7 @@ describe('Attention Mechanism Integration', () => {
 
   describe('Cross-Attention Mechanism', () => {
     it('should compute cross-attention between query and memory', async () => {
-      const controller = db.getController('cross-attention') as CrossAttentionController;
+      const controller = db.getController('cross-attention') as unknown as CrossAttentionController;
 
       // Store memory context
       const context = [
@@ -184,7 +184,7 @@ describe('Attention Mechanism Integration', () => {
     });
 
     it('should integrate query and context via attention', async () => {
-      const controller = db.getController('cross-attention') as CrossAttentionController;
+      const controller = db.getController('cross-attention') as unknown as CrossAttentionController;
 
       await memoryController.store({
         id: 'context1',
@@ -201,7 +201,7 @@ describe('Attention Mechanism Integration', () => {
     });
 
     it('should support multiple context sources', async () => {
-      const controller = db.getController('cross-attention') as CrossAttentionController;
+      const controller = db.getController('cross-attention') as unknown as CrossAttentionController;
 
       // Store in different namespaces
       await memoryController.store({ id: 'mem1', embedding: [0.1, 0.2, 0.3] }, 'episodic');
@@ -217,7 +217,7 @@ describe('Attention Mechanism Integration', () => {
 
   describe('Multi-Head Attention Mechanism', () => {
     it('should compute multi-head attention with configured heads', async () => {
-      const controller = db.getController('multi-head-attention') as MultiHeadAttentionController;
+      const controller = db.getController('multi-head-attention') as unknown as MultiHeadAttentionController;
 
       // Store test data
       for (let i = 0; i < 5; i++) {
@@ -240,7 +240,7 @@ describe('Attention Mechanism Integration', () => {
     });
 
     it('should aggregate attention from multiple heads', async () => {
-      const controller = db.getController('multi-head-attention') as MultiHeadAttentionController;
+      const controller = db.getController('multi-head-attention') as unknown as MultiHeadAttentionController;
 
       await memoryController.store({
         id: 'multi-head-test',
@@ -258,7 +258,7 @@ describe('Attention Mechanism Integration', () => {
     });
 
     it('should support different aggregation strategies', async () => {
-      const controller = db.getController('multi-head-attention') as MultiHeadAttentionController;
+      const controller = db.getController('multi-head-attention') as unknown as MultiHeadAttentionController;
 
       await memoryController.store({ id: 'agg-test', embedding: [0.5, 0.5, 0.5] });
 
@@ -276,7 +276,7 @@ describe('Attention Mechanism Integration', () => {
     });
 
     it('should handle varying head dimensions', async () => {
-      const controller = db.getController('multi-head-attention') as MultiHeadAttentionController;
+      const controller = db.getController('multi-head-attention') as unknown as MultiHeadAttentionController;
 
       await memoryController.store({ id: 'dim-test', embedding: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6] });
 
@@ -368,7 +368,7 @@ describe('Attention Mechanism Integration', () => {
 
   describe('Performance Tests', () => {
     it('should process attention in real-time (<100ms)', async () => {
-      const controller = db.getController('self-attention') as SelfAttentionController;
+      const controller = db.getController('self-attention') as unknown as SelfAttentionController;
 
       // Store 100 memories
       for (let i = 0; i < 100; i++) {
@@ -387,7 +387,7 @@ describe('Attention Mechanism Integration', () => {
     });
 
     it('should handle concurrent attention requests', async () => {
-      const controller = db.getController('self-attention') as SelfAttentionController;
+      const controller = db.getController('self-attention') as unknown as SelfAttentionController;
 
       // Store test data
       for (let i = 0; i < 50; i++) {
@@ -411,7 +411,7 @@ describe('Attention Mechanism Integration', () => {
     });
 
     it('should maintain memory efficiency with attention computation', async () => {
-      const controller = db.getController('multi-head-attention') as MultiHeadAttentionController;
+      const controller = db.getController('multi-head-attention') as unknown as MultiHeadAttentionController;
 
       const initialMemory = process.memoryUsage().heapUsed;
 
@@ -440,7 +440,7 @@ describe('Attention Mechanism Integration', () => {
 
   describe('Error Handling', () => {
     it('should handle invalid query dimensions', async () => {
-      const controller = db.getController('self-attention') as SelfAttentionController;
+      const controller = db.getController('self-attention') as unknown as SelfAttentionController;
 
       await memoryController.store({
         id: 'test',
@@ -454,14 +454,14 @@ describe('Attention Mechanism Integration', () => {
     });
 
     it('should handle null/undefined inputs gracefully', async () => {
-      const controller = db.getController('self-attention') as SelfAttentionController;
+      const controller = db.getController('self-attention') as unknown as SelfAttentionController;
 
       await expect(
-        controller.computeAttention(null as any)
+        controller.computeAttention(null as unknown as number[])
       ).rejects.toThrow();
 
       await expect(
-        controller.computeAttention(undefined as any)
+        controller.computeAttention(undefined as unknown as number[])
       ).rejects.toThrow();
     });
 
@@ -481,10 +481,10 @@ describe('Attention Mechanism Integration', () => {
     });
 
     it('should recover from attention computation errors', async () => {
-      const controller = db.getController('self-attention') as SelfAttentionController;
+      const controller = db.getController('self-attention') as unknown as SelfAttentionController;
 
       // Mock a computation error
-      vi.spyOn(controller as any, 'computeScores').mockRejectedValueOnce(
+      vi.spyOn(controller as unknown as Record<string, (...args: unknown[]) => unknown>, 'computeScores').mockRejectedValueOnce(
         new Error('Computation failed')
       );
 
@@ -494,7 +494,7 @@ describe('Attention Mechanism Integration', () => {
       ).rejects.toThrow('Computation failed');
 
       // Should recover on next attempt
-      (controller as any).computeScores.mockRestore();
+      (controller as unknown as Record<string, { mockRestore: () => void }>).computeScores.mockRestore();
       await memoryController.store({ id: 'recovery', embedding: query });
 
       const result = await controller.computeAttention(query);
@@ -504,7 +504,7 @@ describe('Attention Mechanism Integration', () => {
 
   describe('Edge Cases', () => {
     it('should handle zero vectors in attention', async () => {
-      const controller = db.getController('self-attention') as SelfAttentionController;
+      const controller = db.getController('self-attention') as unknown as SelfAttentionController;
 
       await memoryController.store({
         id: 'zero',
@@ -519,7 +519,7 @@ describe('Attention Mechanism Integration', () => {
     });
 
     it('should handle very large attention scores', async () => {
-      const controller = db.getController('self-attention') as SelfAttentionController;
+      const controller = db.getController('self-attention') as unknown as SelfAttentionController;
 
       await memoryController.store({
         id: 'large',
@@ -535,7 +535,7 @@ describe('Attention Mechanism Integration', () => {
     });
 
     it('should handle high-dimensional embeddings', async () => {
-      const controller = db.getController('multi-head-attention') as MultiHeadAttentionController;
+      const controller = db.getController('multi-head-attention') as unknown as MultiHeadAttentionController;
 
       const dim = 1024;
       const embedding = Array(dim).fill(0).map(() => Math.random());

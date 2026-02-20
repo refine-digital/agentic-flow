@@ -13,8 +13,7 @@
  * - Policy compliance
  */
 
-// Database type from db-fallback
-type Database = any;
+import type { IDatabaseConnection } from '../types/database.types.js';
 import { CausalMemoryGraph, CausalEdge } from './CausalMemoryGraph.js';
 import { ExplainableRecall, RecallCertificate } from './ExplainableRecall.js';
 import { EmbeddingService } from './EmbeddingService.js';
@@ -54,14 +53,14 @@ export interface CausalRecallResult {
 }
 
 export class CausalRecall {
-  private db: Database;
+  private db: IDatabaseConnection;
   private causalGraph: CausalMemoryGraph;
   private explainableRecall: ExplainableRecall;
   private embedder: EmbeddingService;
   private vectorBackend?: VectorBackend;
 
   constructor(
-    db: Database,
+    db: IDatabaseConnection,
     embedder: EmbeddingService,
     vectorBackend?: VectorBackend,
     private config: RerankConfig = {
@@ -169,9 +168,9 @@ export class CausalRecall {
           latency_ms
         FROM episodes
         WHERE id IN (${placeholders})
-      `).all(...episodeIds) as any[];
+      `).all(...episodeIds) as Array<{ id: number; content: string; latency_ms: number }>;
 
-      const episodeMap = new Map(episodes.map((e: any) => [e.id, e]));
+      const episodeMap = new Map(episodes.map((e) => [String(e.id), e]));
 
       return searchResults.map(result => {
         const ep = episodeMap.get(result.id);
@@ -186,7 +185,7 @@ export class CausalRecall {
     }
 
     // Fallback to SQL-based similarity search
-    const results: any[] = [];
+    const results: Array<{ id: string; type: string; content: string; similarity: number; latencyMs: number }> = [];
     const episodes = this.db.prepare(`
       SELECT
         e.id,
@@ -201,7 +200,7 @@ export class CausalRecall {
     `).all(k * 2);
 
     for (const ep of episodes) {
-      const episodeRow = ep as any;
+      const episodeRow = ep as { id: number; type: string; content: string; embedding: Buffer; latency_ms: number };
       const embedding = this.deserializeEmbedding(episodeRow.embedding);
       const similarity = this.cosineSimilarity(queryEmbedding, embedding);
       results.push({
@@ -233,7 +232,7 @@ export class CausalRecall {
       SELECT * FROM causal_edges
       WHERE from_memory_id IN (${placeholders})
         AND confidence >= ?
-    `).all(...candidateIds.map(id => parseInt(id)), this.config.minConfidence || 0.6) as any[];
+    `).all(...candidateIds.map(id => parseInt(id)), this.config.minConfidence || 0.6) as Array<{ id: number; from_memory_id: number; from_memory_type: string; to_memory_id: number; to_memory_type: string; similarity: number; uplift: number; confidence: number; sample_size: number; evidence_ids: string | null; mechanism: string }>;
 
     for (const edge of edges) {
       const fromId = edge.from_memory_id.toString();
@@ -243,9 +242,9 @@ export class CausalRecall {
       edgeMap.get(fromId)!.push({
         id: edge.id,
         fromMemoryId: edge.from_memory_id,
-        fromMemoryType: edge.from_memory_type,
+        fromMemoryType: edge.from_memory_type as CausalEdge['fromMemoryType'],
         toMemoryId: edge.to_memory_id,
-        toMemoryType: edge.to_memory_type,
+        toMemoryType: edge.to_memory_type as CausalEdge['toMemoryType'],
         similarity: edge.similarity,
         uplift: edge.uplift,
         confidence: edge.confidence,
@@ -286,7 +285,7 @@ export class CausalRecall {
 
       return {
         id: candidate.id,
-        type: candidate.type as any,
+        type: candidate.type as RerankCandidate['type'],
         content: candidate.content,
         similarity: candidate.similarity,
         uplift: avgUplift,
@@ -400,21 +399,21 @@ export class CausalRecall {
     avgRedundancyRatio: number;
     avgCompletenessScore: number;
   } {
-    const causalEdges = this.db.prepare('SELECT COUNT(*) as count FROM causal_edges').get() as any;
-    const certificates = this.db.prepare('SELECT COUNT(*) as count FROM recall_certificates').get() as any;
+    const causalEdges = this.db.prepare('SELECT COUNT(*) as count FROM causal_edges').get() as { count: number } | undefined;
+    const certificates = this.db.prepare('SELECT COUNT(*) as count FROM recall_certificates').get() as { count: number } | undefined;
 
     const avgStats = this.db.prepare(`
       SELECT
         AVG(redundancy_ratio) as avg_redundancy,
         AVG(completeness_score) as avg_completeness
       FROM recall_certificates
-    `).get() as any;
+    `).get() as { avg_redundancy: number | null; avg_completeness: number | null } | undefined;
 
     return {
-      totalCausalEdges: causalEdges.count,
-      totalCertificates: certificates.count,
-      avgRedundancyRatio: avgStats?.avg_redundancy || 0,
-      avgCompletenessScore: avgStats?.avg_completeness || 0
+      totalCausalEdges: causalEdges?.count ?? 0,
+      totalCertificates: certificates?.count ?? 0,
+      avgRedundancyRatio: avgStats?.avg_redundancy ?? 0,
+      avgCompletenessScore: avgStats?.avg_completeness ?? 0
     };
   }
 
@@ -449,7 +448,6 @@ export class CausalRecall {
     const {
       query,
       k = 12,
-      includeEvidence = false,
       alpha = this.config.alpha,
       beta = this.config.beta,
       gamma = this.config.gamma

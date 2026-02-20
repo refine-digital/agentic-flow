@@ -50,7 +50,7 @@ export interface Memory {
   /** Creation timestamp */
   timestamp?: number;
   /** Additional metadata */
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -62,7 +62,7 @@ export interface SearchOptions {
   /** Minimum similarity threshold */
   threshold?: number;
   /** Metadata filters */
-  filter?: Record<string, any>;
+  filter?: Record<string, unknown>;
   /** Use attention for ranking */
   useAttention?: boolean;
   /** Weight recent memories higher */
@@ -235,7 +235,7 @@ export class MemoryController {
     // Compute similarity scores
     const results: SearchResult[] = [];
 
-    for (const [id, memory] of this.memories.entries()) {
+    for (const memory of this.memories.values()) {
       // Apply metadata filter if provided
       if (filter && !this.matchesFilter(memory.metadata || {}, filter)) {
         continue;
@@ -370,8 +370,8 @@ export class MemoryController {
    * Check if metadata matches filter criteria
    */
   private matchesFilter(
-    metadata: Record<string, any>,
-    filter: Record<string, any>
+    metadata: Record<string, unknown>,
+    filter: Record<string, unknown>
   ): boolean {
     for (const [key, value] of Object.entries(filter)) {
       if (metadata[key] !== value) {

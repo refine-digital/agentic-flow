@@ -53,12 +53,12 @@ export interface Recommendation {
 // Example: Product recommendation with diversity
 export async function recommendProducts(
   userProfile: Float32Array,       // User preferences embeddings
-  productCatalog: any,             // HNSWGraph type
+  productCatalog: unknown,             // HNSWGraph type
   userEngagement: number,
-  applyAttention: (data: Float32Array, config: any) => Promise<Float32Array>,
-  applyDiversityBoost: (candidates: any[], weight: number) => Promise<any[]>,
-  clusterRecommendations: (items: any[], config: any) => Promise<any[]>,
-  findCluster: (item: any, clusters: any[]) => string,
+  applyAttention: (data: Float32Array, config: unknown) => Promise<Float32Array>,
+  applyDiversityBoost: (candidates: unknown[], weight: number) => Promise<unknown[]>,
+  clusterRecommendations: (items: unknown[], config: unknown) => Promise<unknown[]>,
+  findCluster: (item: unknown, clusters: unknown[]) => string,
   diversityWeight: number = 0.3
 ): Promise<Recommendation[]> {
   const config = ECOMMERCE_ATTENTION_CONFIG;
@@ -70,7 +70,7 @@ export async function recommendProducts(
   const k = Math.round(10 + userEngagement * 40);  // 10-50 range
 
   // Search with clustering for category diversity
-  const candidates = await productCatalog.search(enhanced, k);
+  const candidates = await (productCatalog as { search: (query: Float32Array, k: number) => Promise<unknown[]> }).search(enhanced, k);
 
   // Apply diversity boost (promote different categories)
   const diversified = await applyDiversityBoost(candidates, diversityWeight);
@@ -78,13 +78,16 @@ export async function recommendProducts(
   // Cluster recommendations by category (Louvain)
   const clusters = await clusterRecommendations(diversified, config.clustering);
 
-  return diversified.map((p: any) => ({
-    productId: p.id,
-    relevanceScore: p.score,
-    category: p.metadata.category,
-    cluster: findCluster(p, clusters),
-    priceUSD: p.metadata.price
-  }));
+  return diversified.map((p: unknown) => {
+    const item = p as { id: string; score: number; metadata: { category: string; price: number } };
+    return {
+      productId: item.id,
+      relevanceScore: item.score,
+      category: item.metadata.category,
+      cluster: findCluster(p, clusters),
+      priceUSD: item.metadata.price
+    };
+  });
 }
 
 // Performance targets for e-commerce

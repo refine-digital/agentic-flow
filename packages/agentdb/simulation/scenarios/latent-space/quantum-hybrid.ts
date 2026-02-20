@@ -62,6 +62,36 @@ export interface QuantumAlgorithm {
  * NOTE: This is a theoretical simulation for research purposes.
  * Actual quantum implementations require quantum hardware.
  */
+// Internal interfaces for type safety
+interface HardwareProfile {
+  year: number;
+  qubits: number;
+  errorRate: number;
+  coherenceMs: number;
+}
+
+interface QuantumResultEntry {
+  algorithm: string;
+  parameters: QuantumAlgorithm['parameters'];
+  size: number;
+  dimension: number;
+  hardwareYear: number;
+  quantumMetrics: QuantumMetrics;
+  speedups: {
+    theoreticalSpeedup: number;
+    groverSpeedup: number;
+    quantumWalkSpeedup: number;
+    dimensionSpeedup: number;
+  };
+  resources: unknown;
+  viability: {
+    current2025Viability: number;
+    projected2045Viability: number;
+    viability: number;
+    bottleneck: string;
+  };
+}
+
 export const quantumHybridScenario: SimulationScenario = {
   id: 'quantum-hybrid',
   name: 'Quantum-Hybrid HNSW (Theoretical)',
@@ -92,18 +122,18 @@ export const quantumHybridScenario: SimulationScenario = {
   },
 
   async run(config: typeof quantumHybridScenario.config): Promise<SimulationReport> {
-    const results: any[] = [];
+    const results: QuantumResultEntry[] = [];
     const startTime = Date.now();
 
     console.log('⚛️  Starting Quantum-Hybrid HNSW Simulation (Theoretical)...\n');
     console.log('⚠️  NOTE: This is theoretical simulation, not actual quantum computing\n');
 
-    for (const algorithm of config.algorithms) {
+    for (const algorithm of config.algorithms as QuantumAlgorithm[]) {
       console.log(`\n🔬 Testing algorithm: ${algorithm.name}`);
 
-      for (const size of config.graphSizes) {
-        for (const dim of config.dimensions) {
-          for (const hardware of config.hardwareProfiles) {
+      for (const size of config.graphSizes as number[]) {
+        for (const dim of config.dimensions as number[]) {
+          for (const hardware of config.hardwareProfiles as HardwareProfile[]) {
             console.log(`  └─ ${size} nodes, ${dim}d, ${hardware.year} hardware`);
 
             // Simulate quantum subroutines
@@ -142,9 +172,9 @@ export const quantumHybridScenario: SimulationScenario = {
               dimension: dim,
               hardwareYear: hardware.year,
               quantumMetrics,
-              speedups,
+              speedups: speedups as QuantumResultEntry['speedups'],
               resources,
-              viability,
+              viability: viability as QuantumResultEntry['viability'],
             });
           }
         }
@@ -160,7 +190,7 @@ export const quantumHybridScenario: SimulationScenario = {
 
       summary: {
         totalTests: results.length,
-        algorithms: config.algorithms.length,
+        algorithms: (config.algorithms as QuantumAlgorithm[]).length,
         theoreticalBestSpeedup: findBestTheoreticalSpeedup(results),
         nearTermViability: assessNearTermViability(results),
         longTermProjection: assessLongTermProjection(results),
@@ -193,7 +223,7 @@ async function simulateQuantumSubroutines(
   graphSize: number,
   dim: number,
   algorithm: QuantumAlgorithm,
-  hardware: any
+  hardware: HardwareProfile
 ): Promise<QuantumMetrics> {
   let qubitsRequired = 0;
   let gateDepth = 0;
@@ -207,7 +237,7 @@ async function simulateQuantumSubroutines(
       gateDepth = 0;
       break;
 
-    case 'grover':
+    case 'grover': {
       // Grover search for M neighbors
       const M = algorithm.parameters.neighborhoodSize || 16;
       qubitsRequired = Math.ceil(Math.log2(M));
@@ -215,6 +245,7 @@ async function simulateQuantumSubroutines(
       classicalFraction = 0.7;
       quantumFraction = 0.3;
       break;
+    }
 
     case 'quantum-walk':
       // Quantum walk on graph
@@ -232,7 +263,7 @@ async function simulateQuantumSubroutines(
       quantumFraction = 0.4;
       break;
 
-    case 'hybrid':
+    case 'hybrid': {
       // Hybrid approach
       const budget = algorithm.parameters.quantumBudget || 50;
       qubitsRequired = Math.min(budget, Math.ceil(Math.log2(graphSize)));
@@ -240,6 +271,7 @@ async function simulateQuantumSubroutines(
       classicalFraction = 0.65;
       quantumFraction = 0.35;
       break;
+    }
   }
 
   // Required coherence time
@@ -268,7 +300,7 @@ function calculateTheoreticalSpeedups(
   graphSize: number,
   dim: number,
   algorithm: QuantumAlgorithm
-): any {
+): QuantumResultEntry['speedups'] {
   let theoreticalSpeedup = 1.0;
   let groverSpeedup = 1.0;
   let quantumWalkSpeedup = 1.0;
@@ -321,18 +353,19 @@ function analyzeQuantumResources(
   graphSize: number,
   dim: number,
   algorithm: QuantumAlgorithm,
-  hardware: any
-): any {
-  const subroutines = simulateQuantumSubroutines(graphSize, dim, algorithm, hardware);
+  hardware: HardwareProfile
+): unknown {
+  // Note: simulateQuantumSubroutines is async but we use sync estimates here
+  const qubitsRequired = Math.ceil(Math.log2(graphSize));
 
   return {
-    qubitsRequired: subroutines.then(s => s.qubitsRequired),
+    qubitsRequired,
     qubitsAvailable: hardware.qubits,
-    feasible: subroutines.then(s => s.qubitsRequired <= hardware.qubits),
-    gateDepth: subroutines.then(s => s.gateDepth),
-    coherenceRequired: subroutines.then(s => s.coherenceTimeMs),
+    feasible: qubitsRequired <= hardware.qubits,
+    gateDepth: Math.ceil(Math.sqrt(graphSize)),
+    coherenceRequired: Math.ceil(Math.sqrt(graphSize)) * 0.001,
     coherenceAvailable: hardware.coherenceMs,
-    errorBudget: subroutines.then(s => s.gateDepth * hardware.errorRate),
+    errorBudget: Math.ceil(Math.sqrt(graphSize)) * hardware.errorRate,
   };
 }
 
@@ -345,7 +378,7 @@ function analyzeQuantumResources(
  * 2030: 38.2% (bottleneck: error rate)
  * 2040: 84.7% (fault-tolerant ready)
  */
-function evaluatePracticality(resources: any, hardware: any): any {
+function evaluatePracticality(_resources: unknown, hardware: HardwareProfile): QuantumResultEntry['viability'] {
   // Empirically validated viability scoring
   const qubitScore = Math.min(1.0, hardware.qubits / 1000); // Need ~1000 qubits
   const coherenceScore = Math.min(1.0, hardware.coherenceMs / 1.0); // Need ~1ms
@@ -389,7 +422,7 @@ function identifyBottleneck(qubitScore: number, coherenceScore: number, errorSco
 
 // Helper functions
 
-function findBestTheoreticalSpeedup(results: any[]): any {
+function findBestTheoreticalSpeedup(results: QuantumResultEntry[]): QuantumResultEntry {
   return results.reduce((best, current) => {
     const currentSpeedup = current.speedups?.theoreticalSpeedup || 1;
     const bestSpeedup = best.speedups?.theoreticalSpeedup || 1;
@@ -397,45 +430,45 @@ function findBestTheoreticalSpeedup(results: any[]): any {
   });
 }
 
-function assessNearTermViability(results: any[]): number {
+function assessNearTermViability(results: QuantumResultEntry[]): number {
   const nearTerm = results.filter(r => r.hardwareYear === 2025);
   if (nearTerm.length === 0) return 0;
 
   return nearTerm.reduce((sum, r) => sum + (r.viability?.current2025Viability || 0), 0) / nearTerm.length;
 }
 
-function assessLongTermProjection(results: any[]): number {
+function assessLongTermProjection(results: QuantumResultEntry[]): number {
   const longTerm = results.filter(r => r.hardwareYear === 2040);
   if (longTerm.length === 0) return 0;
 
   return longTerm.reduce((sum, r) => sum + (r.viability?.projected2045Viability || 0), 0) / longTerm.length;
 }
 
-function aggregateSpeedupMetrics(results: any[]) {
+function aggregateSpeedupMetrics(results: QuantumResultEntry[]) {
   const speedups = results.map(r => r.speedups?.theoreticalSpeedup || 1);
 
   return {
     maxTheoreticalSpeedup: Math.max(...speedups),
     avgTheoreticalSpeedup: speedups.reduce((sum, s) => sum + s, 0) / speedups.length,
-    medianSpeedup: speedups.sort((a, b) => a - b)[Math.floor(speedups.length / 2)],
+    medianSpeedup: [...speedups].sort((a, b) => a - b)[Math.floor(speedups.length / 2)],
   };
 }
 
-function aggregateResourceMetrics(results: any[]) {
+function aggregateResourceMetrics(results: QuantumResultEntry[]) {
   return {
     avgQubitsRequired: results.reduce((sum, r) => sum + (r.quantumMetrics?.qubitsRequired || 0), 0) / results.length,
     maxGateDepth: Math.max(...results.map(r => r.quantumMetrics?.gateDepth || 0)),
   };
 }
 
-function aggregateViabilityMetrics(results: any[]) {
+function aggregateViabilityMetrics(results: QuantumResultEntry[]) {
   return {
     current2025: assessNearTermViability(results),
     projected2045: assessLongTermProjection(results),
   };
 }
 
-function generateQuantumAnalysis(results: any[]): string {
+function generateQuantumAnalysis(results: QuantumResultEntry[]): string {
   const best = findBestTheoreticalSpeedup(results);
 
   return `
@@ -473,7 +506,7 @@ Actual quantum implementations require fault-tolerant quantum computers.
   `.trim();
 }
 
-function generateQuantumRecommendations(results: any[]): string[] {
+function generateQuantumRecommendations(_results: QuantumResultEntry[]): string[] {
   return [
     '⚠️  Quantum advantage NOT viable with current (2025) hardware',
     'Focus on hybrid classical-quantum workflows for near-term (2025-2030)',
@@ -484,21 +517,21 @@ function generateQuantumRecommendations(results: any[]): string[] {
   ];
 }
 
-async function generateSpeedupCharts(results: any[]) {
+async function generateSpeedupCharts(_results: QuantumResultEntry[]) {
   return {
     theoreticalSpeedups: 'theoretical-quantum-speedups.png',
     groverAnalysis: 'grover-search-analysis.png',
   };
 }
 
-async function generateResourceDiagrams(results: any[]) {
+async function generateResourceDiagrams(_results: QuantumResultEntry[]) {
   return {
     qubitRequirements: 'qubit-requirements.png',
     coherenceAnalysis: 'coherence-time-analysis.png',
   };
 }
 
-async function generateViabilityTimeline(results: any[]) {
+async function generateViabilityTimeline(_results: QuantumResultEntry[]) {
   return {
     viabilityProjection: 'quantum-viability-timeline.png',
     hardwareRoadmap: 'quantum-hardware-roadmap.png',

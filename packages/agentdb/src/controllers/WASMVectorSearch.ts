@@ -16,17 +16,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join, resolve } from 'path';
 import { existsSync } from 'fs';
 
-// Database type from db-fallback
-type Database = any;
-
-/**
- * WASM module path resolution configuration
- */
-interface WASMPathConfig {
-  searchPaths: string[];
-  moduleName: string;
-  fallbackEnabled: boolean;
-}
+import type { IDatabaseConnection } from '../types/database.types.js';
 
 export interface VectorSearchConfig {
   enableWASM: boolean;
@@ -39,27 +29,28 @@ export interface VectorSearchResult {
   id: number;
   distance: number;
   similarity: number;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 export interface VectorIndex {
   vectors: Float32Array[];
   ids: number[];
-  metadata: any[];
+  metadata: Array<Record<string, unknown>>;
   built: boolean;
   lastUpdate: number;
 }
 
 export class WASMVectorSearch {
-  private db: Database;
+  private db: IDatabaseConnection;
   private config: VectorSearchConfig;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WASM module constructor, no exported type
   private wasmModule: any;
   private wasmAvailable: boolean = false;
   private simdAvailable: boolean = false;
   private vectorIndex: VectorIndex | null = null;
   private wasmInitPromise: Promise<void> | null = null;
 
-  constructor(db: Database, config?: Partial<VectorSearchConfig>) {
+  constructor(db: IDatabaseConnection, config?: Partial<VectorSearchConfig>) {
     this.db = db;
     this.config = {
       enableWASM: true,
@@ -212,10 +203,10 @@ export class WASMVectorSearch {
           console.log(`[WASMVectorSearch] ReasoningBank WASM acceleration enabled (loaded from: ${normalizedPath})`);
         }
         return;
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Log in development mode for debugging
         if (process.env.NODE_ENV === 'development') {
-          console.debug(`[WASMVectorSearch] Failed to load from ${normalizedPath}: ${error.message}`);
+          console.debug(`[WASMVectorSearch] Failed to load from ${normalizedPath}: ${(error as Error).message}`);
         }
         continue;
       }
@@ -243,9 +234,10 @@ export class WASMVectorSearch {
 
     try {
       // Check for WebAssembly SIMD support
-      const globalAny = globalThis as any;
-      this.simdAvailable = typeof globalAny.WebAssembly !== 'undefined' &&
-        globalAny.WebAssembly.validate(new Uint8Array([
+      const globalAny = globalThis as Record<string, unknown>;
+      const wa = globalAny.WebAssembly as { validate: (bytes: Uint8Array) => boolean } | undefined;
+      this.simdAvailable = typeof wa !== 'undefined' &&
+        wa.validate(new Uint8Array([
           0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11
         ]));
 
@@ -321,19 +313,19 @@ export class WASMVectorSearch {
     tableName: string = 'pattern_embeddings',
     options?: {
       threshold?: number;
-      filters?: Record<string, any>;
+      filters?: Record<string, unknown>;
     }
   ): Promise<VectorSearchResult[]> {
     const threshold = options?.threshold ?? 0.0;
 
     // Build WHERE clause for filters
     const conditions: string[] = [];
-    const params: any[] = [];
+    const params: Array<string | number | boolean> = [];
 
     if (options?.filters) {
       Object.entries(options.filters).forEach(([key, value]) => {
         conditions.push(`${key} = ?`);
-        params.push(value);
+        params.push(value as string | number | boolean);
       });
     }
 
@@ -348,14 +340,14 @@ export class WASMVectorSearch {
       ${whereClause}
     `);
 
-    const rows = stmt.all(...params) as any[];
+    const rows = stmt.all(...params) as Array<{ id: number; embedding: Buffer }>;
 
     // Calculate similarities
     const candidates = rows.map(row => {
       const embedding = new Float32Array(
-        (row.embedding as Buffer).buffer,
-        (row.embedding as Buffer).byteOffset,
-        (row.embedding as Buffer).byteLength / 4
+        row.embedding.buffer,
+        row.embedding.byteOffset,
+        row.embedding.byteLength / 4
       );
 
       const similarity = this.cosineSimilarity(query, embedding);
@@ -380,7 +372,7 @@ export class WASMVectorSearch {
   /**
    * Build approximate nearest neighbor index for large datasets
    */
-  buildIndex(vectors: Float32Array[], ids: number[], metadata?: any[]): void {
+  buildIndex(vectors: Float32Array[], ids: number[], metadata?: Array<Record<string, unknown>>): void {
     if (vectors.length < this.config.indexThreshold) {
       console.log(`[WASMVectorSearch] Dataset too small (${vectors.length} < ${this.config.indexThreshold}), skipping index`);
       return;

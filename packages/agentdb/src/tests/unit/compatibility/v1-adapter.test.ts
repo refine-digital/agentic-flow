@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { V1toV2Adapter } from '../../../compatibility/V1toV2Adapter';
-import type { V1Config } from '../../../compatibility/types';
+// V1Config type removed - not used directly
 
 // Mock AgentDB
 const createMockAgentDB = () => ({
@@ -60,7 +60,7 @@ describe('V1toV2Adapter', () => {
 
   beforeEach(() => {
     mockAgentDB = createMockAgentDB();
-    adapter = new V1toV2Adapter(mockAgentDB as any);
+    adapter = new V1toV2Adapter(mockAgentDB as unknown as ConstructorParameters<typeof V1toV2Adapter>[0]);
   });
 
   describe('initSwarm', () => {
@@ -199,7 +199,7 @@ describe('V1toV2Adapter', () => {
 
   describe('searchMemory', () => {
     it('should translate v1 searchMemory to v2 memory.vectorSearch', async () => {
-      const result = await adapter.searchMemory('test query', 5);
+      await adapter.searchMemory('test query', 5);
 
       expect(mockAgentDB.memory.vectorSearch).toHaveBeenCalledWith(
         'test query',
@@ -228,7 +228,7 @@ describe('V1toV2Adapter', () => {
 
   describe('getSwarmStatus', () => {
     it('should translate v1 getSwarmStatus to v2 swarms.status', async () => {
-      const result = await adapter.getSwarmStatus();
+      await adapter.getSwarmStatus();
 
       expect(mockAgentDB.swarms.status).toHaveBeenCalled();
     });

@@ -7,7 +7,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { AttentionConfig, loadAttentionConfig, saveAttentionConfig } from '../lib/attention-config.js';
+import { AttentionConfig, saveAttentionConfig } from '../lib/attention-config.js';
 
 // Attention mechanism types
 type AttentionMechanism = 'flash' | 'hyperbolic' | 'sparse' | 'linear' | 'performer';
@@ -74,7 +74,6 @@ function createInitCommand(): Command {
         }
 
         // Load or create configuration
-        let config: AttentionConfig;
         const configPath = options.config || path.join(process.cwd(), '.agentdb', 'attention-config.json');
 
         // Check if config exists
@@ -89,7 +88,7 @@ function createInitCommand(): Command {
         }
 
         // Create default configuration
-        config = {
+        const config: AttentionConfig = {
           defaultMechanism: options.mechanism || 'flash',
           mechanisms: {
             flash: {
@@ -142,11 +141,11 @@ function createInitCommand(): Command {
           console.log(`  Enabled Mechanisms: ${Object.entries(config.mechanisms).filter(([_, v]) => v.enabled).map(([k]) => k).join(', ')}`);
           console.log('');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (options.json) {
-          console.log(JSON.stringify({ error: error.message }, null, 2));
+          console.log(JSON.stringify({ error: (error as Error).message }, null, 2));
         } else {
-          console.error(chalk.red(`\n❌ Error: ${error.message}\n`));
+          console.error(chalk.red(`\n❌ Error: ${(error as Error).message}\n`));
         }
         process.exit(1);
       }
@@ -223,11 +222,11 @@ function createComputeCommand(): Command {
           console.log(`  Memory Used: ${result.memoryMB.toFixed(2)}MB`);
           console.log('');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (options.json) {
-          console.log(JSON.stringify({ error: error.message }, null, 2));
+          console.log(JSON.stringify({ error: (error as Error).message }, null, 2));
         } else {
-          console.error(chalk.red(`\n❌ Error: ${error.message}\n`));
+          console.error(chalk.red(`\n❌ Error: ${(error as Error).message}\n`));
         }
         process.exit(1);
       }
@@ -274,11 +273,11 @@ function createBenchmarkCommand(): Command {
         } else {
           displayBenchmarkResults(results);
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (options.json) {
-          console.log(JSON.stringify({ error: error.message }, null, 2));
+          console.log(JSON.stringify({ error: (error as Error).message }, null, 2));
         } else {
-          console.error(chalk.red(`\n❌ Error: ${error.message}\n`));
+          console.error(chalk.red(`\n❌ Error: ${(error as Error).message}\n`));
         }
         process.exit(1);
       }
@@ -330,11 +329,11 @@ function createOptimizeCommand(): Command {
           console.log(`    ${JSON.stringify(optimizationResult.config, null, 4).split('\n').join('\n    ')}`);
           console.log('');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (options.json) {
-          console.log(JSON.stringify({ error: error.message }, null, 2));
+          console.log(JSON.stringify({ error: (error as Error).message }, null, 2));
         } else {
-          console.error(chalk.red(`\n❌ Error: ${error.message}\n`));
+          console.error(chalk.red(`\n❌ Error: ${(error as Error).message}\n`));
         }
         process.exit(1);
       }
@@ -382,7 +381,7 @@ async function benchmarkMechanisms(
   iterations: number,
   verbose: boolean
 ) {
-  const results: any[] = [];
+  const results: Array<{ mechanism: string; iterations: number; avgTimeMs: number; minTimeMs: number; maxTimeMs: number; stdDevMs: number; avgMemoryMB: number }> = [];
 
   for (const mechanism of mechanisms) {
     if (verbose) {
@@ -398,7 +397,7 @@ async function benchmarkMechanisms(
       // Simulate computation
       const keys = generateRandomKeys(100, 384);
       const query = Array(384).fill(0).map(() => Math.random());
-      const weights = computeAttentionWeights(mechanism, query, keys, 8);
+      computeAttentionWeights(mechanism, query, keys, 8);
 
       times.push(performance.now() - startTime);
       memories.push(estimateMemory(100, 384, 8));
@@ -442,7 +441,7 @@ async function optimizeMechanism(
   const baselineMemory = baselinePerf.results[0].avgMemoryMB;
 
   // Apply optimizations
-  let optimizedConfig: any = {};
+  let optimizedConfig: Record<string, unknown> = {};
   let performanceGain = 0;
   let memoryReduction = 0;
 
@@ -606,7 +605,7 @@ function stdDev(values: number[]): number {
   return Math.sqrt(average(squareDiffs));
 }
 
-function generateComparison(results: any[]): any {
+function generateComparison(results: Array<{ mechanism: string; avgTimeMs: number }>): { fastest: { mechanism: string; avgTimeMs: number }; slowest: { mechanism: string; avgTimeMs: number }; speedup: number; recommendation: string } {
   const sorted = [...results].sort((a, b) => a.avgTimeMs - b.avgTimeMs);
   const fastest = sorted[0];
   const slowest = sorted[sorted.length - 1];
@@ -625,7 +624,8 @@ function generateComparison(results: any[]): any {
   };
 }
 
-function displayBenchmarkResults(results: any): void {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function displayBenchmarkResults(results: Record<string, any>): void {
   console.log(chalk.bold('Benchmark Results:\n'));
 
   for (const result of results.results) {

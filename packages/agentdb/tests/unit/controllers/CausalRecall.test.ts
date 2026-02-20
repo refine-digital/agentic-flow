@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import Database from 'better-sqlite3';
-import { CausalRecall, RerankConfig, CausalRecallResult } from '../../../src/controllers/CausalRecall.js';
+import { CausalRecall, RerankConfig } from '../../../src/controllers/CausalRecall.js';
 import { EmbeddingService } from '../../../src/controllers/EmbeddingService.js';
 import * as fs from 'fs';
 
@@ -143,7 +143,7 @@ describe('CausalRecall', () => {
         search: vi.fn().mockReturnValue([]),
       };
 
-      const recallWithBackend = new CausalRecall(db, embedder, mockBackend as any);
+      const recallWithBackend = new CausalRecall(db, embedder, mockBackend as unknown as ConstructorParameters<typeof CausalRecall>[2]);
       expect(recallWithBackend).toBeDefined();
     });
   });
@@ -474,7 +474,7 @@ describe('CausalRecall', () => {
 
       // Candidates should have uplift values
       if (result.candidates.length > 0) {
-        const hasUplift = result.candidates.some(c => c.uplift !== undefined && c.uplift !== 0);
+        void result.candidates.some(c => c.uplift !== undefined && c.uplift !== 0);
         // Not all candidates will have uplift, but if edges exist some should
         expect(result.candidates).toBeDefined();
       }

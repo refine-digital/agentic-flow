@@ -15,7 +15,7 @@
 import { createDatabase } from '../../src/db-fallback.js';
 import { ReflexionMemory } from '../../src/controllers/ReflexionMemory.js';
 import { EmbeddingService } from '../../src/controllers/EmbeddingService.js';
-import { PerformanceOptimizer, executeParallel } from '../utils/PerformanceOptimizer.js';
+import { PerformanceOptimizer } from '../utils/PerformanceOptimizer.js';
 import * as path from 'path';
 
 interface Voter {
@@ -30,7 +30,7 @@ interface Candidate {
   endorsements: string[];
 }
 
-interface VotingRound {
+export interface VotingRound {
   roundId: number;
   candidates: Candidate[];
   voters: Voter[];
@@ -42,8 +42,11 @@ interface VotingRound {
 export default {
   description: 'Democratic voting system with ranked-choice, coalition formation, and consensus emergence',
 
-  async run(config: any) {
-    const { verbosity = 2, rounds = 5, voterCount = 50, candidateCount = 7 } = config;
+  async run(config: Record<string, unknown>) {
+    const verbosity = (config.verbosity ?? 2) as number;
+    const rounds = (config.rounds ?? 5) as number;
+    const voterCount = (config.voterCount ?? 50) as number;
+    const candidateCount = (config.candidateCount ?? 7) as number;
 
     if (verbosity >= 2) {
       console.log(`   🗳️  Initializing Voting System: ${voterCount} voters, ${candidateCount} candidates, ${rounds} rounds`);
@@ -65,11 +68,11 @@ export default {
     );
 
     const reflexion = new ReflexionMemory(
-      db.getGraphDatabase() as any,
+      db.getGraphDatabase(),
       embedder,
       undefined,
       undefined,
-      db.getGraphDatabase() as any
+      db.getGraphDatabase()
     );
 
     const results = {
@@ -123,13 +126,13 @@ export default {
       // Ranked-Choice Voting algorithm
       const eliminated = new Set<string>();
       let winner: string | null = null;
-      let voteCounts = new Map<string, number>();
+      const voteCounts = new Map<string, number>();
 
       while (!winner && eliminated.size < candidates.length - 1) {
         voteCounts.clear();
 
         // Count first-choice votes (excluding eliminated)
-        for (const [voterId, ranked] of ballots.entries()) {
+        for (const ranked of ballots.values()) {
           const firstChoice = ranked.find(c => !eliminated.has(c));
           if (firstChoice) {
             voteCounts.set(firstChoice, (voteCounts.get(firstChoice) || 0) + 1);

@@ -16,6 +16,43 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { clusteringAnalysisScenario } from '../../scenarios/latent-space/clustering-analysis';
 import type { SimulationReport } from '../../types';
 
+// Type helpers for simulation report fields
+interface AlgorithmConfig {
+  name: string;
+  [key: string]: unknown;
+}
+
+interface DetailedResult {
+  algorithm: string;
+  vectorCount: number;
+  graphDensity: number;
+  detectionTimeMs: number;
+  metrics: {
+    modularityScore: number;
+    embeddingClusterOverlap: number;
+    numCommunities: number;
+    communityDistribution: unknown[];
+    hierarchyDepth: number;
+    dendrogramBalance?: number;
+    mergingPattern: unknown[];
+    crossModalAlignment?: number;
+    collaborationClusters: number;
+    taskSpecialization?: number;
+    communicationEfficiency?: number;
+  };
+}
+
+interface HierarchicalProperties {
+  avgDepth?: number;
+  [key: string]: unknown;
+}
+
+interface CommunityStructure {
+  avgNumCommunities: number;
+  [key: string]: unknown;
+}
+
+
 describe('ClusteringAnalysis', () => {
   let report: SimulationReport;
 
@@ -25,48 +62,48 @@ describe('ClusteringAnalysis', () => {
 
   describe('Optimal Algorithm', () => {
     it('should select Louvain as best', () => {
-      const best = report.summary.bestAlgorithm;
+      const best = report.summary.bestAlgorithm as { algorithm: string };
       expect(best.algorithm).toBe('louvain');
     });
 
     it('should test Louvain algorithm', () => {
-      const algorithms = clusteringAnalysisScenario.config.algorithms;
+      const algorithms = clusteringAnalysisScenario.config.algorithms as AlgorithmConfig[];
       const louvain = algorithms.find(a => a.name === 'louvain');
       expect(louvain).toBeDefined();
     });
 
     it('should test Label Propagation', () => {
-      const algorithms = clusteringAnalysisScenario.config.algorithms;
+      const algorithms = clusteringAnalysisScenario.config.algorithms as AlgorithmConfig[];
       const lp = algorithms.find(a => a.name === 'label-propagation');
       expect(lp).toBeDefined();
     });
 
     it('should test multiple algorithms', () => {
-      const algorithms = clusteringAnalysisScenario.config.algorithms;
+      const algorithms = clusteringAnalysisScenario.config.algorithms as AlgorithmConfig[];
       expect(algorithms.length).toBeGreaterThanOrEqual(3);
     });
   });
 
   describe('Modularity Score', () => {
     it('should achieve Q >0.75', () => {
-      const avgModularity = report.summary.avgModularity;
+      const avgModularity = report.summary.avgModularity as number;
       expect(avgModularity).toBeGreaterThan(0.75);
     });
 
     it('should target Q=0.758', () => {
-      const avgModularity = report.summary.avgModularity;
+      const avgModularity = report.summary.avgModularity as number;
       expect(avgModularity).toBeCloseTo(0.758, 0.05);
     });
 
     it('should have positive modularity', () => {
-      const results = report.detailedResults as any[];
+      const results = report.detailedResults as DetailedResult[];
       results.forEach(r => {
         expect(r.metrics.modularityScore).toBeGreaterThan(0);
       });
     });
 
     it('should not exceed 1.0', () => {
-      const results = report.detailedResults as any[];
+      const results = report.detailedResults as DetailedResult[];
       results.forEach(r => {
         expect(r.metrics.modularityScore).toBeLessThanOrEqual(1.0);
       });
@@ -75,17 +112,17 @@ describe('ClusteringAnalysis', () => {
 
   describe('Semantic Purity', () => {
     it('should achieve >85% semantic purity', () => {
-      const purity = report.summary.semanticPurity;
+      const purity = report.summary.semanticPurity as number;
       expect(purity).toBeGreaterThan(0.85);
     });
 
     it('should target 87.2% semantic purity', () => {
-      const purity = report.summary.semanticPurity;
+      const purity = report.summary.semanticPurity as number;
       expect(purity).toBeCloseTo(0.872, 0.03);
     });
 
     it('should align graph clusters with embeddings', () => {
-      const results = report.detailedResults as any[];
+      const results = report.detailedResults as DetailedResult[];
       results.forEach(r => {
         expect(r.metrics.embeddingClusterOverlap).toBeGreaterThan(0.7);
       });
@@ -94,42 +131,42 @@ describe('ClusteringAnalysis', () => {
 
   describe('Community Structure', () => {
     it('should detect multiple communities', () => {
-      const results = report.detailedResults as any[];
+      const results = report.detailedResults as DetailedResult[];
       results.forEach(r => {
         expect(r.metrics.numCommunities).toBeGreaterThan(1);
       });
     });
 
     it('should have balanced distribution', () => {
-      const results = report.detailedResults as any[];
+      const results = report.detailedResults as DetailedResult[];
       results.forEach(r => {
         expect(Array.isArray(r.metrics.communityDistribution)).toBe(true);
       });
     });
 
     it('should track community sizes', () => {
-      const metrics = report.metrics.communityStructure;
+      const metrics = report.metrics.communityStructure as CommunityStructure;
       expect(metrics.avgNumCommunities).toBeGreaterThan(0);
     });
   });
 
   describe('Hierarchical Properties', () => {
     it('should have hierarchical depth', () => {
-      const results = report.detailedResults as any[];
+      const results = report.detailedResults as DetailedResult[];
       results.forEach(r => {
         expect(r.metrics.hierarchyDepth).toBeGreaterThan(0);
       });
     });
 
     it('should target 3 hierarchical levels', () => {
-      const hierarchy = report.metrics.hierarchicalProperties;
+      const hierarchy = report.metrics.hierarchicalProperties as HierarchicalProperties;
       if (hierarchy && hierarchy.avgDepth) {
         expect(hierarchy.avgDepth).toBeCloseTo(3, 1);
       }
     });
 
     it('should track dendrogram balance', () => {
-      const results = report.detailedResults as any[];
+      const results = report.detailedResults as DetailedResult[];
       results.forEach(r => {
         if (r.metrics.dendrogramBalance) {
           expect(r.metrics.dendrogramBalance).toBeGreaterThan(0);
@@ -138,7 +175,7 @@ describe('ClusteringAnalysis', () => {
     });
 
     it('should record merging pattern', () => {
-      const results = report.detailedResults as any[];
+      const results = report.detailedResults as DetailedResult[];
       results.forEach(r => {
         expect(Array.isArray(r.metrics.mergingPattern)).toBe(true);
       });
@@ -147,7 +184,7 @@ describe('ClusteringAnalysis', () => {
 
   describe('Semantic Alignment', () => {
     it('should measure cross-modal alignment', () => {
-      const results = report.detailedResults as any[];
+      const results = report.detailedResults as DetailedResult[];
       results.forEach(r => {
         if (r.metrics.crossModalAlignment) {
           expect(r.metrics.crossModalAlignment).toBeGreaterThan(0.7);
@@ -156,7 +193,7 @@ describe('ClusteringAnalysis', () => {
     });
 
     it('should validate semantic categories', () => {
-      const categories = clusteringAnalysisScenario.config.semanticCategories;
+      const categories = clusteringAnalysisScenario.config.semanticCategories as string[];
       expect(categories).toContain('text');
       expect(categories).toContain('code');
     });
@@ -164,14 +201,14 @@ describe('ClusteringAnalysis', () => {
 
   describe('Agent Collaboration', () => {
     it('should identify collaboration clusters', () => {
-      const results = report.detailedResults as any[];
+      const results = report.detailedResults as DetailedResult[];
       results.forEach(r => {
         expect(r.metrics.collaborationClusters).toBeGreaterThanOrEqual(0);
       });
     });
 
     it('should measure task specialization', () => {
-      const results = report.detailedResults as any[];
+      const results = report.detailedResults as DetailedResult[];
       results.forEach(r => {
         if (r.metrics.taskSpecialization) {
           expect(r.metrics.taskSpecialization).toBeGreaterThan(0.6);
@@ -180,7 +217,7 @@ describe('ClusteringAnalysis', () => {
     });
 
     it('should track communication efficiency', () => {
-      const results = report.detailedResults as any[];
+      const results = report.detailedResults as DetailedResult[];
       results.forEach(r => {
         if (r.metrics.communicationEfficiency) {
           expect(r.metrics.communicationEfficiency).toBeGreaterThan(0.7);
@@ -191,8 +228,8 @@ describe('ClusteringAnalysis', () => {
 
   describe('Algorithm Comparison', () => {
     it('should compare Louvain vs Label Propagation', () => {
-      const louvain = (report.detailedResults as any[]).find(r => r.algorithm === 'louvain');
-      const lp = (report.detailedResults as any[]).find(r => r.algorithm === 'label-propagation');
+      const louvain = (report.detailedResults as DetailedResult[]).find(r => r.algorithm === 'louvain');
+      const lp = (report.detailedResults as DetailedResult[]).find(r => r.algorithm === 'label-propagation');
 
       if (louvain && lp) {
         expect(louvain.metrics.modularityScore).toBeGreaterThan(0);
@@ -201,14 +238,14 @@ describe('ClusteringAnalysis', () => {
     });
 
     it('should test Leiden algorithm', () => {
-      const leiden = (report.detailedResults as any[]).find(r => r.algorithm === 'leiden');
+      const leiden = (report.detailedResults as DetailedResult[]).find(r => r.algorithm === 'leiden');
       if (leiden) {
         expect(leiden.metrics.modularityScore).toBeGreaterThan(0.7);
       }
     });
 
     it('should test spectral clustering', () => {
-      const spectral = (report.detailedResults as any[]).find(r => r.algorithm === 'spectral');
+      const spectral = (report.detailedResults as DetailedResult[]).find(r => r.algorithm === 'spectral');
       if (spectral) {
         expect(spectral.metrics.numCommunities).toBeGreaterThan(0);
       }
@@ -217,19 +254,19 @@ describe('ClusteringAnalysis', () => {
 
   describe('Graph Density Impact', () => {
     it('should test multiple densities', () => {
-      const densities = clusteringAnalysisScenario.config.graphDensities;
+      const densities = clusteringAnalysisScenario.config.graphDensities as number[];
       expect(densities.length).toBeGreaterThanOrEqual(3);
     });
 
     it('should handle sparse graphs', () => {
-      const sparse = (report.detailedResults as any[]).filter(r => r.graphDensity === 0.01);
+      const sparse = (report.detailedResults as DetailedResult[]).filter(r => r.graphDensity === 0.01);
       sparse.forEach(r => {
         expect(r.metrics.modularityScore).toBeGreaterThan(0);
       });
     });
 
     it('should handle dense graphs', () => {
-      const dense = (report.detailedResults as any[]).filter(r => r.graphDensity === 0.1);
+      const dense = (report.detailedResults as DetailedResult[]).filter(r => r.graphDensity === 0.1);
       dense.forEach(r => {
         expect(r.metrics.modularityScore).toBeGreaterThan(0);
       });
@@ -238,19 +275,19 @@ describe('ClusteringAnalysis', () => {
 
   describe('Scalability', () => {
     it('should scale to 100k nodes', () => {
-      const sizes = clusteringAnalysisScenario.config.vectorCounts;
+      const sizes = clusteringAnalysisScenario.config.vectorCounts as number[];
       expect(sizes).toContain(100000);
     });
 
     it('should maintain quality at scale', () => {
-      const large = (report.detailedResults as any[]).filter(r => r.vectorCount === 100000);
+      const large = (report.detailedResults as DetailedResult[]).filter(r => r.vectorCount === 100000);
       large.forEach(r => {
         expect(r.metrics.modularityScore).toBeGreaterThan(0.70);
       });
     });
 
     it('should track detection time', () => {
-      const results = report.detailedResults as any[];
+      const results = report.detailedResults as DetailedResult[];
       results.forEach(r => {
         expect(r.detectionTimeMs).toBeGreaterThan(0);
       });

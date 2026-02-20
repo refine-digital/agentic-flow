@@ -122,6 +122,7 @@ export class OpenAIEmbeddingService extends EmbeddingService {
         throw new Error(`OpenAI API error: ${response.statusText}`);
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- OpenAI API response shape
       const data: any = await response.json();
       const embedding: number[] = data.data[0].embedding;
 
@@ -137,8 +138,8 @@ export class OpenAIEmbeddingService extends EmbeddingService {
         usage: data.usage,
         latency
       };
-    } catch (error: any) {
-      throw new Error(`OpenAI embedding failed: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`OpenAI embedding failed: ${(error as Error).message}`);
     }
   }
 
@@ -163,9 +164,11 @@ export class OpenAIEmbeddingService extends EmbeddingService {
         throw new Error(`OpenAI API error: ${response.statusText}`);
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- OpenAI API response shape
       const data: any = await response.json();
       const latency = Date.now() - start;
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- OpenAI API response shape
       return data.data.map((item: any, index: number) => {
         const embedding: number[] = item.embedding;
         this.setCached(texts[index], embedding);
@@ -179,8 +182,8 @@ export class OpenAIEmbeddingService extends EmbeddingService {
           latency: Math.floor(latency / texts.length)
         };
       });
-    } catch (error: any) {
-      throw new Error(`OpenAI batch embedding failed: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`OpenAI batch embedding failed: ${(error as Error).message}`);
     }
   }
 }
@@ -192,6 +195,7 @@ export class OpenAIEmbeddingService extends EmbeddingService {
  * https://huggingface.co/docs/transformers.js
  */
 export class TransformersEmbeddingService extends EmbeddingService {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- transformers.js pipeline has complex dynamic types
   private pipeline: any = null;
   private modelName: string;
 
@@ -209,8 +213,8 @@ export class TransformersEmbeddingService extends EmbeddingService {
 
       this.pipeline = await pipeline('feature-extraction', this.modelName);
       this.emit('initialized', { model: this.modelName });
-    } catch (error: any) {
-      throw new Error(`Failed to initialize transformers.js: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Failed to initialize transformers.js: ${(error as Error).message}`);
     }
   }
 
@@ -245,8 +249,8 @@ export class TransformersEmbeddingService extends EmbeddingService {
         embedding,
         latency
       };
-    } catch (error: any) {
-      throw new Error(`Transformers.js embedding failed: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Transformers.js embedding failed: ${(error as Error).message}`);
     }
   }
 
@@ -283,8 +287,8 @@ export class TransformersEmbeddingService extends EmbeddingService {
       }
 
       return results;
-    } catch (error: any) {
-      throw new Error(`Transformers.js batch embedding failed: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Transformers.js batch embedding failed: ${(error as Error).message}`);
     }
   }
 }
@@ -367,7 +371,7 @@ export function createEmbeddingService(config: EmbeddingConfig): EmbeddingServic
       if (!config.apiKey) {
         throw new Error('OpenAI API key required');
       }
-      return new OpenAIEmbeddingService(config as any);
+      return new OpenAIEmbeddingService(config as Omit<EmbeddingConfig, 'provider'> & { apiKey: string });
 
     case 'transformers':
       return new TransformersEmbeddingService(config);
@@ -402,10 +406,16 @@ export async function getEmbedding(
  */
 export async function benchmarkEmbeddings(testText: string = 'Hello world'): Promise<{
   mock: { latency: number; dimensions: number };
-  transformers?: { latency: number; dimensions: number; error?: string };
-  openai?: { latency: number; dimensions: number; error?: string };
+  transformers?: { latency?: number; dimensions?: number; error?: string };
+  openai?: { latency?: number; dimensions?: number; error?: string };
 }> {
-  const results: any = {};
+  const results: {
+    mock: { latency: number; dimensions: number };
+    transformers?: { latency?: number; dimensions?: number; error?: string };
+    openai?: { latency?: number; dimensions?: number; error?: string };
+  } = {
+    mock: { latency: 0, dimensions: 0 },
+  };
 
   // Test mock
   const mockService = new MockEmbeddingService({ dimensions: 384 });
@@ -425,9 +435,9 @@ export async function benchmarkEmbeddings(testText: string = 'Hello world'): Pro
       latency: transformersResult.latency,
       dimensions: transformersResult.embedding.length
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     results.transformers = {
-      error: error.message
+      error: (error as Error).message
     };
   }
 
@@ -444,9 +454,9 @@ export async function benchmarkEmbeddings(testText: string = 'Hello world'): Pro
         latency: openaiResult.latency,
         dimensions: openaiResult.embedding.length
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       results.openai = {
-        error: error.message
+        error: (error as Error).message
       };
     }
   }

@@ -14,8 +14,9 @@ import * as path from 'path';
 export default {
   description: 'Self-referential learning with strange loops and meta-cognition',
 
-  async run(config: any) {
-    const { verbosity = 2, depth = 3 } = config;
+  async run(config: Record<string, unknown>) {
+    const verbosity = (config.verbosity ?? 2) as number;
+    const depth = (config.depth ?? 3) as number;
 
     if (verbosity >= 2) {
       console.log(`   🔄 Initializing Strange Loops Simulation (depth=${depth})`);
@@ -35,16 +36,16 @@ export default {
     );
 
     const reflexion = new ReflexionMemory(
-      db.getGraphDatabase() as any,
+      db.getGraphDatabase(),
       embedder,
       undefined,
       undefined,
-      db.getGraphDatabase() as any
+      db.getGraphDatabase()
     );
 
     const causal = new CausalMemoryGraph(
-      db.getGraphDatabase() as any,
-      db.getGraphDatabase() as any  // Pass graphBackend for GraphDatabaseAdapter support
+      db.getGraphDatabase(),
+      db.getGraphDatabase()  // Pass graphBackend for GraphDatabaseAdapter support
     );
 
     const results = {
