@@ -28,6 +28,9 @@ export { ReasoningBank } from './controllers/ReasoningBank.js';
 export { EmbeddingService } from './controllers/EmbeddingService.js';
 export { EnhancedEmbeddingService } from './controllers/EnhancedEmbeddingService.js';
 
+// Model cache (offline .rvf model loading)
+export { ModelCacheLoader } from './model/ModelCacheLoader.js';
+
 // WASM acceleration and HNSW indexing
 export { WASMVectorSearch } from './controllers/WASMVectorSearch.js';
 export { HNSWIndex, isHnswlibAvailable } from './controllers/HNSWIndex.js';

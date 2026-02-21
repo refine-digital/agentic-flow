@@ -7,7 +7,6 @@
 import { createDatabase } from '../../db-fallback.js';
 import * as fs from 'fs';
 import * as path from 'path';
-import Database from 'better-sqlite3';
 
 // Color codes for beautiful output
 const colors = {
@@ -24,7 +23,7 @@ const colors = {
 interface MigrationOptions {
   sourceDb: string;
   targetDb?: string;
-  to?: 'v2' | 'rvf';
+  to?: 'v2' | 'v3' | 'rvf';
   rvfPath?: string;
   optimize?: boolean;
   dryRun?: boolean;
@@ -79,9 +78,16 @@ interface EmbeddingRow {
   embedding: string;
 }
 
+// Statement-like interface covering both sql.js and better-sqlite3 prepared statements
+interface SqlStatement {
+  all(...params: unknown[]): unknown[];
+  get(...params: unknown[]): unknown;
+  run(...params: unknown[]): unknown;
+}
+
 // Database-like interface for the target database returned by createDatabase
 interface TargetDatabase {
-  prepare(sql: string): Database.Statement;
+  prepare(sql: string): SqlStatement;
   exec(sql: string): void;
   close(): void;
 }
@@ -114,6 +120,147 @@ interface MigrationStats {
   };
 }
 
+/**
+ * Open a source database with sql.js (or better-sqlite3 if available).
+ */
+async function openSourceDatabase(sourcePath: string): Promise<TargetDatabase> {
+  try {
+    const Db = (await import('better-sqlite3')).default;
+    return new Db(sourcePath, { readonly: true }) as unknown as TargetDatabase;
+  } catch {
+    const { createDatabase } = await import('../../db-fallback.js');
+    return await createDatabase(sourcePath) as unknown as TargetDatabase;
+  }
+}
+
+/** Stats returned by migrateV2ToV3 */
+export interface V3MigrationStats {
+  tablesProcessed: string[];
+  rowsCopied: Record<string, number>;
+  totalRows: number;
+}
+
+/**
+ * Migrate a v2 AgentDB .db file to the v3 unified .rvf format.
+ * Both versions use the same 24-table schema, so this is a direct data copy.
+ */
+export async function migrateV2ToV3(
+  sourceDbPath: string,
+  targetRvfPath: string,
+  options: { verbose?: boolean } = {}
+): Promise<V3MigrationStats> {
+  const { verbose = false } = options;
+
+  // Tables to skip — internal/auto-managed
+  const skipTables = new Set(['sqlite_sequence', 'rvf_vectors', 'rvf_meta']);
+
+  // 1. Open source v2 database
+  const source = await openSourceDatabase(sourceDbPath);
+
+  // 2. Create target v3 unified .rvf via SqlJsRvfBackend
+  const { SqlJsRvfBackend } = await import('../../backends/rvf/SqlJsRvfBackend.js');
+  const { wrapExistingSqlJsDatabase } = await import('../../db-fallback.js');
+
+  const rvfBackend = new SqlJsRvfBackend({
+    dimension: 384,
+    metric: 'cosine' as const,
+    storagePath: targetRvfPath,
+  } as import('../../backends/VectorBackend.js').VectorConfig & { storagePath: string });
+  await rvfBackend.initialize();
+
+  // Get wrapped db handle for relational operations
+  const rawDb = rvfBackend.getDatabase();
+  const target = wrapExistingSqlJsDatabase(rawDb, targetRvfPath) as unknown as TargetDatabase;
+
+  // Load relational schemas into the unified database
+  // Try both source-tree (../../schemas/) and dist-tree (../../../schemas/) paths
+  const dirname = path.dirname(new URL(import.meta.url).pathname);
+  const schemaCandidates = [
+    path.join(dirname, '../../schemas/schema.sql'),
+    path.join(dirname, '../../../schemas/schema.sql'),
+  ];
+  const frontierCandidates = [
+    path.join(dirname, '../../schemas/frontier-schema.sql'),
+    path.join(dirname, '../../../schemas/frontier-schema.sql'),
+  ];
+
+  const schemaPath = schemaCandidates.find(p => fs.existsSync(p));
+  const frontierSchemaPath = frontierCandidates.find(p => fs.existsSync(p));
+
+  if (schemaPath) {
+    target.exec(fs.readFileSync(schemaPath, 'utf-8'));
+  }
+  if (frontierSchemaPath) {
+    target.exec(fs.readFileSync(frontierSchemaPath, 'utf-8'));
+  }
+
+  // 3. Get table lists and compute intersection
+  const sourceTables = source.prepare(
+    "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+  ).all().map((row: unknown) => (row as { name: string }).name);
+
+  const targetTables = new Set(
+    target.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+    ).all().map((row: unknown) => (row as { name: string }).name)
+  );
+
+  const stats: V3MigrationStats = {
+    tablesProcessed: [],
+    rowsCopied: {},
+    totalRows: 0,
+  };
+
+  // 4. Disable foreign keys during bulk copy to avoid ordering issues
+  target.exec('PRAGMA foreign_keys = OFF');
+
+  // Copy data for each table in the intersection
+  for (const table of sourceTables) {
+    if (skipTables.has(table) || !targetTables.has(table)) continue;
+
+    const rows = source.prepare(`SELECT * FROM "${table}"`).all() as Record<string, unknown>[];
+    if (rows.length === 0) {
+      if (verbose) console.log(`  ${colors.yellow}⚠${colors.reset} ${table}: 0 rows, skipping`);
+      continue;
+    }
+
+    const columns = Object.keys(rows[0]);
+    const placeholders = columns.map(() => '?').join(', ');
+    const columnNames = columns.map(c => `"${c}"`).join(', ');
+
+    const insert = target.prepare(
+      `INSERT OR IGNORE INTO "${table}" (${columnNames}) VALUES (${placeholders})`
+    );
+
+    // Run in a transaction for performance
+    target.exec('BEGIN');
+    let count = 0;
+    for (const row of rows) {
+      try {
+        const values = columns.map(col => row[col]);
+        insert.run(...values);
+        count++;
+      } catch (e) {
+        if (verbose) console.log(`    ${colors.yellow}⚠${colors.reset} Failed row in ${table}: ${(e as Error).message}`);
+      }
+    }
+    target.exec('COMMIT');
+
+    stats.tablesProcessed.push(table);
+    stats.rowsCopied[table] = count;
+    stats.totalRows += count;
+
+    if (verbose) console.log(`  ${colors.green}✅${colors.reset} ${table}: ${count} rows copied`);
+  }
+
+  // 5. Save and close
+  await rvfBackend.save(targetRvfPath);
+  rvfBackend.close();
+  source.close();
+
+  return stats;
+}
+
 export async function migrateCommand(options: MigrationOptions): Promise<void> {
   const startTime = Date.now();
   const {
@@ -136,8 +283,29 @@ export async function migrateCommand(options: MigrationOptions): Promise<void> {
       throw new Error(`Source database not found: ${sourceDb}`);
     }
 
-    // Connect to source database
-    const source = new Database(sourceDb, { readonly: true });
+    // v2 → v3 unified .rvf migration
+    if (options.to === 'v3') {
+      const rvfOutputPath = options.rvfPath || sourceDb.replace(/\.db$/, '.rvf');
+      console.log(`\n${colors.bright}${colors.cyan}🔄 Migrating v2 → v3 (unified .rvf)${colors.reset}\n`);
+      console.log(`  Source: ${colors.blue}${sourceDb}${colors.reset}`);
+      console.log(`  Target: ${colors.blue}${rvfOutputPath}${colors.reset}\n`);
+
+      const v3Stats = await migrateV2ToV3(sourceDb, rvfOutputPath, { verbose });
+
+      console.log(`\n${colors.bright}${colors.green}🎉 v2 → v3 Migration Complete!${colors.reset}\n`);
+      console.log(`  Tables migrated: ${colors.blue}${v3Stats.tablesProcessed.length}${colors.reset}`);
+      console.log(`  Total rows:      ${colors.blue}${v3Stats.totalRows}${colors.reset}`);
+      console.log(`  Time:            ${colors.blue}${((Date.now() - startTime) / 1000).toFixed(2)}s${colors.reset}\n`);
+
+      for (const [table, count] of Object.entries(v3Stats.rowsCopied)) {
+        console.log(`  ${table.padEnd(25)} ${colors.green}${String(count).padStart(6)}${colors.reset}`);
+      }
+      console.log('');
+      return;
+    }
+
+    // Connect to source database via sql.js (or better-sqlite3 if available)
+    const source = await openSourceDatabase(sourceDb);
 
     // Detect source database type
     const sourceType = detectSourceType(source);
@@ -298,7 +466,7 @@ export async function migrateCommand(options: MigrationOptions): Promise<void> {
   }
 }
 
-function detectSourceType(db: Database.Database): 'v1-agentdb' | 'claude-flow-memory' | 'unknown' {
+function detectSourceType(db: TargetDatabase): 'v1-agentdb' | 'claude-flow-memory' | 'unknown' {
   const tables = db.prepare(
     "SELECT name FROM sqlite_master WHERE type='table'"
   ).all().map((row: unknown) => (row as { name: string }).name);
@@ -317,7 +485,7 @@ function detectSourceType(db: Database.Database): 'v1-agentdb' | 'claude-flow-me
 }
 
 function analyzeMigration(
-  db: Database.Database,
+  db: TargetDatabase,
   sourceType: string,
   tables: string[]
 ): MigrationAnalysis {
@@ -354,7 +522,7 @@ function printMigrationAnalysis(analysis: MigrationAnalysis): void {
 }
 
 async function migrateClaudeFlowMemory(
-  source: Database.Database,
+  source: TargetDatabase,
   target: TargetDatabase,
   stats: MigrationStats,
   verbose: boolean
@@ -454,7 +622,7 @@ async function migrateClaudeFlowMemory(
 }
 
 async function migrateV1AgentDB(
-  source: Database.Database,
+  source: TargetDatabase,
   target: TargetDatabase,
   stats: MigrationStats,
   verbose: boolean

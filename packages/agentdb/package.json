@@ -1,6 +1,6 @@
 {
   "name": "agentdb",
-  "version": "3.0.0-alpha.0",
+  "version": "3.0.0-alpha.3",
   "description": "AgentDB v3 - Intelligent agentic vector database with RVF native format, RuVector-powered graph DB, Cypher queries, ACID persistence. 150x faster than SQLite with self-learning GNN, 6 cognitive memory patterns, semantic routing, COW branching, and comprehensive MCP integration. Runs anywhere: Node.js, browsers, edge, offline.",
   "type": "module",
   "main": "dist/src/index.js",
@@ -17,6 +17,8 @@
     "./wasm": "./dist/src/wasm-loader.js",
     "./package.json": "./package.json",
     "./cli": "./dist/src/cli/agentdb-cli.js",
+    "./cli/commands/migrate": "./dist/src/cli/commands/migrate.js",
+    "./db-fallback": "./dist/src/db-fallback.js",
     "./backends": "./dist/src/backends/index.js",
     "./backends/self-learning": "./dist/src/backends/rvf/SelfLearningRvfBackend.js",
     "./backends/native-accelerator": "./dist/src/backends/rvf/NativeAccelerator.js",
@@ -43,7 +45,8 @@
     "./controllers/QUICClient": "./dist/src/controllers/QUICClient.js",
     "./controllers/SyncCoordinator": "./dist/src/controllers/SyncCoordinator.js",
     "./controllers/HNSWIndex": "./dist/src/controllers/HNSWIndex.js",
-    "./controllers/AttentionService": "./dist/src/controllers/AttentionService.js"
+    "./controllers/AttentionService": "./dist/src/controllers/AttentionService.js",
+    "./model": "./dist/src/model/ModelCacheLoader.js"
   },
   "scripts": {
     "build": "npm run build:ts && npm run copy:schemas && npm run build:browser",
@@ -69,7 +72,8 @@
     "benchmark:backends": "tsx benchmarks/compare-backends.ts",
     "benchmark:profile": "tsx scripts/profile-hot-paths.ts",
     "benchmark:ruvector": "tsx benchmarks/ruvector-benchmark.ts",
-    "benchmark:all": "npm run benchmark:attention && npm run benchmark:backends && npm run benchmark:profile && npm run benchmark:ruvector"
+    "benchmark:all": "npm run benchmark:attention && npm run benchmark:backends && npm run benchmark:profile && npm run benchmark:ruvector",
+    "build:model": "node scripts/build-model-rvf.mjs"
   },
   "keywords": [
     "agentdb",
@@ -122,6 +126,7 @@
   "files": [
     "dist/src/",
     "dist/schemas/",
+    "dist/models/",
     "scripts/postinstall.cjs",
     "README.md",
     "LICENSE"

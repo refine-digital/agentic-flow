@@ -32,29 +32,41 @@ export class EmbeddingService {
       try {
         const transformers = await import('@xenova/transformers');
 
+        const env = transformers.env as Record<string, unknown>;
+
+        // Try to load model from bundled .rvf or local cache first
+        try {
+          const { ModelCacheLoader } = await import('../model/ModelCacheLoader.js');
+          const cached = await ModelCacheLoader.resolve(this.config.model);
+
+          if (cached) {
+            env.localModelPath = cached.localPath;
+            env.allowRemoteModels = false;
+            env.cacheDir = cached.localPath;
+          }
+        } catch {
+          // ModelCacheLoader not available — fall through to network download
+        }
+
         // Set Hugging Face token if available from environment
         const hfToken = process.env.HUGGINGFACE_API_KEY || process.env.HF_TOKEN;
-        if (hfToken) {
-          // Set the token for Transformers.js to use
-          if (transformers.env && typeof transformers.env === 'object') {
-            (transformers.env as Record<string, unknown>).HF_TOKEN = hfToken;
-            console.log('🔑 Using Hugging Face API key from environment');
-          }
+        if (hfToken && typeof env === 'object') {
+          env.HF_TOKEN = hfToken;
         }
 
         this.pipeline = await transformers.pipeline('feature-extraction', this.config.model);
-        console.log(`✅ Transformers.js loaded: ${this.config.model}`);
+        console.log(`Transformers.js loaded: ${this.config.model}`);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.warn(`⚠️  Transformers.js initialization failed: ${errorMessage}`);
+        console.warn(`Transformers.js initialization failed: ${errorMessage}`);
         console.warn('   Falling back to mock embeddings for testing');
         console.warn('   This is normal if:');
-        console.warn('     • Running offline/without internet access');
-        console.warn('     • Model not yet downloaded (~90MB on first use)');
-        console.warn('     • Network connectivity issues');
+        console.warn('     - Running offline/without internet access');
+        console.warn('     - Model not yet downloaded (~90MB on first use)');
+        console.warn('     - Network connectivity issues');
         console.warn('   To use real embeddings:');
-        console.warn('     • Ensure internet connectivity for first-time model download');
-        console.warn('     • Or pre-download: npx agentdb install-embeddings');
+        console.warn('     - Ensure internet connectivity for first-time model download');
+        console.warn('     - Or pre-download: npx agentdb install-embeddings');
         this.pipeline = null;
       }
     }
