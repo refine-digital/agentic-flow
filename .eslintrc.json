@@ -17,7 +17,8 @@
         "project": [
           "./tsconfig.json",
           "./agentic-flow/config/tsconfig.json",
-          "./packages/agentdb/tsconfig.json"
+          "./packages/agentdb/tsconfig.json",
+          "./packages/agentdb/tsconfig.eslint.json"
         ]
       },
       "extends": [

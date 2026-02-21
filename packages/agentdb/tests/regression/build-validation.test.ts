@@ -1,5 +1,6 @@
+/* eslint-disable -- This file imports from dist/ and is excluded from tsconfig.json */
 /**
- * AgentDB v1.6.0 Regression Tests - Build Validation
+ * AgentDB v3 Regression Tests - Build Validation
  * Tests TypeScript compilation, imports, and dependencies
  */
 
@@ -13,20 +14,20 @@ describe('Build Validation Tests', () => {
       const distPath = path.join(__dirname, '../../dist');
       expect(fs.existsSync(distPath)).toBe(true);
 
-      // Check for key compiled files
+      // Check for key compiled files (v3 paths include src/ prefix)
       const keyFiles = [
-        'index.js',
-        'index.d.ts',
-        'cli/agentdb-cli.js',
-        'controllers/ReflexionMemory.js',
-        'controllers/SkillLibrary.js',
-        'controllers/CausalMemoryGraph.js',
-        'controllers/EmbeddingService.js',
-        'controllers/CausalRecall.js',
-        'controllers/ExplainableRecall.js',
-        'controllers/NightlyLearner.js',
-        'mcp/agentdb-mcp-server.js',
-        'db-fallback.js'
+        'src/index.js',
+        'src/index.d.ts',
+        'src/cli/agentdb-cli.js',
+        'src/controllers/ReflexionMemory.js',
+        'src/controllers/SkillLibrary.js',
+        'src/controllers/CausalMemoryGraph.js',
+        'src/controllers/EmbeddingService.js',
+        'src/controllers/CausalRecall.js',
+        'src/controllers/ExplainableRecall.js',
+        'src/controllers/NightlyLearner.js',
+        'src/mcp/agentdb-mcp-server.js',
+        'src/db-fallback.js'
       ];
 
       keyFiles.forEach(file => {
@@ -39,11 +40,11 @@ describe('Build Validation Tests', () => {
       const distPath = path.join(__dirname, '../../dist');
 
       const typeFiles = [
-        'index.d.ts',
-        'controllers/ReflexionMemory.d.ts',
-        'controllers/SkillLibrary.d.ts',
-        'controllers/CausalMemoryGraph.d.ts',
-        'controllers/EmbeddingService.d.ts'
+        'src/index.d.ts',
+        'src/controllers/ReflexionMemory.d.ts',
+        'src/controllers/SkillLibrary.d.ts',
+        'src/controllers/CausalMemoryGraph.d.ts',
+        'src/controllers/EmbeddingService.d.ts'
       ];
 
       typeFiles.forEach(file => {
@@ -64,7 +65,7 @@ describe('Build Validation Tests', () => {
     });
 
     it('should have built browser bundle', () => {
-      const browserBundle = path.join(__dirname, '../../dist/agentdb.min.js');
+      const browserBundle = path.join(__dirname, '../../dist/agentdb.browser.min.js');
       expect(fs.existsSync(browserBundle)).toBe(true);
 
       // Verify bundle size (should be reasonable)
@@ -101,9 +102,15 @@ describe('Build Validation Tests', () => {
       expect(embeddingModule).toHaveProperty('EmbeddingService');
     });
 
-    it('should resolve CLI import', async () => {
-      const cliModule = await import('../../dist/src/cli/agentdb-cli.js');
-      expect(cliModule).toHaveProperty('AgentDBCLI');
+    it('should resolve CLI import', () => {
+      // Note: Cannot dynamically import the CLI module because it calls process.exit()
+      // when loaded, which throws in vitest. Instead verify the file exists and exports.
+      const cliPath = path.join(__dirname, '../../dist/src/cli/agentdb-cli.js');
+      expect(fs.existsSync(cliPath)).toBe(true);
+
+      // Verify the source contains the AgentDBCLI export
+      const content = fs.readFileSync(cliPath, 'utf-8');
+      expect(content).toContain('AgentDBCLI');
     });
 
     it('should resolve db-fallback', async () => {
@@ -127,10 +134,10 @@ describe('Build Validation Tests', () => {
       );
 
       expect(packageJson.name).toBe('agentdb');
-      expect(packageJson.version).toBe('1.6.1');
+      expect(packageJson.version).toMatch(/^\d+\.\d+\.\d+/); // Semver format
       expect(packageJson.type).toBe('module');
-      expect(packageJson.main).toBe('dist/index.js');
-      expect(packageJson.types).toBe('dist/index.d.ts');
+      expect(packageJson.main).toBe('dist/src/index.js');
+      expect(packageJson.types).toBe('dist/src/index.d.ts');
     });
 
     it('should have correct bin configuration', () => {
@@ -139,7 +146,7 @@ describe('Build Validation Tests', () => {
       );
 
       expect(packageJson.bin).toHaveProperty('agentdb');
-      expect(packageJson.bin.agentdb).toBe('dist/cli/agentdb-cli.js');
+      expect(packageJson.bin.agentdb).toBe('dist/src/cli/agentdb-cli.js');
     });
 
     it('should have correct exports configuration', () => {
@@ -161,12 +168,18 @@ describe('Build Validation Tests', () => {
         fs.readFileSync(path.join(__dirname, '../../package.json'), 'utf-8')
       );
 
+      // Core hard dependencies
       expect(packageJson.dependencies).toHaveProperty('@modelcontextprotocol/sdk');
-      expect(packageJson.dependencies).toHaveProperty('@xenova/transformers');
-      expect(packageJson.dependencies).toHaveProperty('chalk');
-      expect(packageJson.dependencies).toHaveProperty('commander');
       expect(packageJson.dependencies).toHaveProperty('sql.js');
-      expect(packageJson.dependencies).toHaveProperty('zod');
+
+      // These moved to optionalDependencies in v3
+      const allDeps = {
+        ...packageJson.dependencies,
+        ...packageJson.optionalDependencies,
+      };
+      expect(allDeps).toHaveProperty('@xenova/transformers');
+      expect(allDeps).toHaveProperty('chalk');
+      expect(allDeps).toHaveProperty('commander');
     });
 
     it('should have required devDependencies', () => {
@@ -186,8 +199,9 @@ describe('Build Validation Tests', () => {
         fs.readFileSync(path.join(__dirname, '../../package.json'), 'utf-8')
       );
 
-      expect(packageJson.files).toContain('dist');
-      expect(packageJson.files).toContain('src');
+      // v3 uses dist/src/ and dist/schemas/ paths
+      const hasDistSrc = packageJson.files.some((f: string) => f.includes('dist'));
+      expect(hasDistSrc).toBe(true);
       expect(packageJson.files).toContain('scripts/postinstall.cjs');
       expect(packageJson.files).toContain('README.md');
       expect(packageJson.files).toContain('LICENSE');

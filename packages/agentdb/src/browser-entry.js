@@ -9,6 +9,7 @@ import initSqlJs from 'sql.js';
  * Detect if running in browser environment
  */
 function isBrowser() {
+  // eslint-disable-next-line no-undef
   return typeof window !== 'undefined' && typeof window.document !== 'undefined';
 }
 
@@ -87,7 +88,7 @@ class AgentDBBrowser {
   async search(query, k = 10) {
     if (!this.initialized) await this.init();
 
-    const queryEmbedding = this.simpleEmbed(query);
+    this.simpleEmbed(query); // compute embedding for future similarity use
     const results = this.db.exec('SELECT id, metadata FROM vectors');
 
     if (!results.length) return [];

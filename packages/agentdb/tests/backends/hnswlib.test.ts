@@ -295,8 +295,9 @@ describe('HNSW Backend Tests', () => {
 
       const stats = index.getStats();
       expect(stats.totalSearches).toBe(3);
-      expect(stats.avgSearchTimeMs).toBeGreaterThan(0);
-      expect(stats.lastSearchTime).toBeGreaterThan(0);
+      // Search may complete in <1ms (Date.now() granularity), so allow 0
+      expect(stats.avgSearchTimeMs).toBeGreaterThanOrEqual(0);
+      expect(stats.lastSearchTime).toBeGreaterThanOrEqual(0);
     });
   });
 
@@ -486,12 +487,13 @@ describe('HNSW Backend Tests', () => {
       await index1.buildIndex('pattern_embeddings');
       const stats1 = index1.getStats();
 
-      // Create new instance and load
+      // Create new instance and load (must call initialize() to trigger deferred load)
       const index2 = new HNSWIndex(mockDb as unknown as HNSWDb, {
         dimension: DIMENSION,
         persistIndex: true,
         indexPath,
       });
+      await index2.initialize();
 
       const stats2 = index2.getStats();
 

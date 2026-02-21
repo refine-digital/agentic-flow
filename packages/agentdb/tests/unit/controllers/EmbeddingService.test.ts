@@ -144,8 +144,9 @@ describe('EmbeddingService', () => {
       await embedder.embed(text);
       const duration2 = Date.now() - startTime2;
 
-      // Cached call should be significantly faster
-      expect(duration2).toBeLessThan(duration1);
+      // Cached call should be at least as fast as the first call
+      // (both may be 0ms in fast environments, so use <= instead of <)
+      expect(duration2).toBeLessThanOrEqual(duration1);
     });
 
     it('should return same instance from cache', async () => {

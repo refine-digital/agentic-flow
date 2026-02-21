@@ -411,8 +411,8 @@ export class HNSWIndex {
         fs.mkdirSync(indexDir, { recursive: true });
       }
 
-      // Save HNSW index
-      this.index.writeIndex(this.config.indexPath);
+      // Save HNSW index (writeIndex returns a Promise that must be awaited)
+      await this.index.writeIndex(this.config.indexPath);
 
       // Save mappings
       const mappingsPath = this.config.indexPath + '.mappings.json';
@@ -445,9 +445,9 @@ export class HNSWIndex {
       // Lazy-load hnswlib-node first
       await loadHnswlib();
 
-      // Load HNSW index
+      // Load HNSW index (readIndex returns a Promise that must be awaited)
       this.index = new HierarchicalNSW(this.config.metric, this.config.dimension);
-      this.index.readIndex(this.config.indexPath);
+      await this.index.readIndex(this.config.indexPath);
       this.index.setEf(this.config.efSearch);
 
       // Load mappings

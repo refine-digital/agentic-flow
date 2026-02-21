@@ -8,7 +8,7 @@
  * 4. Column name injection in WHERE/SET clauses
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 import {
   validateTableName,
   validateColumnName,

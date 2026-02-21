@@ -245,12 +245,14 @@ export class HNSWLibBackend implements VectorBackend {
       return false; // Not found
     }
 
-    // Mark as deleted (can't actually remove from hnswlib)
+    // Mark as deleted (can't actually remove from hnswlib index)
     this.deletedIds.add(id);
     this.metadata.delete(id);
 
-    // Note: We keep idToLabel/labelToId mappings for consistency
-    // A full rebuild would be needed to reclaim space
+    // Clean up mappings so the ID can be re-inserted
+    // The underlying hnswlib point remains but is filtered out in search
+    this.labelToId.delete(label);
+    this.idToLabel.delete(id);
 
     return true;
   }
@@ -259,7 +261,8 @@ export class HNSWLibBackend implements VectorBackend {
    * Get backend statistics
    */
   getStats(): VectorStats {
-    const activeCount = this.idToLabel.size - this.deletedIds.size;
+    // idToLabel only contains active (non-deleted) IDs
+    const activeCount = this.idToLabel.size;
 
     return {
       count: activeCount,
@@ -285,8 +288,8 @@ export class HNSWLibBackend implements VectorBackend {
         await fs.mkdir(indexDir, { recursive: true });
       }
 
-      // Save HNSW index
-      this.index.writeIndex(savePath);
+      // Save HNSW index (writeIndex returns a Promise that must be awaited)
+      await this.index.writeIndex(savePath);
 
       // Save mappings and metadata
       const mappingsPath = savePath + '.mappings.json';
@@ -331,8 +334,8 @@ export class HNSWLibBackend implements VectorBackend {
 
       this.index = new HierarchicalNSW(metric, this.config.dimension);
 
-      // Load HNSW index
-      this.index.readIndex(loadPath);
+      // Load HNSW index (readIndex returns a Promise that must be awaited)
+      await this.index.readIndex(loadPath);
       this.index.setEf(this.config.efSearch!);
 
       // Load mappings and metadata
@@ -427,9 +430,11 @@ export class HNSWLibBackend implements VectorBackend {
    * @param updateThreshold - Percentage of deletes to trigger rebuild (default: 0.1)
    */
   needsRebuild(updateThreshold: number = 0.1): boolean {
-    if (this.idToLabel.size === 0) return false;
+    // Total = active IDs + deleted IDs (deleted IDs still occupy hnswlib index space)
+    const totalIds = this.idToLabel.size + this.deletedIds.size;
+    if (totalIds === 0) return false;
 
-    const deletePercentage = this.deletedIds.size / this.idToLabel.size;
+    const deletePercentage = this.deletedIds.size / totalIds;
     return deletePercentage > updateThreshold;
   }
 

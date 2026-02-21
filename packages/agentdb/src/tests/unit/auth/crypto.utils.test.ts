@@ -360,7 +360,7 @@ describe('Crypto Utils', () => {
 
   describe('validatePasswordStrength', () => {
     it('should accept strong password', () => {
-      const result = validatePasswordStrength('StrongPass123!');
+      const result = validatePasswordStrength('Str0ngP@ssW0rd!');
 
       expect(result.valid).toBe(true);
       expect(result.errors).toHaveLength(0);

@@ -415,8 +415,8 @@ describe('HNSWLibBackend', () => {
     });
 
     it('should search efficiently on large dataset', () => {
-      // Insert 10K vectors
-      for (let i = 0; i < 10000; i++) {
+      // Insert vectors up to the backend's maxElements limit (1000)
+      for (let i = 0; i < 1000; i++) {
         const embedding = new Float32Array(384);
         for (let j = 0; j < 384; j++) {
           embedding[j] = Math.random();
@@ -429,7 +429,7 @@ describe('HNSWLibBackend', () => {
       backend.search(query, 10);
       const duration = performance.now() - start;
 
-      // Should be fast even with 10K vectors
+      // Should be fast even with 1K vectors
       expect(duration).toBeLessThan(100); // < 100ms
     });
   });
