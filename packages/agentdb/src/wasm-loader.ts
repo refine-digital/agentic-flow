@@ -122,22 +122,6 @@ export {
   type BenchmarkConfig,
 } from './benchmark/index.js';
 
-// Coordination - Multi-database synchronization
-export {
-  MultiDatabaseCoordinator,
-  type DatabaseInstance,
-  type InstanceStatus,
-  type ConflictResolutionStrategy,
-  type SyncOptions,
-  type SyncProgress,
-  type SyncResult,
-  type ConflictInfo,
-  type VectorData,
-  type MultiDatabaseCoordinatorConfig,
-  type StatusChangeCallback,
-  type DistributedOperationResult,
-} from './coordination/index.js';
-
 // Vector Backends - WASM-only exports
 export type {
   VectorBackend,
