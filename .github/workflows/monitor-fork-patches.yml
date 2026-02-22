@@ -1,0 +1,102 @@
+name: Monitor Fork Patches
+
+on:
+  workflow_call:
+    inputs:
+      new_commits:
+        description: 'Whether upstream had new commits'
+        required: true
+        type: boolean
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  monitor:
+    name: Check patched files against upstream
+    runs-on: ubuntu-latest
+    if: ${{ inputs.new_commits }}
+
+    # List of files your fork has patched.
+    # Add/remove entries here as your fork diverges or re-aligns with upstream.
+    env:
+      PATCHED_FILES: |
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream https://github.com/ruvnet/agentic-flow.git
+          git fetch upstream main --depth=1
+
+      - name: Check patched files for upstream changes
+        id: check
+        run: |
+          CHANGED=""
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            if git diff HEAD upstream/main -- "$file" | grep -q "^[-+]"; then
+              echo "UPSTREAM CHANGED: $file"
+              CHANGED="${CHANGED}- \`${file}\`\n"
+            else
+              echo "No upstream change: $file"
+            fi
+          done <<< "$PATCHED_FILES"
+
+          if [ -n "$CHANGED" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "files<<EOF" >> $GITHUB_OUTPUT
+            echo -e "$CHANGED" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Open or update tracking issue
+        if: steps.check.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          UPSTREAM_SHA=$(git rev-parse upstream/main | cut -c1-8)
+          TITLE="[upstream-watch] Patched file(s) modified in upstream"
+          BODY="## Upstream has modified file(s) that this fork patches
+
+          One or more files that this fork has patched were changed in upstream commit \`${UPSTREAM_SHA}\`.
+          Review whether the upstream change resolves the patch so it can be removed.
+
+          ### Changed files
+          ${{ steps.check.outputs.files }}
+
+          ### What to check
+          - Does the upstream change fix the same issue as the fork patch?
+          - If yes: remove the patch from the fork and update \`.github/workflows/monitor-fork-patches.yml\`
+          - If no: review and keep the fork patch, this issue can be closed
+
+          ### Useful diff command
+          \`\`\`bash
+          git diff HEAD upstream/main -- <file>
+          \`\`\`
+
+          ---
+          *Opened automatically by [monitor-fork-patches](/.github/workflows/monitor-fork-patches.yml)*"
+
+          EXISTING=$(gh issue list --repo ${{ github.repository }} \
+            --state open --search "$TITLE" --json number --jq '.[0].number')
+
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" \
+              --repo ${{ github.repository }} \
+              --body "Re-triggered on upstream commit \`${UPSTREAM_SHA}\`. Files still diverged:\n${{ steps.check.outputs.files }}"
+            echo "Updated existing issue #${EXISTING}"
+          else
+            gh issue create \
+              --repo ${{ github.repository }} \
+              --title "$TITLE" \
+              --body "$BODY" \
+              --label "upstream-watch"
+            echo "Created new tracking issue"
+          fi
