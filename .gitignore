@@ -120,3 +120,16 @@ coordination/orchestration/*
 claude-flow
 # Removed Windows wrapper files per user request
 hive-mind-prompt-*.txt
+
+# RVF runtime data
+*.rvf
+*.rvf.lock
+
+# Package archives
+*.tgz
+
+# SQLite memory artifacts
+:memory:
+
+# SHM files
+*.db-shm

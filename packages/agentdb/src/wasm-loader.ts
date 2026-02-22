@@ -122,22 +122,6 @@ export {
   type BenchmarkConfig,
 } from './benchmark/index.js';
 
-// Coordination - Multi-database synchronization
-export {
-  MultiDatabaseCoordinator,
-  type DatabaseInstance,
-  type InstanceStatus,
-  type ConflictResolutionStrategy,
-  type SyncOptions,
-  type SyncProgress,
-  type SyncResult,
-  type ConflictInfo,
-  type VectorData,
-  type MultiDatabaseCoordinatorConfig,
-  type StatusChangeCallback,
-  type DistributedOperationResult,
-} from './coordination/index.js';
-
 // Vector Backends - WASM-only exports
 export type {
   VectorBackend,
@@ -149,6 +133,7 @@ export type {
 
 export { RuVectorBackend } from './backends/ruvector/RuVectorBackend.js';
 export { RuVectorLearning } from './backends/ruvector/RuVectorLearning.js';
+export { RvfBackend } from './backends/rvf/RvfBackend.js';
 // Note: HNSWLibBackend is NOT exported - use the main entry point if you need it
 
 export {
@@ -159,4 +144,65 @@ export {
   getInstallCommand
 } from './backends/factory.js';
 
-export type { BackendType, BackendDetection } from './backends/factory.js';
+export type { BackendType, BackendDetection, RvfDetection } from './backends/factory.js';
+export type { VectorBackendAsync } from './backends/VectorBackend.js';
+export type { RvfConfig, IndexStats, WitnessVerification } from './backends/rvf/RvfBackend.js';
+
+// RVF Solver (AGI capabilities - ADR-004)
+export { AgentDBSolver } from './backends/rvf/RvfSolver.js';
+export type {
+  SolverTrainOptions,
+  SolverTrainResult,
+  SolverCycleMetrics,
+  SolverModeResult,
+  SolverAcceptanceManifest,
+  SolverAcceptanceOptions,
+  SolverPolicyState,
+} from './backends/rvf/RvfSolver.js';
+
+// SONA Learning Backend (ADR-005)
+export { SonaLearningBackend } from './backends/rvf/SonaLearningBackend.js';
+export type {
+  SonaConfig,
+  LearnedPattern,
+  SonaStats,
+} from './backends/rvf/SonaLearningBackend.js';
+
+// Adaptive Index & Memory Management (ADR-005)
+export { TemporalCompressor, IndexHealthMonitor } from './backends/rvf/AdaptiveIndexTuner.js';
+export type {
+  CompressionTier,
+  CompressedEntry,
+  IndexHealth,
+  CompressionStats,
+} from './backends/rvf/AdaptiveIndexTuner.js';
+
+// Contrastive Embedding Improvement (ADR-005 Phase 3)
+export { ContrastiveTrainer } from './backends/rvf/ContrastiveTrainer.js';
+export type {
+  ContrastiveSample,
+  TrainBatchResult,
+  TrainingStats,
+  CurriculumStage,
+  ContrastiveConfig,
+} from './backends/rvf/ContrastiveTrainer.js';
+
+// Semantic Query Router (ADR-005 Phase 3)
+export { SemanticQueryRouter } from './backends/rvf/SemanticQueryRouter.js';
+export type {
+  RouteMatch,
+  IntentConfig,
+  RouterConfig,
+  RouterStats,
+} from './backends/rvf/SemanticQueryRouter.js';
+
+// Federated Cross-Session Learning (ADR-005 Phase 4)
+export { FederatedSessionManager, SessionHandle } from './backends/rvf/FederatedSessionManager.js';
+export type {
+  FederatedConfig,
+  SessionState,
+  TrajectoryRecord,
+  SessionStats,
+  FederatedStats,
+  FederatedPattern,
+} from './backends/rvf/FederatedSessionManager.js';

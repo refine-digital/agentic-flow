@@ -44,7 +44,7 @@ export interface SearchResult {
   similarity: number;
 
   /** Optional metadata attached to vector */
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface SearchOptions {
@@ -55,7 +55,7 @@ export interface SearchOptions {
   efSearch?: number;
 
   /** Metadata filters (post-filtering) */
-  filter?: Record<string, any>;
+  filter?: Record<string, unknown>;
 }
 
 export interface VectorStats {
@@ -69,7 +69,7 @@ export interface VectorStats {
   metric: string;
 
   /** Backend name */
-  backend: 'ruvector' | 'hnswlib';
+  backend: 'ruvector' | 'hnswlib' | 'rvf';
 
   /** Memory usage in bytes (0 if not available) */
   memoryUsage: number;
@@ -86,7 +86,7 @@ export interface VectorStats {
  */
 export interface VectorBackend {
   /** Backend name for detection and logging */
-  readonly name: 'ruvector' | 'hnswlib';
+  readonly name: 'ruvector' | 'hnswlib' | 'rvf';
 
   /**
    * Insert a single vector with optional metadata
@@ -94,7 +94,7 @@ export interface VectorBackend {
    * @param embedding - Vector as Float32Array
    * @param metadata - Optional metadata to store with vector
    */
-  insert(id: string, embedding: Float32Array, metadata?: Record<string, any>): void;
+  insert(id: string, embedding: Float32Array, metadata?: Record<string, unknown>): void;
 
   /**
    * Insert multiple vectors in batch (more efficient)
@@ -103,7 +103,7 @@ export interface VectorBackend {
   insertBatch(items: Array<{
     id: string;
     embedding: Float32Array;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }>): void;
 
   /**
@@ -144,4 +144,35 @@ export interface VectorBackend {
    * Close and cleanup resources
    */
   close(): void;
+}
+
+/**
+ * VectorBackendAsync - Extended interface for async-native backends (e.g., RVF)
+ *
+ * Backends like @ruvector/rvf are fully async. This interface provides
+ * native async methods while maintaining backward compatibility with
+ * the sync VectorBackend interface.
+ */
+export interface VectorBackendAsync extends VectorBackend {
+  /** Async single-vector insert */
+  insertAsync(id: string, embedding: Float32Array, metadata?: Record<string, unknown>): Promise<void>;
+
+  /** Async batch insert (preferred for RVF) */
+  insertBatchAsync(items: Array<{
+    id: string;
+    embedding: Float32Array;
+    metadata?: Record<string, unknown>;
+  }>): Promise<void>;
+
+  /** Async k-NN search with native filter support */
+  searchAsync(query: Float32Array, k: number, options?: SearchOptions): Promise<SearchResult[]>;
+
+  /** Async remove by ID */
+  removeAsync(id: string): Promise<boolean>;
+
+  /** Async stats with live store status */
+  getStatsAsync(): Promise<VectorStats>;
+
+  /** Flush any pending writes (for backends that batch sync calls) */
+  flush(): Promise<void>;
 }

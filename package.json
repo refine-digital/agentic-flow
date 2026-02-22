@@ -199,7 +199,6 @@
     "@anthropic-ai/sdk": "^0.65.0",
     "@google/genai": "^1.22.0",
     "@ruvector/attention": "^0.1.2",
-    "@ruvector/attention-linux-x64-gnu": "^0.1.1",
     "@ruvector/gnn": "^0.1.23",
     "@ruvector/ruvllm": "^0.2.4",
     "@ruvector/sona": "^0.1.3",
@@ -218,6 +217,7 @@
     "fastmcp": "^3.19.0",
     "http-proxy-middleware": "^3.0.5",
     "lucide-react": "^0.548.0",
+    "marked": "^17.0.3",
     "postcss": "^8.5.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -271,9 +271,9 @@
     }
   },
   "optionalDependencies": {
-    "@ruvector/attention-linux-x64-gnu": "^0.1.1",
     "@ruvector/attention-darwin-arm64": "^0.1.1",
     "@ruvector/attention-darwin-x64": "^0.1.1",
+    "@ruvector/attention-linux-x64-gnu": "^0.1.1",
     "@ruvector/attention-win32-x64-msvc": "^0.1.1"
   }
 }

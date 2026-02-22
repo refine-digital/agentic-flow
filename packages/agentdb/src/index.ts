@@ -28,6 +28,9 @@ export { ReasoningBank } from './controllers/ReasoningBank.js';
 export { EmbeddingService } from './controllers/EmbeddingService.js';
 export { EnhancedEmbeddingService } from './controllers/EnhancedEmbeddingService.js';
 
+// Model cache (offline .rvf model loading)
+export { ModelCacheLoader } from './model/ModelCacheLoader.js';
+
 // WASM acceleration and HNSW indexing
 export { WASMVectorSearch } from './controllers/WASMVectorSearch.js';
 export { HNSWIndex, isHnswlibAvailable } from './controllers/HNSWIndex.js';
@@ -128,22 +131,6 @@ export {
 
 // Re-export all controllers for convenience
 export * from './controllers/index.js';
-
-// Coordination - Multi-database synchronization
-export {
-  MultiDatabaseCoordinator,
-  type DatabaseInstance,
-  type InstanceStatus,
-  type ConflictResolutionStrategy,
-  type SyncOptions,
-  type SyncProgress,
-  type SyncResult,
-  type ConflictInfo,
-  type VectorData,
-  type MultiDatabaseCoordinatorConfig,
-  type StatusChangeCallback,
-  type DistributedOperationResult,
-} from './coordination/index.js';
 
 // LLM Router - Multi-provider LLM integration with RuvLLM support
 export {

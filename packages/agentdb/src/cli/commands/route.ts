@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * LLM Router CLI Command
  * Provides FastGRNN-based model selection and adaptive routing
@@ -7,7 +8,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import * as fs from 'fs/promises';
-import * as path from 'path';
 
 // Model types
 type ModelType = 'haiku' | 'sonnet' | 'opus' | 'gpt-4' | 'gpt-3.5';
@@ -180,7 +180,7 @@ async function routePrompt(
     wasmAccelerated: wasmAvailable,
     features,
     routingTimeMs: routingTime,
-  };
+  } as any;
 }
 
 /**
@@ -277,7 +277,7 @@ function extractPromptFeatures(prompt: string, context: any, history: any[]): an
     sentenceCount: sentences.length,
     avgWordsPerSentence: words.length / Math.max(sentences.length, 1),
     hasCode: /```|`\w+`|function|class|import/.test(prompt),
-    hasMultipleLanguages: /[^\u0000-\u007F]/.test(prompt),
+    hasMultipleLanguages: /[^\u0020-\u007F]/.test(prompt),
     hasQuestions: /\?/.test(prompt),
     complexity: estimateComplexity(prompt),
     historyLength: history.length,
