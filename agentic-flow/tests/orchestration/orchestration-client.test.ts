@@ -39,4 +39,43 @@ describe('OrchestrationClient', () => {
     const result = await client.cancel(runId);
     expect(result.success).toBe(true);
   });
+
+  it('startRun accepts loopPolicy and passes it through', async () => {
+    const client = createOrchestrationClient({ config: { backend: 'test' } });
+    const { runId } = await client.startRun({
+      taskDescription: 'Task with loop policy',
+      loopPolicy: {
+        maxIterations: 3,
+        successCriteria: { tests: true, lint: true },
+        retryPolicy: { maxAttempts: 2, backoffMs: 100 },
+        budgetLimits: { timeMs: 60_000 },
+      },
+    });
+    expect(runId).toBeDefined();
+    const status = await client.getStatus(runId);
+    expect(status.runId).toBe(runId);
+  });
+
+  it('seed, search, and harvest work for a run', async () => {
+    const client = createOrchestrationClient({ config: { backend: 'test' } });
+    const { runId } = await client.startRun({
+      taskDescription: 'Task',
+      memorySeed: [{ key: 'k1', value: 'initial context', metadata: {} }],
+    });
+
+    await client.seed(runId, [
+      { key: 'k2', value: 'extra context for run', metadata: { source: 'test' } },
+    ]);
+
+    const runScope = { runId };
+    const results = await client.search(runScope, 'context', 10);
+    expect(Array.isArray(results)).toBe(true);
+    expect(results.length).toBeGreaterThanOrEqual(1);
+    expect(results.some((r) => r.value.includes('context'))).toBe(true);
+
+    const harvested = await client.harvest(runId);
+    expect(harvested.entries.length).toBeGreaterThanOrEqual(1);
+    expect(harvested.learnings).toBeDefined();
+    expect(Array.isArray(harvested.learnings)).toBe(true);
+  });
 });

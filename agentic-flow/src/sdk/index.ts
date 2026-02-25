@@ -169,7 +169,7 @@ export {
   type SecurityContext
 } from './security.js';
 
-// Orchestration runtime API (stable programmatic API)
+// Orchestration runtime API (stable programmatic API + loop policy + generic client)
 export {
   createOrchestrator,
   getRunStatus,
@@ -182,6 +182,7 @@ export {
   type RunStatus,
   type RunPhase,
   type RunArtifacts,
+  type RunProvenance,
   type OrchestrateTaskInput,
   type LoopPolicy,
   type SuccessCriteria,
@@ -190,7 +191,17 @@ export {
   seedMemory,
   recordLearning,
   searchMemory,
+  harvestMemory,
   type MemoryEntry,
   type MemorySearchResult,
-  type MemorySearchScope
+  type MemorySearchScope,
+  type RunLearning,
+  createOrchestrationClient,
+  type StartRunInput,
+  type ClientRunStatus,
+  type ClientHarvestResult,
+  type RunStatusState,
+  type CancelRunResult,
+  type OrchestrationClient,
+  type CreateOrchestrationClientOptions,
 } from '../orchestration/index.js';

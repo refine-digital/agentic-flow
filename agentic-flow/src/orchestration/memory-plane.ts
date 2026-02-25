@@ -88,3 +88,23 @@ export async function searchMemory(
   results.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   return results.slice(0, Math.max(0, topK));
 }
+
+/** Learning record stored for a run. */
+export interface RunLearning {
+  learning: string;
+  score?: number;
+  provenance?: Record<string, unknown>;
+}
+
+/**
+ * Harvest run-scoped memory (entries + learnings) for a run. Use after completion
+ * to pull context and learnings with provenance for audit or reuse.
+ */
+export async function harvestMemory(runId: string): Promise<{
+  entries: MemoryEntry[];
+  learnings: RunLearning[];
+}> {
+  const entries = runEntriesStore.get(runId) ?? [];
+  const learnings = runLearningsStore.get(runId) ?? [];
+  return { entries: [...entries], learnings: [...learnings] };
+}

@@ -12,7 +12,20 @@ import {
   cancelRun,
   getRunArtifacts,
 } from './orchestration-runtime.js';
-import type { OrchestratorConfig, RunPhase } from './orchestration-types.js';
+import type {
+  OrchestratorConfig,
+  RunPhase,
+  LoopPolicy,
+} from './orchestration-types.js';
+import {
+  seedMemory,
+  recordLearning,
+  searchMemory,
+  harvestMemory,
+} from './memory-plane.js';
+import type { MemorySearchScope } from './memory-plane-types.js';
+import type { MemorySearchResult } from './memory-plane-types.js';
+import type { RunLearning } from './memory-plane.js';
 
 /** Generic input for starting a run. Apps map their payload to this shape. */
 export interface StartRunInput {
@@ -35,6 +48,8 @@ export interface StartRunInput {
   forbiddenPaths?: string[];
   /** Provenance (run/card/assignment ids) for audit. */
   provenance?: { runId?: string; assignmentId?: string; cardId?: string; [key: string]: unknown };
+  /** Loop policy: max iterations, success criteria, retry, budget. Pass-through for backends. */
+  loopPolicy?: LoopPolicy;
 }
 
 /** Status state returned by the generic client. */
@@ -63,11 +78,30 @@ export interface CancelRunResult {
   error?: string;
 }
 
+/** Harvested run memory (entries + learnings with provenance). */
+export interface ClientHarvestResult {
+  entries: Array<{ key?: string; value: string; metadata?: Record<string, unknown> }>;
+  learnings: RunLearning[];
+}
+
 /** Generic orchestration client interface. */
 export interface OrchestrationClient {
   startRun(input: StartRunInput): Promise<{ runId: string }>;
   getStatus(runId: string): Promise<ClientRunStatus>;
   cancel(runId: string): Promise<CancelRunResult>;
+  /** Seed run-scoped memory before or during a run. */
+  seed(runId: string, entries: Array<{ key?: string; value: string; metadata?: Record<string, unknown> }>): Promise<void>;
+  /** Record a learning/pattern for the run (included in harvest). */
+  recordLearning(
+    runId: string,
+    learning: string,
+    score?: number,
+    provenance?: Record<string, unknown>
+  ): Promise<void>;
+  /** Search memory (run-scoped or global). */
+  search(scope: MemorySearchScope | { runId?: string }, query: string, topK: number): Promise<MemorySearchResult[]>;
+  /** Harvest run-scoped entries and learnings after a run (for audit/reuse). */
+  harvest(runId: string): Promise<ClientHarvestResult>;
 }
 
 function phaseToState(phase: RunPhase): RunStatusState {
@@ -117,6 +151,7 @@ export function createOrchestrationClient(
         allowedPaths: input.allowedPaths,
         forbiddenPaths: input.forbiddenPaths,
         provenance: input.provenance,
+        loopPolicy: input.loopPolicy,
       });
       return { runId: handle.runId };
     },
@@ -149,6 +184,34 @@ export function createOrchestrationClient(
         const message = err instanceof Error ? err.message : String(err);
         return { success: false, error: message };
       }
+    },
+
+    async seed(
+      runId: string,
+      entries: Array<{ key?: string; value: string; metadata?: Record<string, unknown> }>
+    ): Promise<void> {
+      await seedMemory(runId, entries);
+    },
+
+    async recordLearning(
+      runId: string,
+      learning: string,
+      score?: number,
+      provenance?: Record<string, unknown>
+    ): Promise<void> {
+      await recordLearning(runId, learning, score, provenance);
+    },
+
+    async search(
+      scope: MemorySearchScope | { runId?: string },
+      query: string,
+      topK: number
+    ): Promise<MemorySearchResult[]> {
+      return searchMemory(scope, query, topK);
+    },
+
+    async harvest(runId: string): Promise<ClientHarvestResult> {
+      return harvestMemory(runId);
     },
   };
 }

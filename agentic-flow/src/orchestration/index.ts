@@ -29,13 +29,20 @@ export {
   type Orchestrator,
 } from './orchestration-runtime.js';
 
-export { seedMemory, recordLearning, searchMemory } from './memory-plane.js';
+export {
+  seedMemory,
+  recordLearning,
+  searchMemory,
+  harvestMemory,
+  type RunLearning,
+} from './memory-plane.js';
 
 // Generic orchestration client (stable input/output for build agents, IDEs, CI)
 export {
   createOrchestrationClient,
   type StartRunInput,
   type ClientRunStatus,
+  type ClientHarvestResult,
   type RunStatusState,
   type CancelRunResult,
   type OrchestrationClient,

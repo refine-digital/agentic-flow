@@ -97,5 +97,6 @@ Explicit methods (not prompt-only):
 
 - Plan: Stable Programmatic Orchestration API (PR1–PR3).
 - **Library entry:** `import … from 'agentic-flow/orchestration'` — use this for in-process orchestration from build systems, IDEs, CI, or other Node apps ([#110](https://github.com/ruvnet/agentic-flow/issues/110)).
+- **Integration guide (agent-friendly):** [Programmatic API Integration](../integration/PROGRAMMATIC-API-INTEGRATION.md) — entry point, client API reference, when to use client vs low-level API, minimal examples for easy integration.
 - SDK: `agentic-flow/sdk` also re-exports orchestration (and other integrations); for orchestration-only usage, `agentic-flow/orchestration` is the minimal, side-effect-free entry.
 - MCP/CLI: Existing tools remain; they can be refactored to call this API for a single code path.
