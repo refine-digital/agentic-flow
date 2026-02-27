@@ -10,6 +10,8 @@
   },
   "exports": {
     ".": "./dist/index.js",
+    "./orchestration": "./dist/orchestration/index.js",
+    "./sdk": "./dist/sdk/index.js",
     "./package.json": "./package.json",
     "./reasoningbank": {
       "node": "./dist/reasoningbank/index.js",
@@ -58,7 +60,9 @@
     "proxy:dev": "tsx src/proxy/anthropic-to-openrouter.ts",
     "proxy:quic": "node dist/proxy/quic-proxy.js",
     "proxy:quic:dev": "tsx src/proxy/quic-proxy.ts",
-    "benchmark:embeddings": "tsx src/benchmarks/embeddings-benchmark.ts"
+    "benchmark:embeddings": "tsx src/benchmarks/embeddings-benchmark.ts",
+    "test:orchestration": "vitest run tests/orchestration/ --reporter=verbose",
+    "test:orchestration:smoke": "tsx tests/orchestration/orchestration-api.smoke.ts && tsx tests/orchestration/loop-policy.smoke.ts && tsx tests/orchestration/memory-plane.smoke.ts"
   },
   "keywords": [
     "ai",
@@ -170,6 +174,7 @@
     "zod": "^3.25.76"
   },
   "optionalDependencies": {
+    "@rollup/rollup-darwin-arm64": "^4.59.0",
     "@ruvector/attention": "^0.1.4",
     "@ruvector/sona": "^0.1.4",
     "agentdb": "^2.0.0-alpha.3.5",
