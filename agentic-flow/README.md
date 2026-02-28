@@ -57,6 +57,27 @@ const result = await flow.route('Fix the login bug');
 console.log(`Best agent: ${result.agent} (${result.confidence}% confidence)`);
 ```
 
+### Programmatic orchestration API (library-safe)
+
+Build systems, IDEs, and CI can drive orchestration **in-process** without spawning the CLI or MCP. Import from the **orchestration** subpath (side-effect-free; no CLI, no servers).
+
+**Generic client** (recommended for build agents — stable input/output: task description, memory seed, paths, provenance):
+
+```ts
+import { createOrchestrationClient } from 'agentic-flow/orchestration';
+
+const client = createOrchestrationClient({ config: { backend: 'safe-exec' } });
+const { runId } = await client.startRun({
+  taskDescription: 'Your task',
+  acceptanceCriteria: ['Tests pass'],
+  allowedPaths: ['src/'],
+  provenance: { runId: 'build-1', cardId: 'card-42' },
+});
+const status = await client.getStatus(runId);
+```
+
+**Low-level API:** `createOrchestrator`, `orchestrateTask`, `getRunStatus`, `cancelRun` — see [Orchestration API & Memory Plane](docs/architecture/orchestration-memory-plane.md). Do **not** use the default entry (`import 'agentic-flow'`) for library use; it runs the CLI and starts servers.
+
 ---
 
 ## 🎉 What's New in v2
